@@ -17,13 +17,8 @@ package org.springframework.security.config.annotation.web.configurers
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.security.core.userdetails.PasswordEncodedUser
-import org.springframework.security.web.firewall.StrictHttpFirewall
-
-import javax.servlet.http.HttpServletResponse
-
-import spock.lang.Unroll
-
+import org.springframework.http.HttpStatus
+import org.springframework.mock.web.MockFilterChain
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.mock.web.MockHttpServletResponse
 import org.springframework.security.config.annotation.BaseSpringSpec
@@ -31,12 +26,18 @@ import org.springframework.security.config.annotation.authentication.builders.Au
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter
+import org.springframework.security.core.userdetails.PasswordEncodedUser
 import org.springframework.security.web.access.AccessDeniedHandler
 import org.springframework.security.web.csrf.CsrfFilter
 import org.springframework.security.web.csrf.CsrfTokenRepository
+import org.springframework.security.web.firewall.StrictHttpFirewall
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher
 import org.springframework.security.web.util.matcher.RequestMatcher
 import org.springframework.web.servlet.support.RequestDataValueProcessor
+import spock.lang.Unroll
+
+import javax.servlet.http.HttpServletRequest
+import javax.servlet.http.HttpServletResponse
 
 /**
  *
@@ -504,6 +505,108 @@ class CsrfConfigurerTests extends BaseSpringSpec {
 			auth
 				.inMemoryAuthentication()
 					.withUser(PasswordEncodedUser.user());
+		}
+	}
+
+	def 'ignoring request matchers augment configured request matcher'() {
+		setup:
+		request = new MockHttpServletRequest()
+		request.method = 'GET'
+		request.servletPath = '/required'
+		loadConfig(IgnoringRequestMatchers)
+		when:
+		springSecurityFilterChain.doFilter(request,response,chain)
+		then:
+		response.getStatus() == HttpStatus.FORBIDDEN.value()
+		when:
+		request = new MockHttpServletRequest()
+		response = new MockHttpServletResponse()
+		chain = new MockFilterChain()
+
+		request.method = 'POST'
+		request.servletPath = '/required'
+
+		springSecurityFilterChain.doFilter(request,response,chain)
+		then:
+		response.getStatus() == HttpStatus.OK.value()
+	}
+
+	@EnableWebSecurity
+	static class IgnoringRequestMatchers extends WebSecurityConfigurerAdapter {
+		@Override
+		protected void configure(HttpSecurity http) throws Exception {
+			// @formatter:off
+			http
+				.csrf()
+					.requireCsrfProtectionMatcher(new AntPathRequestMatcher("/required"))
+					.ignoringRequestMatchers(new HttpMethodRequestMatcher(method : 'POST'))
+			// @formatter:on
+		}
+	}
+
+	def 'ignoring request matchers unions with ignoring ant matchers'() {
+		setup:
+		request = new MockHttpServletRequest()
+		request.method = 'PUT'
+		request.servletPath = '/csrf'
+		loadConfig(IgnoringPathsAndMatchers)
+		when:
+		springSecurityFilterChain.doFilter(request, response, chain)
+		then:
+		response.getStatus() == HttpStatus.FORBIDDEN.value()
+		when:
+		request = new MockHttpServletRequest()
+		response = new MockHttpServletResponse()
+		chain = new MockFilterChain()
+
+		request.method = 'POST'
+		request.servletPath = '/csrf'
+
+		springSecurityFilterChain.doFilter(request, response, chain)
+		then:
+		response.getStatus() == HttpStatus.OK.value()
+		when:
+		request = new MockHttpServletRequest()
+		response = new MockHttpServletResponse()
+		chain = new MockFilterChain()
+
+		request.method = 'PUT'
+		request.servletPath = '/no-csrf'
+
+		springSecurityFilterChain.doFilter(request, response, chain)
+		then:
+		response.getStatus() == HttpStatus.OK.value()
+	}
+
+	@EnableWebSecurity
+	static class IgnoringPathsAndMatchers extends WebSecurityConfigurerAdapter {
+
+		static class HttpMethodRequestMatcher implements RequestMatcher {
+			String method
+
+			@Override
+			boolean matches(HttpServletRequest request) {
+				return request.method == method
+			}
+		}
+
+		@Override
+		protected void configure(HttpSecurity http) throws Exception {
+			// @formatter:off
+			http
+				.csrf()
+					.ignoringAntMatchers("/no-csrf")
+					.ignoringRequestMatchers(new HttpMethodRequestMatcher(method: 'POST'))
+			// @formatter:on
+		}
+	}
+
+	static class HttpMethodRequestMatcher implements RequestMatcher {
+		String method
+
+		@Override
+		boolean matches(HttpServletRequest request) {
+			return request.method == method
 		}
 	}
 

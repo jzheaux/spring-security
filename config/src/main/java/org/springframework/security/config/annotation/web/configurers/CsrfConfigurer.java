@@ -150,6 +150,35 @@ public final class CsrfConfigurer<H extends HttpSecurityBuilder<H>>
 				.and();
 	}
 
+	/**
+	 * <p>
+	 * Allows specifying {@link HttpServletRequest}s that should not use CSRF Protection
+	 * even if they match the {@link #requireCsrfProtectionMatcher(RequestMatcher)}.
+	 * </p>
+	 *
+	 * <p>
+	 * The following will ensure CSRF protection ignores:
+	 * </p>
+	 * <ul>
+	 * <li>Any GET, HEAD, TRACE, OPTIONS (this is the default)</li>
+	 * <li>We also explicitly state to ignore any request that has an Authorization header</li>
+	 * </ul>
+	 *
+	 * <pre>
+	 * http
+	 *     .csrf()
+	 *         .ignoringRequestMatchers(request -> request.getHeader("Authorization") != null)
+	 *         .and()
+	 *     ...
+	 * </pre>
+	 *
+	 * @since 5.1
+	 */
+	public CsrfConfigurer<H> ignoringRequestMatchers(RequestMatcher... requestMatchers) {
+		return new IgnoreCsrfProtectionRegistry(this.context).requestMatchers(requestMatchers)
+				.and();
+	}
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public void configure(H http) throws Exception {
