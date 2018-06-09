@@ -67,7 +67,7 @@ public class OidcConfigurationProviderTests {
 			+ "    \"id_token_signing_alg_values_supported\": [\n"
 			+ "        \"RS256\"\n"
 			+ "    ], \n"
-			+ "    \"issuer\": \"https://example.com\", \n"
+			+ "    \"uri\": \"https://example.com\", \n"
 			+ "    \"jwks_uri\": \"https://example.com/oauth2/v3/certs\", \n"
 			+ "    \"response_types_supported\": [\n"
 			+ "        \"code\", \n"
@@ -168,7 +168,7 @@ public class OidcConfigurationProviderTests {
 
 		assertThatThrownBy(() -> registration(""))
 				.isInstanceOf(IllegalArgumentException.class)
-				.hasMessageContaining("Only AuthorizationGrantType.AUTHORIZATION_CODE is supported. The issuer \"" + this.issuer + "\" returned a configuration of [implicit]");
+				.hasMessageContaining("Only AuthorizationGrantType.AUTHORIZATION_CODE is supported. The uri \"" + this.issuer + "\" returned a configuration of [implicit]");
 	}
 
 	@Test
@@ -199,7 +199,7 @@ public class OidcConfigurationProviderTests {
 
 		assertThatThrownBy(() -> registration(""))
 				.isInstanceOf(IllegalArgumentException.class)
-				.hasMessageContaining("Only ClientAuthenticationMethod.BASIC and ClientAuthenticationMethod.POST are supported. The issuer \"" + this.issuer + "\" returned a configuration of [tls_client_auth]");
+				.hasMessageContaining("Only ClientAuthenticationMethod.BASIC and ClientAuthenticationMethod.POST are supported. The uri \"" + this.issuer + "\" returned a configuration of [tls_client_auth]");
 	}
 
 	@Test
@@ -217,12 +217,12 @@ public class OidcConfigurationProviderTests {
 				.setHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
 		this.server.enqueue(mockResponse);
 		assertThatThrownBy(() -> OidcConfigurationProvider.issuer(this.issuer))
-				.hasMessageContaining("The Issuer \"https://example.com\" provided in the OpenID Configuration did not match the requested issuer \"" + this.issuer + "\"");
+				.hasMessageContaining("The Issuer \"https://example.com\" provided in the OpenID Configuration did not match the requested uri \"" + this.issuer + "\"");
 	}
 
 	private ClientRegistration registration(String path) throws Exception {
 		this.issuer = createIssuerFromServer(path);
-		this.response.put("issuer", this.issuer);
+		this.response.put("uri", this.issuer);
 		String body = this.mapper.writeValueAsString(this.response);
 		MockResponse mockResponse = new MockResponse()
 				.setBody(body)

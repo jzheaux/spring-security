@@ -15,7 +15,10 @@
  */
 package org.springframework.security.web.context;
 
-import java.io.IOException;
+import org.springframework.security.core.StatelessAuthentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.filter.GenericFilterBean;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
@@ -24,10 +27,7 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
-
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.filter.GenericFilterBean;
+import java.io.IOException;
 
 /**
  * Populates the {@link SecurityContextHolder} with information obtained from the
@@ -111,8 +111,12 @@ public class SecurityContextPersistenceFilter extends GenericFilterBean {
 			// Crucial removal of SecurityContextHolder contents - do this before anything
 			// else.
 			SecurityContextHolder.clearContext();
-			repo.saveContext(contextAfterChainExecution, holder.getRequest(),
-					holder.getResponse());
+
+			if ( !(contextAfterChainExecution.getAuthentication() instanceof StatelessAuthentication) ) {
+				repo.saveContext(contextAfterChainExecution, holder.getRequest(),
+						holder.getResponse());
+			}
+
 			request.removeAttribute(FILTER_APPLIED);
 
 			if (debug) {

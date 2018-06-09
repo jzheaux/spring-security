@@ -18,6 +18,7 @@ package org.springframework.security.web.server.csrf;
 
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.StatelessAuthentication;
 import org.springframework.security.web.server.authorization.HttpStatusServerAccessDeniedHandler;
 import org.springframework.security.web.server.authorization.ServerAccessDeniedHandler;
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatcher;
@@ -85,6 +86,7 @@ public class CsrfWebFilter implements WebFilter {
 	public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
 		return this.requireCsrfProtectionMatcher.matches(exchange)
 			.filter( matchResult -> matchResult.isMatch())
+			.filter( matchResult -> !(exchange.getPrincipal() instanceof StatelessAuthentication))
 			.filter( matchResult -> !exchange.getAttributes().containsKey(CsrfToken.class.getName()))
 			.flatMap(m -> validateToken(exchange))
 			.flatMap(m -> continueFilterChain(exchange, chain))

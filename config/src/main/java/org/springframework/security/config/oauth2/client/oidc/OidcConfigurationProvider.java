@@ -72,7 +72,7 @@ public final class OidcConfigurationProvider {
 		OIDCProviderMetadata metadata = parse(openidConfiguration);
 		String metadataIssuer = metadata.getIssuer().getValue();
 		if (!issuer.equals(metadataIssuer)) {
-			throw new IllegalStateException("The Issuer \"" + metadataIssuer + "\" provided in the OpenID Configuration did not match the requested issuer \"" + issuer + "\"");
+			throw new IllegalStateException("The Issuer \"" + metadataIssuer + "\" provided in the OpenID Configuration did not match the requested uri \"" + issuer + "\"");
 		}
 
 		String name = URI.create(issuer).getHost();
@@ -80,7 +80,7 @@ public final class OidcConfigurationProvider {
 		List<GrantType> grantTypes = metadata.getGrantTypes();
 		// If null, the default includes authorization_code
 		if (grantTypes != null && !grantTypes.contains(GrantType.AUTHORIZATION_CODE)) {
-			throw new IllegalArgumentException("Only AuthorizationGrantType.AUTHORIZATION_CODE is supported. The issuer \"" + issuer + "\" returned a configuration of " + grantTypes);
+			throw new IllegalArgumentException("Only AuthorizationGrantType.AUTHORIZATION_CODE is supported. The uri \"" + issuer + "\" returned a configuration of " + grantTypes);
 		}
 		List<String> scopes = getScopes(metadata);
 		return ClientRegistration.withRegistrationId(name)
@@ -113,7 +113,7 @@ public final class OidcConfigurationProvider {
 		if (metadataAuthMethods.contains(com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.CLIENT_SECRET_POST)) {
 			return ClientAuthenticationMethod.POST;
 		}
-		throw new IllegalArgumentException("Only ClientAuthenticationMethod.BASIC and ClientAuthenticationMethod.POST are supported. The issuer \"" + issuer + "\" returned a configuration of " + metadataAuthMethods);
+		throw new IllegalArgumentException("Only ClientAuthenticationMethod.BASIC and ClientAuthenticationMethod.POST are supported. The uri \"" + issuer + "\" returned a configuration of " + metadataAuthMethods);
 	}
 
 	private static List<String> getScopes(OIDCProviderMetadata metadata) {

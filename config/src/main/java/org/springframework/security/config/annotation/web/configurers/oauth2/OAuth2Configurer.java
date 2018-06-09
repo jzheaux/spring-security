@@ -18,6 +18,7 @@ package org.springframework.security.config.annotation.web.configurers.oauth2;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.oauth2.client.OAuth2ClientConfigurer;
+import org.springframework.security.config.annotation.web.configurers.oauth2.resourceserver.OAuth2ResourceServerConfigurer;
 
 /**
  * An {@link AbstractHttpConfigurer} that provides support for the
@@ -39,6 +40,10 @@ public final class OAuth2Configurer extends AbstractHttpConfigurer<OAuth2Configu
 	 */
 	public OAuth2ClientConfigurer<HttpSecurity> client() throws Exception {
 		return this.getOrApply(new OAuth2ClientConfigurer<>());
+	}
+
+	public OAuth2ResourceServerConfigurer<HttpSecurity> resourceServer() throws Exception {
+		return this.getOrApply(new OAuth2ResourceServerConfigurer<>());
 	}
 
 	@SuppressWarnings("unchecked")

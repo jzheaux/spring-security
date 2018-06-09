@@ -15,11 +15,10 @@
  */
 package org.springframework.security.web.server.authentication;
 
-import java.util.function.Function;
-
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.StatelessAuthentication;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextImpl;
 import org.springframework.security.web.server.ServerHttpBasicAuthenticationConverter;
@@ -32,8 +31,9 @@ import org.springframework.util.Assert;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
-
 import reactor.core.publisher.Mono;
+
+import java.util.function.Function;
 
 /**
  * A {@link WebFilter} that performs authentication of a particular request. An outline of the logic:
@@ -107,7 +107,11 @@ public class AuthenticationWebFilter implements WebFilter {
 		ServerWebExchange exchange = webFilterExchange.getExchange();
 		SecurityContextImpl securityContext = new SecurityContextImpl();
 		securityContext.setAuthentication(authentication);
-		return this.securityContextRepository.save(exchange, securityContext)
+		Mono<Void> contextSaved =
+			authentication instanceof StatelessAuthentication ?
+				Mono.empty() :
+				this.securityContextRepository.save(exchange, securityContext);
+		return contextSaved
 			.then(this.authenticationSuccessHandler
 				.onAuthenticationSuccess(webFilterExchange, authentication))
 			.subscriberContext(ReactiveSecurityContextHolder.withSecurityContext(Mono.just(securityContext)));

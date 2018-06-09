@@ -27,6 +27,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.AuthenticationTrustResolver;
 import org.springframework.security.authentication.AuthenticationTrustResolverImpl;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.StatelessAuthentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
@@ -108,12 +109,15 @@ public class SessionManagementFilter extends GenericFilterBean {
 
 					return;
 				}
-				// Eagerly save the security context to make it available for any possible
-				// re-entrant
-				// requests which may occur before the current request completes.
-				// SEC-1396.
-				securityContextRepository.saveContext(SecurityContextHolder.getContext(),
-						request, response);
+
+				if ( !(authentication instanceof StatelessAuthentication) ) {
+					// Eagerly save the security context to make it available for any possible
+					// re-entrant
+					// requests which may occur before the current request completes.
+					// SEC-1396.
+					securityContextRepository.saveContext(SecurityContextHolder.getContext(),
+							request, response);
+				}
 			}
 			else {
 				// No security context or authentication present. Check for a session
