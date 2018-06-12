@@ -15,13 +15,11 @@
  */
 package org.springframework.security.config.annotation.web.configurers
 
-import org.springframework.security.core.userdetails.PasswordEncodedUser
-
-import javax.servlet.http.HttpServletResponse
-
 import org.springframework.mock.web.MockFilterChain
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.mock.web.MockHttpServletResponse
+import org.springframework.security.authentication.AbstractAuthenticationToken
+import org.springframework.security.authentication.AuthenticationProvider
 import org.springframework.security.authentication.AuthenticationTrustResolver
 import org.springframework.security.config.annotation.AnyObjectPostProcessor
 import org.springframework.security.config.annotation.BaseSpringSpec
@@ -30,6 +28,10 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter
 import org.springframework.security.config.http.SessionCreationPolicy
+import org.springframework.security.core.Authentication
+import org.springframework.security.core.AuthenticationException
+import org.springframework.security.core.TransientAuthentication
+import org.springframework.security.core.userdetails.PasswordEncodedUser
 import org.springframework.security.web.access.ExceptionTranslationFilter
 import org.springframework.security.web.authentication.session.AbstractSessionFixationProtectionStrategy
 import org.springframework.security.web.authentication.session.CompositeSessionAuthenticationStrategy
@@ -43,6 +45,7 @@ import org.springframework.security.web.session.ConcurrentSessionFilter
 import org.springframework.security.web.session.HttpSessionDestroyedEvent
 import org.springframework.security.web.session.SessionManagementFilter
 
+import javax.servlet.http.HttpServletResponse
 /**
  *
  * @author Rob Winch
@@ -250,6 +253,85 @@ class SessionManagementConfigurerTests extends BaseSpringSpec {
 		protected void configure(HttpSecurity http) throws Exception {
 			http
 				.setSharedObject(AuthenticationTrustResolver, TR)
+		}
+	}
+
+	def doFilterWhenStatelessAuthenticationThenNoSessionCreated() {
+		setup:
+			MockHttpServletRequest request = new MockHttpServletRequest(method:'POST')
+			request.servletPath = '/login'
+			MockHttpServletResponse response  = new MockHttpServletResponse()
+			MockFilterChain chain = new MockFilterChain()
+		when:
+			loadConfig(WithTransientAuthenticationConfig)
+			springSecurityFilterChain.doFilter(request,response, chain)
+		then:
+			request.getSession(false) == null
+	}
+
+	def doFilterWhenStatelessAuthenticationThenAlwaysSessionOverrides() {
+		setup:
+			MockHttpServletRequest request = new MockHttpServletRequest(method:'POST')
+			request.servletPath = '/login'
+			MockHttpServletResponse response  = new MockHttpServletResponse()
+			MockFilterChain chain = new MockFilterChain()
+		when:
+			loadConfig(AlwaysCreateSessionConfig)
+			springSecurityFilterChain.doFilter(request,response, chain)
+		then:
+			request.getSession(false) != null
+	}
+
+	@EnableWebSecurity
+	static class WithTransientAuthenticationConfig extends WebSecurityConfigurerAdapter {
+		@Override
+		protected void configure(HttpSecurity http) throws Exception {
+			super.configure(http);
+			http.csrf().disable();
+		}
+
+		@Override
+		protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+			auth.authenticationProvider(new TransientAuthenticationProvider());
+		}
+	}
+
+	@EnableWebSecurity
+	static class AlwaysCreateSessionConfig extends WithTransientAuthenticationConfig {
+		@Override
+		protected void configure(HttpSecurity http) throws Exception {
+			http
+				.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS);
+		}
+	}
+
+	static class TransientAuthenticationProvider implements AuthenticationProvider {
+
+		@Override
+		Authentication authenticate(Authentication authentication) throws AuthenticationException {
+			return new SomeTransientAuthentication()
+		}
+
+		@Override
+		boolean supports(Class<?> authentication) {
+			return true
+		}
+	}
+
+	@TransientAuthentication
+	static class SomeTransientAuthentication extends AbstractAuthenticationToken {
+		SomeTransientAuthentication() {
+			super(null);
+		}
+
+		@Override
+		Object getCredentials() {
+			return null;
+		}
+
+		@Override
+		Object getPrincipal() {
+			return null;
 		}
 	}
 }
