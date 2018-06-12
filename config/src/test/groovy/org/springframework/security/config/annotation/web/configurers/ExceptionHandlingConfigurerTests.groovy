@@ -15,34 +15,43 @@
  */
 package org.springframework.security.config.annotation.web.configurers
 
-import org.springframework.security.core.userdetails.User
-import org.springframework.security.provisioning.InMemoryUserDetailsManager
-
-import javax.servlet.http.HttpServletResponse
-
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Bean
+import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.mock.web.MockFilterChain
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.mock.web.MockHttpServletResponse
+import org.springframework.mock.web.MockHttpSession
+import org.springframework.security.access.AccessDeniedException
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.config.annotation.AnyObjectPostProcessor
 import org.springframework.security.config.annotation.BaseSpringSpec
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter
-import org.springframework.security.config.annotation.web.configurers.JeeConfigurerTests.InvokeTwiceDoesNotOverride;
-import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.core.authority.SimpleGrantedAuthority
+import org.springframework.security.core.context.SecurityContext
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.core.userdetails.User
+import org.springframework.security.provisioning.InMemoryUserDetailsManager
+import org.springframework.security.web.AuthenticationEntryPoint
+import org.springframework.security.web.access.AccessDeniedHandler
+import org.springframework.security.web.access.AccessDeniedHandlerImpl
 import org.springframework.security.web.access.ExceptionTranslationFilter
 import org.springframework.security.web.authentication.DelegatingAuthenticationEntryPoint
-import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
-import org.springframework.security.web.authentication.www.BasicAuthenticationEntryPoint;
-import org.springframework.web.accept.ContentNegotiationStrategy;
-import org.springframework.web.accept.HeaderContentNegotiationStrategy;
-
+import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint
+import org.springframework.security.web.authentication.www.BasicAuthenticationEntryPoint
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository
+import org.springframework.security.web.util.matcher.AnyRequestMatcher
+import org.springframework.security.web.util.matcher.RequestMatcher
+import org.springframework.web.accept.ContentNegotiationStrategy
+import org.springframework.web.accept.HeaderContentNegotiationStrategy
 import spock.lang.Unroll
 
+import javax.servlet.ServletException
+import javax.servlet.http.HttpServletRequest
+import javax.servlet.http.HttpServletResponse
 /**
  *
  * @author Rob Winch
@@ -248,4 +257,72 @@ class ExceptionHandlingConfigurerTests extends BaseSpringSpec {
 				.exceptionHandling()
 		}
 	}
+
+	def "get when access denied override then customizes response by request"() {
+		setup:
+			SecurityContext context = SecurityContextHolder.createEmptyContext();
+			context.setAuthentication(
+					new UsernamePasswordAuthenticationToken(
+							"user", "password", Arrays.asList(new SimpleGrantedAuthority("ROLE_ANYTHING"))))
+			request = new MockHttpServletRequest(method:'GET')
+			request.session = new MockHttpSession()
+			request.session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
+			request.servletPath = '/hello'
+			response = new MockHttpServletResponse()
+			chain = new MockFilterChain()
+		when:
+			loadConfig(RequestMatcherBasedAccessDeniedHandlerConfig)
+			springSecurityFilterChain.doFilter(request, response, chain)
+		then:
+			response.status == HttpStatus.I_AM_A_TEAPOT.value()
+		when:
+			request = new MockHttpServletRequest(method:'GET')
+			request.session = new MockHttpSession()
+			request.session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
+			request.servletPath = '/goodbye'
+			response = new MockHttpServletResponse()
+			springSecurityFilterChain.doFilter(request, response, chain)
+		then:
+			response.status == HttpStatus.FORBIDDEN.value()
+	}
+
+	@EnableWebSecurity
+	static class RequestMatcherBasedAccessDeniedHandlerConfig extends WebSecurityConfigurerAdapter {
+		@Override
+		protected void configure(HttpSecurity http) throws Exception {
+			// @formatter:off
+			http
+				.authorizeRequests()
+					.anyRequest().denyAll()
+					.and()
+				.exceptionHandling()
+					.defaultAccessDeniedHandlerFor(new TeapotAccessDeniedHandler(), new HelloRequestMatcher())
+					.defaultAccessDeniedHandlerFor(new AccessDeniedHandlerImpl(), new AnyRequestMatcher())
+					.and()
+				.csrf().disable()
+			// @formatter:on
+		}
+
+		static class HelloRequestMatcher implements RequestMatcher {
+
+			@Override
+			boolean matches(HttpServletRequest request) {
+				return request.servletPath == '/hello'
+			}
+		}
+
+		static class TeapotAccessDeniedHandler implements AccessDeniedHandler {
+
+			@Override
+			void handle(
+					HttpServletRequest request,
+					HttpServletResponse response,
+					AccessDeniedException accessDeniedException)
+					throws IOException, ServletException {
+
+				response.setStatus(HttpStatus.I_AM_A_TEAPOT.value());
+			}
+		}
+	}
+
 }

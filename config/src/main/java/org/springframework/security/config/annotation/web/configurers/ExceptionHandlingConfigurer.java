@@ -15,19 +15,20 @@
  */
 package org.springframework.security.config.annotation.web.configurers;
 
-import java.util.LinkedHashMap;
-
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.access.AccessDeniedHandlerImpl;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
+import org.springframework.security.web.access.RequestMatcherDelegatingAccessDeniedHandler;
 import org.springframework.security.web.authentication.DelegatingAuthenticationEntryPoint;
 import org.springframework.security.web.authentication.Http403ForbiddenEntryPoint;
 import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
 import org.springframework.security.web.savedrequest.RequestCache;
 import org.springframework.security.web.util.matcher.RequestMatcher;
+
+import java.util.LinkedHashMap;
 
 /**
  * Adds exception handling for Spring Security related exceptions to an application. All
@@ -70,6 +71,8 @@ public final class ExceptionHandlingConfigurer<H extends HttpSecurityBuilder<H>>
 
 	private LinkedHashMap<RequestMatcher, AuthenticationEntryPoint> defaultEntryPointMappings = new LinkedHashMap<>();
 
+	private LinkedHashMap<RequestMatcher, AccessDeniedHandler> defaultDeniedHandlerMappings = new LinkedHashMap<>();
+
 	/**
 	 * Creates a new instance
 	 * @see HttpSecurity#exceptionHandling()
@@ -101,6 +104,25 @@ public final class ExceptionHandlingConfigurer<H extends HttpSecurityBuilder<H>>
 	public ExceptionHandlingConfigurer<H> accessDeniedHandler(
 			AccessDeniedHandler accessDeniedHandler) {
 		this.accessDeniedHandler = accessDeniedHandler;
+		return this;
+	}
+
+	/**
+	 * Sets a default {@link AccessDeniedHandler} to be used which prefers being
+	 * invoked for the provided {@link RequestMatcher}. If only a single default
+	 * {@link AccessDeniedHandler} is specified, it will be what is used for the
+	 * default {@link AccessDeniedHandler}. If multiple default
+	 * {@link AccessDeniedHandler} instances are configured, then a
+	 * {@link RequestMatcherDelegatingAccessDeniedHandler} will be used.
+	 *
+	 * @param deniedHandler the {@link AccessDeniedHandler} to use
+	 * @param preferredMatcher the {@link RequestMatcher} for this default
+	 * {@link AccessDeniedHandler}
+	 * @return the {@link ExceptionHandlingConfigurer} for further customizations
+	 */
+	public ExceptionHandlingConfigurer<H> defaultAccessDeniedHandlerFor(
+			AccessDeniedHandler deniedHandler, RequestMatcher preferredMatcher) {
+		this.defaultDeniedHandlerMappings.put(preferredMatcher, deniedHandler);
 		return this;
 	}
 
@@ -169,11 +191,25 @@ public final class ExceptionHandlingConfigurer<H extends HttpSecurityBuilder<H>>
 		AuthenticationEntryPoint entryPoint = getAuthenticationEntryPoint(http);
 		ExceptionTranslationFilter exceptionTranslationFilter = new ExceptionTranslationFilter(
 				entryPoint, getRequestCache(http));
-		if (accessDeniedHandler != null) {
-			exceptionTranslationFilter.setAccessDeniedHandler(accessDeniedHandler);
-		}
+		AccessDeniedHandler deniedHandler = getAccessDeniedHandler(http);
+		exceptionTranslationFilter.setAccessDeniedHandler(deniedHandler);
 		exceptionTranslationFilter = postProcess(exceptionTranslationFilter);
 		http.addFilter(exceptionTranslationFilter);
+	}
+
+	/**
+	 * Gets the {@link AccessDeniedHandler} according to the rules specified by
+	 * {@link #accessDeniedHandler(AccessDeniedHandler)}
+	 * @param http the {@link HttpSecurity} used to look up shared
+	 * {@link AccessDeniedHandler}
+	 * @return the {@link AccessDeniedHandler} to use
+	 */
+	AccessDeniedHandler getAccessDeniedHandler(H http) {
+		AccessDeniedHandler deniedHandler = this.accessDeniedHandler;
+		if (deniedHandler == null) {
+			deniedHandler = createDefaultDeniedHandler(http);
+		}
+		return deniedHandler;
 	}
 
 	/**
@@ -189,6 +225,15 @@ public final class ExceptionHandlingConfigurer<H extends HttpSecurityBuilder<H>>
 			entryPoint = createDefaultEntryPoint(http);
 		}
 		return entryPoint;
+	}
+
+	private AccessDeniedHandler createDefaultDeniedHandler(H http) {
+		if (defaultDeniedHandlerMappings.isEmpty()) {
+			return new AccessDeniedHandlerImpl();
+		}
+		return new RequestMatcherDelegatingAccessDeniedHandler(
+				defaultDeniedHandlerMappings,
+				new AccessDeniedHandlerImpl());
 	}
 
 	private AuthenticationEntryPoint createDefaultEntryPoint(H http) {
