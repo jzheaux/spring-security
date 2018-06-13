@@ -1,0 +1,58 @@
+server:
+  port: 8081
+
+logging:
+  level:
+    root: INFO
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+#    org.springframework.boot.autoconfigure: DEBUG
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        issuer:
+#          auth0:
+#            uri: https://spring-security-oauth2-demo.auth0.com/
+#            jwk-set-uri: https://spring-security-oauth2-demo.auth0.com/.well-known/jwks.json
+#          connect2id:
+#            issuer: https://demo.c2id.com/c2id
+#            jwk-set-uri: https://demo.c2id.com/c2id/jwks.json
+#          master: #keycloak
+#            issuer: http://localhost:8080/auth/realms/master
+#            jwk-set-uri: http://localhost:8080/auth/realms/master/protocol/openid-connect/certs
+          okta:
+            issuer: https://dev-805262.oktapreview.com/oauth2/default
+            jwk-set-uri: https://dev-805262.oktapreview.com/oauth2/default/v1/keys
+
+sample.provider:
+#  ### auth0
+#  token-uri: https://spring-security-oauth2-demo.auth0.com/oauth/token
+#  token-body:
+#    grant_type: client_credentials
+#    audience: resource-server
+#  client-id: uTITxojBopNxQI1N6QcD6oYjJduugjd0
+#  client-password: 0jc2TcBAiexUIEblb44WEkwGf3KTgNGMlVGmzRb4FSooaOLTYj6gmbhLQ0yFgwOS
+#  ### connect2id
+#  token-uri: https://demo.c2id.com/c2id/token
+#  token-body:
+#    grant_type: client_credentials
+#    scope: "data:read data:write"
+#  client-id: a23tivqnyq7na
+#  client-password: g5tFjoexIUlylwbu_iX7CHwuL072Bjdp7WH9Kmhif5Q
+#  ### keycloak
+#  token-uri: http://localhost:8080/auth/realms/master/protocol/openid-connect/token
+#  token-body:
+#    grant_type: client_credentials
+#  client-id: service
+#  client-password: 9114712b-be55-4dab-b270-04734abda1c4
+#  container:
+#    config-file-name: keycloak.config
+#    docker-file-name: keycloak.docker
+  ### okta
+  token-uri: https://dev-805262.oktapreview.com/oauth2/default/v1/token
+  token-body:
+    grant_type: client_credentials
+  client-id: 0oaf5u5g4m6CW4x6z0h7
+  client-password: HR7edRoo3glhF06HTxonOKZvO4I2BWYcC_ocOHlv

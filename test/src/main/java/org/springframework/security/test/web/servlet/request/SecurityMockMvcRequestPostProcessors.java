@@ -15,21 +15,6 @@
  */
 package org.springframework.security.test.web.servlet.request;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Collection;
-import java.util.List;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
@@ -58,6 +43,20 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.util.Assert;
 import org.springframework.util.DigestUtils;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * Contains {@link MockMvc} {@link RequestPostProcessor} implementations for Spring
@@ -278,6 +277,18 @@ public final class SecurityMockMvcRequestPostProcessors {
 	public static RequestPostProcessor httpBasic(String username, String password) {
 		return new HttpBasicRequestPostProcessor(username, password);
 	}
+
+	/**
+	 * Convenience mechanism for setting the Authorization header to use OAuth 2.0
+	 * Bearer Token authorization.
+	 *
+	 * @param token the bearer token to include in the Authorization header.
+	 * @return the {@link RequestPostProcessor} to use
+	 */
+	public static RequestPostProcessor bearerToken(String token) {
+		return new BearerTokenRequestPostProcessor(token);
+	}
+
 
 	/**
 	 * Populates the X509Certificate instances onto the request
@@ -891,11 +902,24 @@ public final class SecurityMockMvcRequestPostProcessors {
 			byte[] toEncode;
 			try {
 				toEncode = (username + ":" + password).getBytes("UTF-8");
-			}
-			catch (UnsupportedEncodingException e) {
+			} catch (UnsupportedEncodingException e) {
 				throw new RuntimeException(e);
 			}
 			this.headerValue = "Basic " + new String(Base64.getEncoder().encode(toEncode));
+		}
+
+		@Override
+		public MockHttpServletRequest postProcessRequest(MockHttpServletRequest request) {
+			request.addHeader("Authorization", this.headerValue);
+			return request;
+		}
+	}
+
+	private static class BearerTokenRequestPostProcessor implements RequestPostProcessor {
+		private String headerValue;
+
+		private BearerTokenRequestPostProcessor(String token) {
+			this.headerValue = "Bearer " + token;
 		}
 
 		@Override
