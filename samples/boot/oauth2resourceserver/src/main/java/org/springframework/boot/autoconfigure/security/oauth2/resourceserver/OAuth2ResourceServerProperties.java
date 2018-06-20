@@ -36,6 +36,7 @@ public class OAuth2ResourceServerProperties {
 	public static class IssuerDetails {
 		private String algorithm;
 		private String jwkSetUri;
+		private String scopeAttributeName;
 
 		public String getAlgorithm() {
 			return algorithm;
@@ -51,6 +52,14 @@ public class OAuth2ResourceServerProperties {
 
 		public void setJwkSetUri(String jwkSetUri) {
 			this.jwkSetUri = jwkSetUri;
+		}
+
+		public String getScopeAttributeName() {
+			return scopeAttributeName;
+		}
+
+		public void setScopeAttributeName(String scopeAttributeName) {
+			this.scopeAttributeName = scopeAttributeName;
 		}
 	}
 }

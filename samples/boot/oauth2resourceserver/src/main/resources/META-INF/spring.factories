@@ -1,3 +1,5 @@
 # Auto Configure
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
 org.springframework.boot.autoconfigure.security.oauth2.resourceserver.OAuth2ResourceServerAutoConfiguration
+
+org.springframework.boot.env.EnvironmentPostProcessor=sample.provider.MockProvider

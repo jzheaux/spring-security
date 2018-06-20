@@ -22,6 +22,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.oauth2.resourceserver.authentication.JwtAuthoritiesPopulator;
 import org.springframework.util.StringUtils;
 
 import java.net.URL;
@@ -32,10 +33,10 @@ import java.util.Map;
  */
 @Configuration
 @EnableConfigurationProperties(OAuth2ResourceServerProperties.class)
-public class OAuth2ResourceServerWebSecurityConfiguraion {
+public class OAuth2ResourceServerWebSecurityConfiguration {
 	private final OAuth2ResourceServerProperties properties;
 
-	OAuth2ResourceServerWebSecurityConfiguraion(OAuth2ResourceServerProperties properties) {
+	OAuth2ResourceServerWebSecurityConfiguration(OAuth2ResourceServerProperties properties) {
 		this.properties = properties;
 	}
 
@@ -69,6 +70,18 @@ public class OAuth2ResourceServerWebSecurityConfiguraion {
 						.oauth2()
 							.resourceServer()
 								.jwt().signature().keys(new URL(issuer.getJwkSetUri()));
+					// @formatter:off
+				}
+
+				if (StringUtils.hasText(issuer.getScopeAttributeName())) {
+					JwtAuthoritiesPopulator populator = new JwtAuthoritiesPopulator();
+					populator.setScopeAttributeName(issuer.getScopeAttributeName());
+
+					// @formatter:on
+					http
+						.oauth2()
+							.resourceServer()
+								.jwt().authoritiesPopulator(populator);
 					// @formatter:off
 				}
 			}

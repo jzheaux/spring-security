@@ -15,6 +15,7 @@
  */
 package sample;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,5 +30,11 @@ public class OAuth2ResourceServerController {
 	@GetMapping("/")
 	public String index(@AuthenticationPrincipal Jwt jwt) {
 		return String.format("Hello, %s!", jwt.getSubject());
+	}
+
+	@GetMapping("/message")
+	@PreAuthorize("hasAuthority('SCOPE_message:read')")
+	public String message() {
+		return "secret message";
 	}
 }

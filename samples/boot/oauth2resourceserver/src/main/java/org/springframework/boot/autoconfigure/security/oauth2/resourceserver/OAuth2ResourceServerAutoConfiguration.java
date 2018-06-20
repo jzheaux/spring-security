@@ -32,7 +32,7 @@ import org.springframework.security.oauth2.resourceserver.BearerTokenError;
 @AutoConfigureBefore(SecurityAutoConfiguration.class)
 @ConditionalOnClass({ EnableWebSecurity.class, BearerTokenError.class })
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
-@Import({ OAuth2ResourceServerWebSecurityConfiguraion.class })
+@Import({ OAuth2ResourceServerWebSecurityConfiguration.class })
 public class OAuth2ResourceServerAutoConfiguration {
 
 }

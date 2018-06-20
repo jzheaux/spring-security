@@ -15,20 +15,17 @@
  */
 package sample;
 
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-import sample.provider.Container;
-import sample.provider.SampleTokenProvider;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -41,37 +38,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @RunWith(SpringRunner.class)
 @SpringBootTest
 @AutoConfigureMockMvc
-@EnableConfigurationProperties(SampleTokenProvider.class)
+@ActiveProfiles("test")
 public class OAuth2ResourceServerApplicationTests {
-	@Autowired
-	SampleTokenProvider provider;
+
+	ClassPathResource noScopesToken = new ClassPathResource("no.scope");
+	ClassPathResource messageReadToken = new ClassPathResource("message-read.scope");
 
 	@Autowired
 	MockMvc mvc;
-
-	@Before
-	public void startContainer() {
-		Container c = this.provider.getContainer();
-		if ( c != null ) {
-			c.start();
-		}
-	}
-
-	@After
-	public void stopContainer() {
-		Container c = this.provider.getContainer();
-		if ( c != null ) {
-			c.stop();
-		}
-	}
 
 	@Test
 	public void performWhenValidBearerTokenThenAllows()
 		throws Exception {
 
-		String token = this.provider.requestToken();
-
-		this.mvc.perform(get("/").with(bearerToken(token)))
+		this.mvc.perform(get("/").with(bearerToken(this.noScopesToken)))
 				.andExpect(status().isOk())
 				.andExpect(content().string(containsString("Hello")));
 	}
@@ -80,10 +60,8 @@ public class OAuth2ResourceServerApplicationTests {
 	public void performWhenValidBearerTokenThenNoSessionCreated()
 			throws Exception {
 
-		String token = this.provider.requestToken();
-
 		MvcResult result =
-				this.mvc.perform(get("/").with(bearerToken(token)))
+				this.mvc.perform(get("/").with(bearerToken(this.noScopesToken)))
 						.andReturn();
 
 		assertThat(result.getRequest().getSession(false)).isNull();
@@ -99,5 +77,26 @@ public class OAuth2ResourceServerApplicationTests {
 						containsString("Bearer error=\"invalid_request\", " +
 								"error_description=\"An error occurred while attempting to decode the Jwt: " +
 								"Invalid JWT serialization: Missing dot delimiter(s)\"")));
+	}
+
+	// -- tests with scopes
+
+	@Test
+	public void performWhenValidBearerTokenThenScopedMethodsAlsoWork()
+			throws Exception {
+
+		this.mvc.perform(get("/message").with(bearerToken(this.messageReadToken)))
+				.andExpect(status().isOk())
+				.andExpect(content().string(containsString("secret message")));
+	}
+
+	@Test
+	public void performWhenInsufficientlyScopedBearerTokenThenDeniesScopedMethodAccess()
+			throws Exception {
+
+		this.mvc.perform(get("/message").with(bearerToken(this.noScopesToken)))
+				.andExpect(status().isForbidden())
+				.andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE,
+						containsString("Bearer")));
 	}
 }
