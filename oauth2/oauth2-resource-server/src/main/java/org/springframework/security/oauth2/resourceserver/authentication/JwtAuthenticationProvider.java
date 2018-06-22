@@ -59,7 +59,7 @@ public class JwtAuthenticationProvider implements AuthenticationProvider {
 
 		Jwt jwt;
 		try {
-			jwt = this.jwtDecoder.decode(String.valueOf(bearer.getToken()));
+			jwt = this.jwtDecoder.decode(bearer.getToken());
 		} catch (JwtException failed) {
 			OAuth2Error invalidRequest = invalidRequest(failed.getMessage());
 			throw new OAuth2AuthenticationException(invalidRequest, failed);
