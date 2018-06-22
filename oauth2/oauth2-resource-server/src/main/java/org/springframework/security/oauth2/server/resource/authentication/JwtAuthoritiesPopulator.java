@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.springframework.security.oauth2.resourceserver.authentication;
+package org.springframework.security.oauth2.server.resource.authentication;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;

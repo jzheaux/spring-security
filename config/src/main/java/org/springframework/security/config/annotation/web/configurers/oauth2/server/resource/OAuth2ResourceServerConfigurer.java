@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.springframework.security.config.annotation.web.configurers.oauth2.resourceserver;
+package org.springframework.security.config.annotation.web.configurers.oauth2.server.resource;
 
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.BeanFactoryUtils;
@@ -28,14 +28,14 @@ import org.springframework.security.oauth2.core.OAuth2AuthoritiesPopulator;
 import org.springframework.security.oauth2.jose.jws.JwsAlgorithms;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoderJwkSupport;
-import org.springframework.security.oauth2.resourceserver.authentication.JwtAuthenticationProvider;
-import org.springframework.security.oauth2.resourceserver.authentication.JwtAuthoritiesPopulator;
-import org.springframework.security.oauth2.resourceserver.web.BearerTokenAuthenticationEntryPoint;
-import org.springframework.security.oauth2.resourceserver.web.BearerTokenAuthenticationFilter;
-import org.springframework.security.oauth2.resourceserver.web.BearerTokenRequestMatcher;
-import org.springframework.security.oauth2.resourceserver.web.BearerTokenResolver;
-import org.springframework.security.oauth2.resourceserver.web.DefaultBearerTokenResolver;
-import org.springframework.security.oauth2.resourceserver.web.access.BearerTokenAccessDeniedHandler;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationProvider;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthoritiesPopulator;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationFilter;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenRequestMatcher;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
+import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
+import org.springframework.security.oauth2.server.resource.web.access.BearerTokenAccessDeniedHandler;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 
 import java.net.URL;

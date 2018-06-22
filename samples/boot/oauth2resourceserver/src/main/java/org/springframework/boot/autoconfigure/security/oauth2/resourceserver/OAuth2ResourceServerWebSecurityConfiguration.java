@@ -22,7 +22,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
-import org.springframework.security.oauth2.resourceserver.authentication.JwtAuthoritiesPopulator;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthoritiesPopulator;
 import org.springframework.util.StringUtils;
 
 import java.net.URL;

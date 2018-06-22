@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-package org.springframework.security.oauth2.resourceserver.web.access;
+package org.springframework.security.oauth2.server.resource.web.access;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.oauth2.core.OAuth2AccessDeniedException;
 import org.springframework.security.oauth2.core.OAuth2Error;
-import org.springframework.security.oauth2.resourceserver.BearerTokenError;
-import org.springframework.security.oauth2.resourceserver.web.BearerTokenErrorUtils;
+import org.springframework.security.oauth2.server.resource.BearerTokenError;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenErrorUtils;
 import org.springframework.security.web.access.AccessDeniedHandler;
 
 import javax.servlet.ServletException;

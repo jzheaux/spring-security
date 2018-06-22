@@ -21,7 +21,7 @@ import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.oauth2.client.OAuth2ClientConfigurer;
-import org.springframework.security.config.annotation.web.configurers.oauth2.resourceserver.OAuth2ResourceServerConfigurer;
+import org.springframework.security.config.annotation.web.configurers.oauth2.server.resource.OAuth2ResourceServerConfigurer;
 
 /**
  * An {@link AbstractHttpConfigurer} that provides support for the

@@ -23,7 +23,7 @@ import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfi
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.oauth2.resourceserver.BearerTokenError;
+import org.springframework.security.oauth2.server.resource.BearerTokenError;
 
 /**
  * @author Josh Cummings

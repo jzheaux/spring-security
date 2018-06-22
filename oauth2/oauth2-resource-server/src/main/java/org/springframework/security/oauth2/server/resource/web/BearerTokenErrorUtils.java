@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package org.springframework.security.oauth2.resourceserver.web;
+package org.springframework.security.oauth2.server.resource.web;
 
 import org.springframework.security.oauth2.core.OAuth2Error;
-import org.springframework.security.oauth2.resourceserver.BearerTokenError;
+import org.springframework.security.oauth2.server.resource.BearerTokenError;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -39,7 +39,7 @@ public final class BearerTokenErrorUtils {
 	}
 
 	public static String computeWWWAuthenticateHeaderValue(String realmName, OAuth2Error error) {
-		if ( error instanceof BearerTokenError ) {
+		if ( error instanceof BearerTokenError) {
 			return computeWWWAuthenticateHeaderValue(
 					realmName,
 					error.getErrorCode(),

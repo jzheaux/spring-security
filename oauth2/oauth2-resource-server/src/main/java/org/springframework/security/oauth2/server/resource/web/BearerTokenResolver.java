@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.springframework.security.oauth2.resourceserver.web;
+package org.springframework.security.oauth2.server.resource.web;
 
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 

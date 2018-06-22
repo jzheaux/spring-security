@@ -15,6 +15,6 @@
  */
 
 /**
- * OAuth 2.0 Resource Server core classes and interfaces providing support.
+ * OAuth 2.0 Resource Server {@code Filter}'s and supporting classes and interfaces.
  */
-package org.springframework.security.oauth2.resourceserver;
+package org.springframework.security.oauth2.server.resource.authentication;

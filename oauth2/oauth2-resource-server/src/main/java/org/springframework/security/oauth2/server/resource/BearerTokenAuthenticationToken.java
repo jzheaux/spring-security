@@ -14,31 +14,43 @@
  * limitations under the License.
  */
 
-package org.springframework.security.oauth2.resourceserver.web;
+package org.springframework.security.oauth2.server.resource;
 
-import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.util.Assert;
 
-import javax.servlet.http.HttpServletRequest;
+import java.util.Collections;
 
 /**
- * A request matcher for detecting when the request may contain a
+ * An {@link Authentication} token that contains a
  * <a href="https://tools.ietf.org/html/rfc6750#section-1.2" target="_blank">Bearer Token</a>
  *
- * @since 5.1
  * @author Josh Cummings
+ * @since 5.1
  */
-public class BearerTokenRequestMatcher implements RequestMatcher {
+public class BearerTokenAuthenticationToken extends AbstractAuthenticationToken {
+	private String token;
 
-	BearerTokenResolver resolver = new DefaultBearerTokenResolver();
+	public BearerTokenAuthenticationToken(String token) {
+		super(Collections.emptyList());
 
-	@Override
-	public boolean matches(HttpServletRequest request) {
-		return resolver.resolve(request) != null;
+		Assert.hasText(token, "token cannot be null or empty");
+
+		this.token = token;
 	}
 
-	public void setBearerTokenResolver(BearerTokenResolver resolver) {
-		Assert.notNull(resolver, "bearerTokenResolver cannot be null");
-		this.resolver = resolver;
+	public String getToken() {
+		return this.token;
+	}
+
+	@Override
+	public Object getCredentials() {
+		return this.token;
+	}
+
+	@Override
+	public Object getPrincipal() {
+		return this.token;
 	}
 }

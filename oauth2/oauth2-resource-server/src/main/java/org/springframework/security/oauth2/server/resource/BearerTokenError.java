@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.springframework.security.oauth2.resourceserver;
+package org.springframework.security.oauth2.server.resource;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.core.OAuth2Error;

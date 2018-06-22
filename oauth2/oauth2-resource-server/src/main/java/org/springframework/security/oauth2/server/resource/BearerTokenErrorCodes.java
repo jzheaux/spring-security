@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.springframework.security.oauth2.resourceserver;
+package org.springframework.security.oauth2.server.resource;
 
 /**
  * Standard error codes defined by the OAuth 2.0 Authorization Framework: Bearer Token Usage.
