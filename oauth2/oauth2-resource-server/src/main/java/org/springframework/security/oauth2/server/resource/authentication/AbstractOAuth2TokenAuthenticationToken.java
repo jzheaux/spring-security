@@ -44,8 +44,6 @@ import java.util.Map;
 public abstract class AbstractOAuth2TokenAuthenticationToken<T extends AbstractOAuth2Token> extends AbstractAuthenticationToken {
 	private static final long serialVersionUID = SpringSecurityCoreVersion.SERIAL_VERSION_UID;
 
-	private String scopeAttributeName = "scope";
-
 	private T token;
 
 	/**
@@ -83,25 +81,6 @@ public abstract class AbstractOAuth2TokenAuthenticationToken<T extends AbstractO
 
 	public final T getToken() {
 		return this.token;
-	}
-
-	/**
-	 * Returns the attribute name used to access the scope(s) associated to the access token.
-	 *
-	 * @return the attribute name used to access the scope(s) associated to the access token
-	 */
-	public final String getScopeAttributeName() {
-		return this.scopeAttributeName;
-	}
-
-	/**
-	 * Sets the attribute name used to access the scope(s) associated to the access token.
-	 *
-	 * @param scopeAttributeName the attribute name used to access the scope(s) associated to the access token
-	 */
-	public final void setScopeAttributeName(String scopeAttributeName) {
-		Assert.hasText(scopeAttributeName, "scopeAttributeName cannot be empty");
-		this.scopeAttributeName = scopeAttributeName;
 	}
 
 	/**

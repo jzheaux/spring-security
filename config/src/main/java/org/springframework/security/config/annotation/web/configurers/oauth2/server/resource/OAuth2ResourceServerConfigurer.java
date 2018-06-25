@@ -25,12 +25,10 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.annotation.web.configurers.CsrfConfigurer;
 import org.springframework.security.config.annotation.web.configurers.ExceptionHandlingConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.oauth2.core.OAuth2AuthoritiesPopulator;
 import org.springframework.security.oauth2.jose.jws.JwsAlgorithms;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoderJwkSupport;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationProvider;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthoritiesPopulator;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationFilter;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenRequestMatcher;
@@ -90,11 +88,8 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 		if ( decoder != null ) {
 			decoder = postProcess(decoder);
 
-			OAuth2AuthoritiesPopulator populator = postProcess(getAuthoritiesPopulator(http));
-
 			JwtAuthenticationProvider provider =
 					new JwtAuthenticationProvider(decoder);
-			provider.setAuthoritiesPopulator(populator);
 			provider = postProcess(provider);
 
 			http.authenticationProvider(provider);
@@ -119,8 +114,6 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 		private String algorithm = JwsAlgorithms.RS256;
 		private JwtDecoder decoder = null;
 
-		private OAuth2AuthoritiesPopulator populator;
-
 		JwtConfigurer() {}
 
 		public SignatureVerificationConfigurer signature() {
@@ -129,11 +122,6 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 
 		public JwtConfigurer algorithm(String algorithm) {
 			this.algorithm = algorithm;
-			return this;
-		}
-
-		public JwtConfigurer authoritiesPopulator(OAuth2AuthoritiesPopulator populator) {
-			this.populator = populator;
 			return this;
 		}
 
@@ -224,23 +212,5 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 		}
 
 		return null;
-	}
-
-	private OAuth2AuthoritiesPopulator getAuthoritiesPopulator(H http) {
-		ApplicationContext context = http.getSharedObject(ApplicationContext.class);
-
-		if ( this.jwtConfigurer != null &&
-				this.jwtConfigurer.populator != null ) {
-			return this.jwtConfigurer.populator;
-		}
-
-		Map<String, OAuth2AuthoritiesPopulator> populators =
-				BeanFactoryUtils.beansOfTypeIncludingAncestors(context, OAuth2AuthoritiesPopulator.class);
-
-		if ( !populators.isEmpty() ) {
-			return populators.values().iterator().next();
-		}
-
-		return new JwtAuthoritiesPopulator();
 	}
 }
