@@ -15,13 +15,6 @@
  */
 package org.springframework.security.config.annotation.web.configurers;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
-
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.GenericApplicationListenerAdapter;
@@ -54,6 +47,12 @@ import org.springframework.security.web.session.SessionManagementFilter;
 import org.springframework.security.web.session.SimpleRedirectInvalidSessionStrategy;
 import org.springframework.security.web.session.SimpleRedirectSessionInformationExpiredStrategy;
 import org.springframework.util.Assert;
+
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Allows configuring session management.
@@ -105,7 +104,7 @@ public final class SessionManagementConfigurer<H extends HttpSecurityBuilder<H>>
 	private Integer maximumSessions;
 	private String expiredUrl;
 	private boolean maxSessionsPreventsLogin;
-	private SessionCreationPolicy sessionPolicy = SessionCreationPolicy.IF_REQUIRED;
+	private SessionCreationPolicy sessionPolicy;
 	private boolean enableSessionUrlRewriting;
 	private String invalidSessionUrl;
 	private String sessionAuthenticationErrorUrl;
@@ -549,7 +548,12 @@ public final class SessionManagementConfigurer<H extends HttpSecurityBuilder<H>>
 	 * @return the {@link SessionCreationPolicy}
 	 */
 	SessionCreationPolicy getSessionCreationPolicy() {
-		return this.sessionPolicy;
+		if ( this.sessionPolicy != null ) {
+			return this.sessionPolicy;
+		}
+
+		SessionCreationPolicy shared = getBuilder().getSharedObject(SessionCreationPolicy.class);
+		return shared == null ? SessionCreationPolicy.IF_REQUIRED : shared;
 	}
 
 	/**
@@ -558,8 +562,9 @@ public final class SessionManagementConfigurer<H extends HttpSecurityBuilder<H>>
 	 * @return true if the {@link SessionCreationPolicy} allows session creation
 	 */
 	private boolean isAllowSessionCreation() {
-		return SessionCreationPolicy.ALWAYS == this.sessionPolicy
-				|| SessionCreationPolicy.IF_REQUIRED == this.sessionPolicy;
+		SessionCreationPolicy sessionPolicy = getSessionCreationPolicy();
+		return SessionCreationPolicy.ALWAYS == sessionPolicy
+				|| SessionCreationPolicy.IF_REQUIRED == sessionPolicy;
 	}
 
 	/**
@@ -567,7 +572,8 @@ public final class SessionManagementConfigurer<H extends HttpSecurityBuilder<H>>
 	 * @return
 	 */
 	private boolean isStateless() {
-		return SessionCreationPolicy.STATELESS == this.sessionPolicy;
+		SessionCreationPolicy sessionPolicy = getSessionCreationPolicy();
+		return SessionCreationPolicy.STATELESS == sessionPolicy;
 	}
 
 	/**

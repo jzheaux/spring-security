@@ -334,4 +334,51 @@ class SessionManagementConfigurerTests extends BaseSpringSpec {
 			return null;
 		}
 	}
+
+	def doFilterWhenSharedObjectSessionCreationPolicyConfigurationThenOverrides() {
+		setup:
+			MockHttpServletRequest request = new MockHttpServletRequest(method:"GET")
+			request.servletPath = "/"
+			MockHttpServletResponse response  = new MockHttpServletResponse()
+			MockFilterChain chain = new MockFilterChain()
+		when:
+			loadConfig(StatelessCreateSessionSharedObjectConfig)
+			springSecurityFilterChain.doFilter(request,response, chain)
+		then:
+			request.getSession(false) == null
+	}
+
+	@EnableWebSecurity
+	static class StatelessCreateSessionSharedObjectConfig extends WebSecurityConfigurerAdapter {
+		@Override
+		protected void configure(HttpSecurity http) throws Exception {
+			super.configure(http);
+			http.setSharedObject(SessionCreationPolicy.class, SessionCreationPolicy.STATELESS);
+		}
+	}
+
+	def doFilterWhenUserSessionCreationPolicyConfigurationThenOverrides() {
+		setup:
+			MockHttpServletRequest request = new MockHttpServletRequest(method:"GET")
+			request.servletPath = "/"
+			MockHttpServletResponse response  = new MockHttpServletResponse()
+			MockFilterChain chain = new MockFilterChain()
+		when:
+			loadConfig(StatelessCreateSessionUserConfig)
+			springSecurityFilterChain.doFilter(request,response, chain)
+		then:
+			request.getSession(false) == null
+	}
+
+	@EnableWebSecurity
+	static class StatelessCreateSessionUserConfig extends WebSecurityConfigurerAdapter {
+		@Override
+		protected void configure(HttpSecurity http) throws Exception {
+			super.configure(http);
+			http
+				.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+
+			http.setSharedObject(SessionCreationPolicy.class, SessionCreationPolicy.ALWAYS);
+		}
+	}
 }
