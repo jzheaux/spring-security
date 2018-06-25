@@ -15,6 +15,7 @@
  */
 package org.springframework.security.oauth2.server.resource.authentication;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.core.Authentication;
@@ -22,11 +23,12 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2AuthoritiesPopulator;
 import org.springframework.security.oauth2.core.OAuth2Error;
-import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.server.resource.BearerTokenAuthenticationToken;
+import org.springframework.security.oauth2.server.resource.BearerTokenError;
+import org.springframework.security.oauth2.server.resource.BearerTokenErrorCodes;
 import org.springframework.util.Assert;
 
 /**
@@ -61,7 +63,7 @@ public class JwtAuthenticationProvider implements AuthenticationProvider {
 		try {
 			jwt = this.jwtDecoder.decode(bearer.getToken());
 		} catch (JwtException failed) {
-			OAuth2Error invalidRequest = invalidRequest(failed.getMessage());
+			OAuth2Error invalidRequest = invalidToken(failed.getMessage());
 			throw new OAuth2AuthenticationException(invalidRequest, failed);
 		}
 
@@ -85,11 +87,11 @@ public class JwtAuthenticationProvider implements AuthenticationProvider {
 		this.authoritiesPopulator = authoritiesPopulator;
 	}
 
-	private static OAuth2Error invalidRequest(String message) {
-		return new OAuth2Error(
-				OAuth2ErrorCodes.INVALID_REQUEST,
+	private static OAuth2Error invalidToken(String message) {
+		return new BearerTokenError(
+				BearerTokenErrorCodes.INVALID_TOKEN,
+				HttpStatus.UNAUTHORIZED,
 				message,
-				"https://tools.ietf.org/html/rfc6750#section-3.1"
-		);
+				"https://tools.ietf.org/html/rfc6750#section-3.1");
 	}
 }

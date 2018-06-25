@@ -74,7 +74,7 @@ public class OAuth2ResourceServerApplicationTests {
 		this.mvc.perform(get("/").with(bearerToken("malformed")))
 				.andExpect(status().isUnauthorized())
 				.andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE,
-						containsString("Bearer error=\"invalid_request\", " +
+						containsString("Bearer error=\"invalid_token\", " +
 								"error_description=\"An error occurred while attempting to decode the Jwt: " +
 								"Invalid JWT serialization: Missing dot delimiter(s)\"")));
 	}

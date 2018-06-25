@@ -49,7 +49,9 @@ public final class DefaultBearerTokenResolver implements BearerTokenResolver {
 		if (authorizationHeaderToken != null) {
 			if (parameterToken != null) {
 				BearerTokenError error = new BearerTokenError(BearerTokenErrorCodes.INVALID_REQUEST,
-						HttpStatus.BAD_REQUEST);
+						HttpStatus.BAD_REQUEST,
+						"Found multiple bearer tokens in the request",
+						"https://tools.ietf.org/html/rfc6750#section-3.1");
 				throw new OAuth2AuthenticationException(error);
 			}
 			return authorizationHeaderToken;
@@ -86,8 +88,10 @@ public final class DefaultBearerTokenResolver implements BearerTokenResolver {
 			Matcher matcher = authorizationPattern.matcher(authorization);
 
 			if ( !matcher.matches() ) {
-				BearerTokenError error = new BearerTokenError(BearerTokenErrorCodes.INVALID_REQUEST,
-						HttpStatus.BAD_REQUEST);
+				BearerTokenError error = new BearerTokenError(BearerTokenErrorCodes.INVALID_TOKEN,
+						HttpStatus.BAD_REQUEST,
+						"Bearer token is malformed",
+						"https://tools.ietf.org/html/rfc6750#section-3.1");
 				throw new OAuth2AuthenticationException(error);
 			}
 
@@ -100,5 +104,4 @@ public final class DefaultBearerTokenResolver implements BearerTokenResolver {
 		return ((this.allowFormEncodedBodyParameter && "POST".equals(request.getMethod()))
 				|| (this.allowUriQueryParameter && "GET".equals(request.getMethod())));
 	}
-
 }
