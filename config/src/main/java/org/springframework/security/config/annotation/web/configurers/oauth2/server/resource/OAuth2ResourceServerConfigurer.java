@@ -24,6 +24,7 @@ import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.CsrfConfigurer;
 import org.springframework.security.config.annotation.web.configurers.ExceptionHandlingConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.core.OAuth2AuthoritiesPopulator;
 import org.springframework.security.oauth2.jose.jws.JwsAlgorithms;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -63,6 +64,12 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 		}
 
 		return this.jwtConfigurer;
+	}
+
+	@Override
+	public void setBuilder(H http) {
+		super.setBuilder(http);
+		initSessionCreationPolicy(http);
 	}
 
 	@Override
@@ -145,6 +152,12 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 					new NimbusJwtDecoderJwkSupport(url.toString(), configurer.algorithm);
 
 			return configurer;
+		}
+	}
+
+	private void initSessionCreationPolicy(H http) {
+		if ( http.getSharedObject(SessionCreationPolicy.class) != null ) {
+			http.setSharedObject(SessionCreationPolicy.class, SessionCreationPolicy.STATELESS);
 		}
 	}
 
