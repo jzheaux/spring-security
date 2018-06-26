@@ -23,9 +23,13 @@ import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.server.resource.BearerTokenError;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.util.StringUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * An {@link AuthenticationEntryPoint} implementation used to commence authentication of protected resource requests
@@ -50,21 +54,39 @@ public final class BearerTokenAuthenticationEntryPoint implements Authentication
 			HttpServletRequest request, HttpServletResponse response,
 			AuthenticationException authException) {
 
-		String wwwAuthenticate;
-		String realmName = this.defaultRealmName;
 		HttpStatus status = HttpStatus.UNAUTHORIZED;
+
+		Map<String, String> parameters = new LinkedHashMap<>();
+
+		if ( this.defaultRealmName != null ) {
+			parameters.put("realm", this.defaultRealmName);
+		}
 
 		if (authException instanceof OAuth2AuthenticationException) {
 			OAuth2Error error = ((OAuth2AuthenticationException) authException).getError();
 
-			wwwAuthenticate = BearerTokenErrorUtils.computeWWWAuthenticateHeaderValue(realmName, error);
+			parameters.put("error", error.getErrorCode());
+
+			if (StringUtils.hasText(error.getDescription())) {
+				parameters.put("error_description", error.getDescription());
+			}
+
+			if (StringUtils.hasText(error.getUri())) {
+				parameters.put("error_uri", error.getUri());
+			}
 
 			if ( error instanceof BearerTokenError ) {
+				BearerTokenError bearerTokenError = (BearerTokenError) error;
+
+				if ( StringUtils.hasText(bearerTokenError.getScope()) ) {
+					parameters.put("scope", bearerTokenError.getScope());
+				}
+
 				status = ((BearerTokenError) error).getHttpStatus();
 			}
-		} else {
-			wwwAuthenticate = BearerTokenErrorUtils.computeWWWAuthenticateHeaderValue(realmName);
 		}
+
+		String wwwAuthenticate = computeWWWAuthenticateHeaderValue(parameters);
 
 		response.addHeader(HttpHeaders.WWW_AUTHENTICATE, wwwAuthenticate);
 		response.setStatus(status.value());
@@ -72,5 +94,16 @@ public final class BearerTokenAuthenticationEntryPoint implements Authentication
 
 	public void setDefaultRealmName(String realmName) {
 		this.defaultRealmName = realmName;
+	}
+
+	private static String computeWWWAuthenticateHeaderValue(Map<String, String> parameters) {
+		String wwwAuthenticate = "Bearer";
+		if (!parameters.isEmpty()) {
+			wwwAuthenticate += parameters.entrySet().stream()
+					.map(attribute -> attribute.getKey() + "=\"" + attribute.getValue() + "\"")
+					.collect(Collectors.joining(", ", " ", ""));
+		}
+
+		return wwwAuthenticate;
 	}
 }

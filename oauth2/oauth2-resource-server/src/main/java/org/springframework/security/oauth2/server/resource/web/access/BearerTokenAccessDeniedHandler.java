@@ -19,19 +19,17 @@ package org.springframework.security.oauth2.server.resource.web.access;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.oauth2.server.resource.BearerTokenError;
 import org.springframework.security.oauth2.server.resource.BearerTokenErrorCodes;
 import org.springframework.security.oauth2.server.resource.authentication.AbstractOAuth2TokenAuthenticationToken;
-import org.springframework.security.oauth2.server.resource.web.BearerTokenErrorUtils;
 import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.util.StringUtils;
 
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.security.Principal;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -51,18 +49,30 @@ public final class BearerTokenAccessDeniedHandler implements AccessDeniedHandler
 
 	@Override
 	public void handle(
-			HttpServletRequest request,
-			HttpServletResponse response,
-			AccessDeniedException accessDeniedException)
-			throws IOException, ServletException {
+			HttpServletRequest request, HttpServletResponse response,
+			AccessDeniedException accessDeniedException) {
+
+		Map<String, String> parameters = new LinkedHashMap<>();
+
+		if ( this.defaultRealmName != null ) {
+			parameters.put("realm", this.defaultRealmName);
+		}
 
 		String scope = getScope(request.getUserPrincipal());
-		BearerTokenError error = insufficientScope(scope);
-		String wwwAuthenticate = BearerTokenErrorUtils
-				.computeWWWAuthenticateHeaderValue(this.defaultRealmName, error);
+
+		parameters.put("error", BearerTokenErrorCodes.INSUFFICIENT_SCOPE);
+		parameters.put("error_description",
+				String.format("The token provided has insufficient scope [%s] for this request", scope));
+		parameters.put("error_uri", "https://tools.ietf.org/html/rfc6750#section-3.1");
+
+		if ( StringUtils.hasText(scope) ) {
+			parameters.put("scope", scope);
+		}
+
+		String wwwAuthenticate = computeWWWAuthenticateHeaderValue(parameters);
 
 		response.addHeader(HttpHeaders.WWW_AUTHENTICATE, wwwAuthenticate);
-		response.setStatus(error.getHttpStatus().value());
+		response.setStatus(HttpStatus.FORBIDDEN.value());
 	}
 
 	public void setDefaultRealmName(String defaultRealmName) {
@@ -90,13 +100,14 @@ public final class BearerTokenAccessDeniedHandler implements AccessDeniedHandler
 		return "";
 	}
 
-	private static BearerTokenError insufficientScope(String scope) {
-		return new BearerTokenError(
-				BearerTokenErrorCodes.INSUFFICIENT_SCOPE,
-				HttpStatus.FORBIDDEN,
-				String.format("The token provided has insufficient scope [%s] for this request", scope),
-				"https://tools.ietf.org/html/rfc6750#section-3.1",
-				scope
-		);
+	private static String computeWWWAuthenticateHeaderValue(Map<String, String> parameters) {
+		String wwwAuthenticate = "Bearer";
+		if (!parameters.isEmpty()) {
+			wwwAuthenticate += parameters.entrySet().stream()
+					.map(attribute -> attribute.getKey() + "=\"" + attribute.getValue() + "\"")
+					.collect(Collectors.joining(", ", " ", ""));
+		}
+
+		return wwwAuthenticate;
 	}
 }
