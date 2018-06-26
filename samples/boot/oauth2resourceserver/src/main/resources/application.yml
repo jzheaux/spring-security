@@ -1,21 +1,4 @@
 server:
   port: 8081
 
-logging:
-  level:
-    root: INFO
-    org.springframework.web: INFO
-    org.springframework.security: INFO
-#    org.springframework.boot.autoconfigure: DEBUG
-
-spring:
-  security:
-    oauth2:
-      resourceserver:
-        issuer:
-          mock:
-            jwk-set-uri: http://localhost:8082/.well-known/jwks.json
-
-sample.server:
-  mock:
-    port: 8082
+sample.jwk-set-uri: mock://localhost:8082/.well-known/jwks.json

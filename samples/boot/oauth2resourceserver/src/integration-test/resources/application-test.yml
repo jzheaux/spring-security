@@ -1,3 +1,1 @@
-sample.server:
-  mock:
-    port: 0
+sample.jwk-set-uri: mock://localhost:0/.well-known/jwks.json

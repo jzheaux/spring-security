@@ -21,7 +21,6 @@ import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.env.EnvironmentPostProcessor;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
@@ -30,7 +29,8 @@ import org.springframework.http.MediaType;
 
 import javax.annotation.PreDestroy;
 import java.io.IOException;
-import java.util.Collections;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -99,22 +99,18 @@ public class MockProvider implements EnvironmentPostProcessor {
 
 	@Override
 	public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
-		Map issuers = Binder.get(environment)
-				.bind("spring.security.oauth2.resourceserver.issuer", Map.class)
-				.orElse(Collections.emptyMap());
+		String uri = environment.getProperty("sample.jwk-set-uri", "mock://localhost:0");
 
-		if ( issuers.isEmpty() || issuers.containsKey("mock") ) {
-			Integer port = Integer.parseInt(environment.getProperty("sample.server.mock.port", "0"));
-
+		if ( uri.startsWith("mock://") ) {
 			try {
-				this.server.start(port);
-			} catch (IOException e) {
+				this.server.start(new URI(uri).getPort());
+			} catch (IOException | URISyntaxException e ) {
 				throw new IllegalStateException(e);
 			}
 
 			Map<String, Object> properties = new HashMap<>();
 			String url = this.server.url("/.well-known/jwks.json").toString();
-			properties.put("spring.security.oauth2.resourceserver.issuer.mock.jwk-set-uri", url);
+			properties.put("sample.jwk-set-uri", url);
 
 			MapPropertySource propertySource = new MapPropertySource("mock", properties);
 			environment.getPropertySources().addFirst(propertySource);

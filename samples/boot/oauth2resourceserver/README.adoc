@@ -107,45 +107,19 @@ Hello, {subject}!
 
 == 3. Testing against other Authorization Servers
 
-To change the sample to point at your Authorization Server, simply find this section:
+_In order to test your Authorization Server's scoping mechanism, the issued JWTs must either use the "scope" or "scp" attribute._
+
+To change the sample to point at your Authorization Server, simply find this property in the application.yml:
 
 ```yaml
-spring:
-  security:
-    oauth2:
-      resourceserver:
-        issuer:
-          mock:
-            jwk-set-uri: http://localhost:8081/.well-known/jwks.json
+sample.jwk-set-uri: mock://localhost:8082/.well-known/jwks.json
 ```
 
-And change `mock` to the name of your authorization server and `jwk-set-uri` to your authorization server's endpoint:
+And change the property to your Authorization Server's JWK set endpoint:
 
 ```yaml
-spring:
-  security:
-    oauth2:
-      resourceserver:
-        issuer:
-          okta:
-            jwk-set-uri: https://dev-123456.oktapreview.com/oauth2/default/v1/keys
+sample.jwk-set-uri: https://dev-123456.oktapreview.com/oauth2/default/v1/keys
 ```
-
-If your Authorization Server sends scopes using something other than the `scope` attribute, you can specify it as well:
-
-
-```yaml
-spring:
-  security:
-    oauth2:
-      resourceserver:
-        issuer:
-          okta:
-            jwk-set-uri: https://dev-123456.oktapreview.com/oauth2/default/v1/keys
-            scope-attribute-name: scp
-```
-
-*(Note that the mock server will only turn on when it is explicitly configured or when there is no issuer configuration at all, meaning that with the above configuration, it will not turn on when the app is run)*
 
 And then you can run the app the same as before:
 
