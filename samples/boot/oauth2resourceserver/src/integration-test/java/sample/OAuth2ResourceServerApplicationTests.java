@@ -94,9 +94,12 @@ public class OAuth2ResourceServerApplicationTests {
 	public void performWhenInsufficientlyScopedBearerTokenThenDeniesScopedMethodAccess()
 			throws Exception {
 
-		this.mvc.perform(get("/message").with(bearerToken(this.noScopesToken)))
+		this.mvc.perform(get("/denyAll").with(bearerToken(this.messageReadToken)))
 				.andExpect(status().isForbidden())
 				.andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE,
-						containsString("Bearer")));
+						containsString("Bearer error=\"insufficient_scope\", " +
+								"error_description=\"The token provided has insufficient scope [message:read] for this request\", " +
+								"error_uri=\"https://tools.ietf.org/html/rfc6750#section-3.1\", " +
+								"scope=\"message:read\"")));
 	}
 }

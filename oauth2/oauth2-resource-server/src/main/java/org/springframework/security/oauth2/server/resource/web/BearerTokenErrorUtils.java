@@ -18,6 +18,7 @@ package org.springframework.security.oauth2.server.resource.web;
 
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.server.resource.BearerTokenError;
+import org.springframework.util.StringUtils;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -39,7 +40,7 @@ public final class BearerTokenErrorUtils {
 	}
 
 	public static String computeWWWAuthenticateHeaderValue(String realmName, OAuth2Error error) {
-		if ( error instanceof BearerTokenError) {
+		if ( error instanceof BearerTokenError ) {
 			return computeWWWAuthenticateHeaderValue(
 					realmName,
 					error.getErrorCode(),
@@ -67,15 +68,15 @@ public final class BearerTokenErrorUtils {
 
 		parameters.put("error", error);
 
-		if (description != null) {
+		if (StringUtils.hasText(description)) {
 			parameters.put("error_description", description);
 		}
 
-		if (uri != null) {
+		if (StringUtils.hasText(uri)) {
 			parameters.put("error_uri", uri);
 		}
 
-		if (scope != null) {
+		if (StringUtils.hasText(scope)) {
 			parameters.put("scope", scope);
 		}
 

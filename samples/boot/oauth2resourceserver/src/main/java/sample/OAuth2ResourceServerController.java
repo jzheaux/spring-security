@@ -37,4 +37,10 @@ public class OAuth2ResourceServerController {
 	public String message() {
 		return "secret message";
 	}
+
+	@GetMapping("/denyAll")
+	@PreAuthorize("denyAll")
+	public String deny() {
+		return "wait, how are you seeing this message?";
+	}
 }
