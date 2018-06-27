@@ -29,8 +29,6 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.net.URL;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -82,8 +80,8 @@ public class OAuth2ResourceServerConfigurerTests {
 		protected void configure(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-					.oauth2().resourceServer()
-					.jwt().signature().keys(new URL("https://example.org"));
+				.oauth2().resourceServer()
+					.jwt().jwkSetUri("https://example.org");
 			// @formatter:on
 		}
 	}
@@ -98,7 +96,7 @@ public class OAuth2ResourceServerConfigurerTests {
 					.sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
 					.and()
 				.oauth2().resourceServer()
-					.jwt().signature().keys(new URL("https://example.org"));
+					.jwt().jwkSetUri("https://example.org");
 			// @formatter:on
 		}
 	}

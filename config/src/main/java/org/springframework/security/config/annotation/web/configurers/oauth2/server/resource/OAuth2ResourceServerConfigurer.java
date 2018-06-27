@@ -17,44 +17,33 @@
 package org.springframework.security.config.annotation.web.configurers.oauth2.server.resource;
 
 import org.springframework.beans.factory.BeanCreationException;
-import org.springframework.beans.factory.BeanFactoryUtils;
-import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.CsrfConfigurer;
 import org.springframework.security.config.annotation.web.configurers.ExceptionHandlingConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.oauth2.jose.jws.JwsAlgorithms;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoderJwkSupport;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationProvider;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationFilter;
-import org.springframework.security.oauth2.server.resource.web.BearerTokenRequestMatcher;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
 import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.oauth2.server.resource.web.access.BearerTokenAccessDeniedHandler;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
-
-import java.net.URL;
-import java.util.Map;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<H>> extends
 		AbstractHttpConfigurer<OAuth2ResourceServerConfigurer<H>, H> {
 
-	private final BearerTokenRequestMatcher matcher = new BearerTokenRequestMatcher();
+	private BearerTokenResolver resolver = new DefaultBearerTokenResolver();
+	private RequestMatcher matcher = request -> this.resolver.resolve(request) != null;
 
 	private BearerTokenAuthenticationEntryPoint entryPoint = new BearerTokenAuthenticationEntryPoint();
 	private BearerTokenAccessDeniedHandler deniedHandler = new BearerTokenAccessDeniedHandler();
 
 	private JwtConfigurer jwtConfigurer;
-
-	public OAuth2ResourceServerConfigurer<H> realmName(String name) {
-		this.entryPoint.setDefaultRealmName(name);
-		this.deniedHandler.setDefaultRealmName(name);
-		return this;
-	}
 
 	public JwtConfigurer jwt() {
 		if ( this.jwtConfigurer == null ) {
@@ -81,65 +70,44 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 	public void configure(H http) throws Exception {
 		BearerTokenResolver resolver = getBearerTokenResolver(http);
 		resolver = postProcess(resolver);
-		this.matcher.setBearerTokenResolver(resolver);
 
-		JwtDecoder decoder = getJwtDecoder(http);
+		AuthenticationManager manager = http.getSharedObject(AuthenticationManager.class);
 
-		if ( decoder != null ) {
-			decoder = postProcess(decoder);
+		BearerTokenAuthenticationFilter filter =
+				new BearerTokenAuthenticationFilter(manager);
+		filter.setBearerTokenResolver(resolver);
+		filter = postProcess(filter);
 
-			JwtAuthenticationProvider provider =
-					new JwtAuthenticationProvider(decoder);
-			provider = postProcess(provider);
+		http.addFilterBefore(filter, BasicAuthenticationFilter.class);
 
-			http.authenticationProvider(provider);
+		if ( this.jwtConfigurer != null ) {
+			JwtDecoder decoder = getJwtDecoder(http);
 
-			AuthenticationManager manager = http.getSharedObject(AuthenticationManager.class);
+			if ( decoder != null ) {
+				decoder = postProcess(decoder);
 
-			BearerTokenAuthenticationFilter filter =
-					new BearerTokenAuthenticationFilter(manager);
-			filter.setBearerTokenResolver(resolver);
-			filter = postProcess(filter);
+				JwtAuthenticationProvider provider =
+						new JwtAuthenticationProvider(decoder);
+				provider = postProcess(provider);
 
-			http.addFilterBefore(filter, BasicAuthenticationFilter.class);
-		} else {
-			throw new BeanCreationException("Jwt is the only supported format for bearer tokens " +
-					"in Spring Security and no instance of JwtDecoder could be found. Either specify " +
-					"a signature verification strategy by doing http.oauth2().resourceServer().jwt().signature().keys() " +
-					"or by exposing a JwtDecoder instance as a @Bean");
+				http.authenticationProvider(provider);
+
+			} else {
+				throw new BeanCreationException("Jwt is the only supported format for bearer tokens " +
+						"in Spring Security and no instance of JwtDecoder could be found. Make sure to specify " +
+						"a jwk set uri by doing http.oauth2().resourceServer().jwt().jwkSetUri(uri)");
+			}
 		}
 	}
 
 	public class JwtConfigurer {
-		private String algorithm = JwsAlgorithms.RS256;
-		private JwtDecoder decoder = null;
+		private String jwkSetUri;
 
 		JwtConfigurer() {}
 
-		public SignatureVerificationConfigurer signature() {
-			return new SignatureVerificationConfigurer();
-		}
-
-		public JwtConfigurer algorithm(String algorithm) {
-			this.algorithm = algorithm;
-			return this;
-		}
-
-		public OAuth2ResourceServerConfigurer<H> and() {
+		public OAuth2ResourceServerConfigurer<H> jwkSetUri(String uri) {
+			this.jwkSetUri = uri;
 			return OAuth2ResourceServerConfigurer.this;
-		}
-	}
-
-	public class SignatureVerificationConfigurer {
-		SignatureVerificationConfigurer() {}
-
-		public JwtConfigurer keys(URL url) {
-			JwtConfigurer configurer = OAuth2ResourceServerConfigurer.this.jwtConfigurer;
-
-			configurer.decoder =
-					new NimbusJwtDecoderJwkSupport(url.toString(), configurer.algorithm);
-
-			return configurer;
 		}
 	}
 
@@ -184,31 +152,13 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 	}
 
 	private BearerTokenResolver getBearerTokenResolver(H http) {
-		ApplicationContext context = http.getSharedObject(ApplicationContext.class);
-
-		Map<String, BearerTokenResolver> resolvers =
-				BeanFactoryUtils.beansOfTypeIncludingAncestors(context, BearerTokenResolver.class);
-
-		if ( !resolvers.isEmpty() ) {
-			return resolvers.values().iterator().next();
-		}
-
-		return new DefaultBearerTokenResolver();
+		return this.resolver;
 	}
 
 	private JwtDecoder getJwtDecoder(H http) {
-		ApplicationContext context = http.getSharedObject(ApplicationContext.class);
-
 		if ( this.jwtConfigurer != null &&
-				this.jwtConfigurer.decoder != null ) {
-			return this.jwtConfigurer.decoder;
-		}
-
-		Map<String, JwtDecoder> decoders =
-				BeanFactoryUtils.beansOfTypeIncludingAncestors(context, JwtDecoder.class);
-
-		if ( !decoders.isEmpty() ) {
-			return decoders.values().iterator().next();
+				this.jwtConfigurer.jwkSetUri != null ) {
+			return new NimbusJwtDecoderJwkSupport(this.jwtConfigurer.jwkSetUri);
 		}
 
 		return null;

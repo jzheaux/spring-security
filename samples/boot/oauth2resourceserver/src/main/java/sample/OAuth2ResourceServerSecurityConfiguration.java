@@ -20,12 +20,10 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 
-import java.net.URL;
-
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 public class OAuth2ResourceServerSecurityConfiguration extends WebSecurityConfigurerAdapter {
 	@Value("${sample.jwk-set-uri}")
-	URL jwkSetUrl;
+	String jwkSetUri;
 
 	@Override
 	protected void configure(HttpSecurity http) throws Exception {
@@ -35,7 +33,7 @@ public class OAuth2ResourceServerSecurityConfiguration extends WebSecurityConfig
 				.anyRequest().authenticated()
 				.and()
 			.oauth2().resourceServer()
-				.jwt().signature().keys(this.jwkSetUrl);
+				.jwt().jwkSetUri(this.jwkSetUri);
 		// @formatter:on
 	}
 }
