@@ -88,6 +88,11 @@ public class BearerTokenAuthenticationFilter extends OncePerRequestFilter {
 		} catch ( OAuth2AuthenticationException invalid ) {
 			this.authenticationEntryPoint.commence(request, response, invalid);
 			return;
+		} catch ( Exception unexpected ) {
+			this.logger.error("An unexpected error occured when trying to parse the request for the bearer token." +
+					" Will let one of the other filters try.", unexpected);
+			filterChain.doFilter(request, response);
+			return;
 		}
 
 		if (token == null) {

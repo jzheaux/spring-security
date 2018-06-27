@@ -30,6 +30,7 @@ import org.springframework.security.oauth2.server.resource.BearerTokenAuthentica
 import org.springframework.security.oauth2.server.resource.BearerTokenError;
 import org.springframework.security.oauth2.server.resource.BearerTokenErrorCodes;
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -104,7 +105,11 @@ public class JwtAuthenticationProvider implements AuthenticationProvider {
 		for ( String attributeName : WELL_KNOWN_SCOPE_ATTRIBUTE_NAMES ) {
 			Object scopes = jwt.getClaims().get(attributeName);
 			if ( scopes instanceof String ) {
-				return Arrays.asList(((String) scopes).split(" "));
+				if ( StringUtils.hasText((String) scopes) ) {
+					return Arrays.asList(((String) scopes).split(" "));
+				} else {
+					return Collections.emptyList();
+				}
 			} else if ( scopes instanceof Collection ) {
 				return (Collection<String>) scopes;
 			}

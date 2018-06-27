@@ -5,7 +5,9 @@ dependencies {
 	compile project(':spring-security-oauth2-core')
 	compile project(':spring-security-web')
 	compile springCoreDependency
+
 	compile 'com.nimbusds:oauth2-oidc-sdk'
+	compile 'org.slf4j:slf4j-api'
 
 	optional project(':spring-security-oauth2-jose')
 

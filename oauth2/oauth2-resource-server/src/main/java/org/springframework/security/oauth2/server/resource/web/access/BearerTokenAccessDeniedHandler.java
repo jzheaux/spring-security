@@ -26,7 +26,6 @@ import org.springframework.util.StringUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.security.Principal;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -54,19 +53,24 @@ public final class BearerTokenAccessDeniedHandler implements AccessDeniedHandler
 
 		Map<String, String> parameters = new LinkedHashMap<>();
 
-		if ( this.defaultRealmName != null ) {
+		if (this.defaultRealmName != null) {
 			parameters.put("realm", this.defaultRealmName);
 		}
 
-		String scope = getScope(request.getUserPrincipal());
+		if ( request.getUserPrincipal() instanceof AbstractOAuth2TokenAuthenticationToken ) {
+			AbstractOAuth2TokenAuthenticationToken token =
+					(AbstractOAuth2TokenAuthenticationToken) request.getUserPrincipal();
 
-		parameters.put("error", BearerTokenErrorCodes.INSUFFICIENT_SCOPE);
-		parameters.put("error_description",
-				String.format("The token provided has insufficient scope [%s] for this request", scope));
-		parameters.put("error_uri", "https://tools.ietf.org/html/rfc6750#section-3.1");
+			String scope = getScope(token);
 
-		if ( StringUtils.hasText(scope) ) {
-			parameters.put("scope", scope);
+			parameters.put("error", BearerTokenErrorCodes.INSUFFICIENT_SCOPE);
+			parameters.put("error_description",
+					String.format("The token provided has insufficient scope [%s] for this request", scope));
+			parameters.put("error_uri", "https://tools.ietf.org/html/rfc6750#section-3.1");
+
+			if (StringUtils.hasText(scope)) {
+				parameters.put("scope", scope);
+			}
 		}
 
 		String wwwAuthenticate = computeWWWAuthenticateHeaderValue(parameters);
@@ -79,21 +83,19 @@ public final class BearerTokenAccessDeniedHandler implements AccessDeniedHandler
 		this.defaultRealmName = defaultRealmName;
 	}
 
-	private static String getScope(Principal principal) {
-		if ( principal instanceof AbstractOAuth2TokenAuthenticationToken ) {
-			Map<String, Object> attributes = ((AbstractOAuth2TokenAuthenticationToken) principal)
-					.getTokenAttributes();
+	private static String getScope(AbstractOAuth2TokenAuthenticationToken token) {
 
-			for (String attributeName : WELL_KNOWN_SCOPE_ATTRIBUTE_NAMES) {
-				Object scopes = attributes.get(attributeName);
-				if (scopes instanceof String) {
-					return (String) scopes;
-				} else if (scopes instanceof Collection) {
-					Collection coll = (Collection) scopes;
-					return (String) coll.stream()
-							.map(String::valueOf)
-							.collect(Collectors.joining(" "));
-				}
+		Map<String, Object> attributes = token.getTokenAttributes();
+
+		for (String attributeName : WELL_KNOWN_SCOPE_ATTRIBUTE_NAMES) {
+			Object scopes = attributes.get(attributeName);
+			if (scopes instanceof String) {
+				return (String) scopes;
+			} else if (scopes instanceof Collection) {
+				Collection coll = (Collection) scopes;
+				return (String) coll.stream()
+						.map(String::valueOf)
+						.collect(Collectors.joining(" "));
 			}
 		}
 

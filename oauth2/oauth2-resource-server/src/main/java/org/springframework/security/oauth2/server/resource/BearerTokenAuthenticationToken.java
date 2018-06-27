@@ -35,7 +35,7 @@ public class BearerTokenAuthenticationToken extends AbstractAuthenticationToken 
 	public BearerTokenAuthenticationToken(String token) {
 		super(Collections.emptyList());
 
-		Assert.hasText(token, "token cannot be null or empty");
+		Assert.hasText(token, "token cannot be empty");
 
 		this.token = token;
 	}

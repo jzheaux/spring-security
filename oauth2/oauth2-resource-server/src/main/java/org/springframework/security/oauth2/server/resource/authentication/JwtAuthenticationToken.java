@@ -21,7 +21,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.util.Collection;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * An implementation of an {@link AbstractOAuth2TokenAuthenticationToken}
@@ -40,7 +39,7 @@ public class JwtAuthenticationToken extends AbstractOAuth2TokenAuthenticationTok
 	 * @param jwt the JWT
 	 */
 	public JwtAuthenticationToken(Jwt jwt) {
-		this(jwt, null);
+		super(jwt);
 	}
 
 	/**
@@ -61,8 +60,6 @@ public class JwtAuthenticationToken extends AbstractOAuth2TokenAuthenticationTok
 
 	@Override
 	public String getName() {
-		return Optional
-				.ofNullable(this.getToken().getSubject())
-				.orElse(super.getName());
+		return this.getToken().getSubject();
 	}
 }
