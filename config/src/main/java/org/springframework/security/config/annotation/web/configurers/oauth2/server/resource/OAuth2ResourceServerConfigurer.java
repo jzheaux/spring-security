@@ -33,12 +33,15 @@ import org.springframework.security.oauth2.server.resource.web.DefaultBearerToke
 import org.springframework.security.oauth2.server.resource.web.access.BearerTokenAccessDeniedHandler;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.util.Assert;
+
+import javax.servlet.http.HttpServletRequest;
 
 public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<H>> extends
 		AbstractHttpConfigurer<OAuth2ResourceServerConfigurer<H>, H> {
 
 	private BearerTokenResolver resolver = new DefaultBearerTokenResolver();
-	private RequestMatcher matcher = request -> this.resolver.resolve(request) != null;
+	private BearerTokenRequestMatcher matcher = new BearerTokenRequestMatcher();
 
 	private BearerTokenAuthenticationEntryPoint entryPoint = new BearerTokenAuthenticationEntryPoint();
 	private BearerTokenAccessDeniedHandler deniedHandler = new BearerTokenAccessDeniedHandler();
@@ -70,6 +73,7 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 	public void configure(H http) throws Exception {
 		BearerTokenResolver resolver = getBearerTokenResolver(http);
 		resolver = postProcess(resolver);
+		this.matcher.setResolver(resolver);
 
 		AuthenticationManager manager = http.getSharedObject(AuthenticationManager.class);
 
@@ -112,7 +116,7 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 	}
 
 	private void initSessionCreationPolicy(H http) {
-		if ( http.getSharedObject(SessionCreationPolicy.class) != null ) {
+		if ( http.getSharedObject(SessionCreationPolicy.class) == null ) {
 			http.setSharedObject(SessionCreationPolicy.class, SessionCreationPolicy.STATELESS);
 		}
 	}
@@ -162,5 +166,19 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 		}
 
 		return null;
+	}
+
+	private static class BearerTokenRequestMatcher implements RequestMatcher {
+		private BearerTokenResolver resolver = new DefaultBearerTokenResolver();
+
+		@Override
+		public boolean matches(HttpServletRequest request) {
+			return this.resolver.resolve(request) != null;
+		}
+
+		public void setResolver(BearerTokenResolver resolver) {
+			Assert.notNull(resolver, "resolver cannot be null");
+			this.resolver = resolver;
+		}
 	}
 }
