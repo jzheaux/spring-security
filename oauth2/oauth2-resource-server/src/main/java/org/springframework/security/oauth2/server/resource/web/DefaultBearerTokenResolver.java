@@ -89,7 +89,7 @@ public final class DefaultBearerTokenResolver implements BearerTokenResolver {
 
 			if ( !matcher.matches() ) {
 				BearerTokenError error = new BearerTokenError(BearerTokenErrorCodes.INVALID_TOKEN,
-						HttpStatus.BAD_REQUEST,
+						HttpStatus.UNAUTHORIZED,
 						"Bearer token is malformed",
 						"https://tools.ietf.org/html/rfc6750#section-3.1");
 				throw new OAuth2AuthenticationException(error);
