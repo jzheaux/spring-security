@@ -24,7 +24,7 @@ import java.util.Map;
 
 /**
  * An implementation of an {@link AbstractOAuth2TokenAuthenticationToken}
- * representing a JSON Web Token (JWT) {@code Authentication}.
+ * representing a {@link Jwt} {@code Authentication}.
  *
  * @author Joe Grandja
  * @since 5.1
@@ -53,11 +53,17 @@ public class JwtAuthenticationToken extends AbstractOAuth2TokenAuthenticationTok
 		this.setAuthenticated(true);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public Map<String, Object> getTokenAttributes() {
 		return this.getToken().getClaims();
 	}
 
+	/**
+	 * The {@link Jwt}'s subject, if any
+	 */
 	@Override
 	public String getName() {
 		return this.getToken().getSubject();

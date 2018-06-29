@@ -38,11 +38,23 @@ import java.util.Collections;
 import java.util.stream.Collectors;
 
 /**
- * An {@link AuthenticationProvider} implementation of the OAuth2 Resource Server Bearer Token when using Jwt-encoding
+ * An {@link AuthenticationProvider} implementation of the {@link Jwt}-encoded
+ * <a href="https://tools.ietf.org/html/rfc6750#section-1.2" target="_blank">Bearer Token</a>s
+ * for protecting OAuth 2.0 Resource Servers.
  * <p>
  * <p>
- * This {@link AuthenticationProvider} is responsible for decoding and verifying a Jwt-encoded access token,
- * returning a Jwt claims set as part of the {@see Authentication} statement.
+ * This {@link AuthenticationProvider} is responsible for decoding and verifying a {@link Jwt}-encoded access token,
+ * returning its claims set as part of the {@see Authentication} statement.
+ * <p>
+ * <p>
+ * Scopes are translated into {@link GrantedAuthority}s according to the following algorithm:
+ *
+ * 1. If there is a "scope" attribute, then
+ * 		if a {@link String}, split by by spaces, or
+ * 		if a {@link Collection}, simply return
+ * 2. Or, if there is a "scp" attribute, then follow the same logic as [1]
+ * 3. Take the resulting {@link Collection} of {@link String}s and prepend the "SCOPE_" keyword, adding
+ * 		as {@link GrantedAuthority}s.
  *
  * @author Josh Cummings
  * @author Joe Grandja
@@ -50,7 +62,7 @@ import java.util.stream.Collectors;
  * @see AuthenticationProvider
  * @see JwtDecoder
  */
-public class JwtAuthenticationProvider implements AuthenticationProvider {
+public final class JwtAuthenticationProvider implements AuthenticationProvider {
 	private final JwtDecoder jwtDecoder;
 
 	private static final Collection<String> WELL_KNOWN_SCOPE_ATTRIBUTE_NAMES =
@@ -62,6 +74,15 @@ public class JwtAuthenticationProvider implements AuthenticationProvider {
 		this.jwtDecoder = jwtDecoder;
 	}
 
+	/**
+	 * Decode and validate the
+	 * <a href="https://tools.ietf.org/html/rfc6750#section-1.2" target="_blank">Bearer Token</a>.
+	 *
+	 * @param authentication the authentication request object.
+	 *
+	 * @return A successful authentication
+	 * @throws AuthenticationException if authentication failed for some reason
+	 */
 	@Override
 	public Authentication authenticate(Authentication authentication) throws AuthenticationException {
 		BearerTokenAuthenticationToken bearer = (BearerTokenAuthenticationToken) authentication;
@@ -88,6 +109,9 @@ public class JwtAuthenticationProvider implements AuthenticationProvider {
 		return token;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public boolean supports(Class<?> authentication) {
 		return BearerTokenAuthenticationToken.class.isAssignableFrom(authentication);
@@ -101,7 +125,7 @@ public class JwtAuthenticationProvider implements AuthenticationProvider {
 				"https://tools.ietf.org/html/rfc6750#section-3.1");
 	}
 
-	private Collection<String> getScopes(Jwt jwt) {
+	private static Collection<String> getScopes(Jwt jwt) {
 		for ( String attributeName : WELL_KNOWN_SCOPE_ATTRIBUTE_NAMES ) {
 			Object scopes = jwt.getClaims().get(attributeName);
 			if ( scopes instanceof String ) {

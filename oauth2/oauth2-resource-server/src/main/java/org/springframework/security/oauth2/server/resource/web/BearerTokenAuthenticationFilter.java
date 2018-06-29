@@ -50,7 +50,7 @@ import java.io.IOException;
  * @see <a href="https://tools.ietf.org/html/rfc6750" target="_blank">The OAuth 2.0 Authorization Framework: Bearer Token Usage</a>
  * @see JwtAuthenticationProvider
  */
-public class BearerTokenAuthenticationFilter extends OncePerRequestFilter {
+public final class BearerTokenAuthenticationFilter extends OncePerRequestFilter {
 	private final AuthenticationManager authenticationManager;
 
 	private final AuthenticationDetailsSource<HttpServletRequest, ?> authenticationDetailsSource =
@@ -60,11 +60,20 @@ public class BearerTokenAuthenticationFilter extends OncePerRequestFilter {
 
 	private AuthenticationEntryPoint authenticationEntryPoint = new BearerTokenAuthenticationEntryPoint();
 
+	/**
+	 * Construct a {@code BearerTokenAuthenticationFilter} using the provided parameter(s)
+	 * @param authenticationManager
+	 */
 	public BearerTokenAuthenticationFilter(AuthenticationManager authenticationManager) {
 		Assert.notNull(authenticationManager, "authenticationManager cannot be null");
 		this.authenticationManager = authenticationManager;
 	}
 
+	/**
+	 * Construct a {@code BearerTokenAuthenticationFilter} using the provided parameter(s)
+	 * @param authenticationManager
+	 * @param authenticationEntryPoint
+	 */
 	public BearerTokenAuthenticationFilter(
 			AuthenticationManager authenticationManager,
 			AuthenticationEntryPoint authenticationEntryPoint) {
@@ -75,6 +84,16 @@ public class BearerTokenAuthenticationFilter extends OncePerRequestFilter {
 		this.authenticationEntryPoint = authenticationEntryPoint;
 	}
 
+	/**
+	 * Extract any <a href="https://tools.ietf.org/html/rfc6750#section-1.2" target="_blank">Bearer Token</a> from
+	 * the request and attempt an authentication.
+	 *
+	 * @param request
+	 * @param response
+	 * @param filterChain
+	 * @throws ServletException
+	 * @throws IOException
+	 */
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
 			throws ServletException, IOException {
@@ -127,7 +146,7 @@ public class BearerTokenAuthenticationFilter extends OncePerRequestFilter {
 	 * Set the {@link BearerTokenResolver} to use. Defaults to {@link DefaultBearerTokenResolver}.
 	 * @param bearerTokenResolver the {@code BearerTokenResolver} to use
 	 */
-	public void setBearerTokenResolver(BearerTokenResolver bearerTokenResolver) {
+	public final void setBearerTokenResolver(BearerTokenResolver bearerTokenResolver) {
 		Assert.notNull(bearerTokenResolver, "bearerTokenResolver cannot be null");
 		this.bearerTokenResolver = bearerTokenResolver;
 	}
@@ -136,10 +155,9 @@ public class BearerTokenAuthenticationFilter extends OncePerRequestFilter {
 	 * Set the {@link AuthenticationEntryPoint} to use. Defaults to {@link BearerTokenAuthenticationEntryPoint}.
 	 * @param authenticationEntryPoint the {@code AuthenticationEntryPoint} to use
 	 */
-	public void setAuthenticationEntryPoint(final AuthenticationEntryPoint authenticationEntryPoint) {
+	public final void setAuthenticationEntryPoint(final AuthenticationEntryPoint authenticationEntryPoint) {
 		Assert.notNull(authenticationEntryPoint, "authenticationEntryPoint cannot be null");
 		this.authenticationEntryPoint = authenticationEntryPoint;
 	}
 
 }
-

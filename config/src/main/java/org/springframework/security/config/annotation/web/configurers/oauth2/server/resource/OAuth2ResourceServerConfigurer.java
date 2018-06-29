@@ -18,6 +18,7 @@ package org.springframework.security.config.annotation.web.configurers.oauth2.se
 
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.CsrfConfigurer;
@@ -37,6 +38,58 @@ import org.springframework.util.Assert;
 
 import javax.servlet.http.HttpServletRequest;
 
+/**
+ *
+ * An {@link AbstractHttpConfigurer} for OAuth 2.0 Resource Server Support.
+ *
+ * By default, this wires a {@link BearerTokenAuthenticationFilter}, which can be used to parse the request
+ * for bearer tokens and make an authentication attempt.
+ *
+ * <p>
+ * The following configuration options are available:
+ *
+ * <ul>
+ * <li>{@link #jwt()} - enables Jwt-encoded bearer token support</li>
+ * </ul>
+ *
+ * <p>
+ * When using {@link #jwt()}, a Jwk Set Uri must be supplied via {@link JwtConfigurer#jwkSetUri}
+ *
+ * <h2>Security Filters</h2>
+ *
+ * The following {@code Filter}s are populated when {@link #jwt()} is configured:
+ *
+ * <ul>
+ * <li>{@link BearerTokenAuthenticationFilter}</li>
+ * </ul>
+ *
+ * <h2>Shared Objects Created</h2>
+ *
+ * The following shared objects are populated:
+ *
+ * <ul>
+ * <li>{@link SessionCreationPolicy} (optional)</li>
+ * </ul>
+ *
+ * <h2>Shared Objects Used</h2>
+ *
+ * The following shared objects are used:
+ *
+ * <ul>
+ * <li>{@link AuthenticationManager}</li>
+ * </ul>
+ *
+ * If {@link #jwt()} isn't supplied, then the {@link BearerTokenAuthenticationFilter} is still added, but without
+ * any OAuth 2.0 {@link AuthenticationProvider}s. This is useful if needing to switch out Spring Security's Jwt support
+ * for a custom one.
+ *
+ * @author Josh Cummings
+ * @since 5.1
+ * @see BearerTokenAuthenticationFilter
+ * @see JwtAuthenticationProvider
+ * @see NimbusJwtDecoderJwkSupport
+ * @see AbstractHttpConfigurer
+ */
 public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<H>> extends
 		AbstractHttpConfigurer<OAuth2ResourceServerConfigurer<H>, H> {
 

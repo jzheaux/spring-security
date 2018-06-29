@@ -48,7 +48,15 @@ public final class BearerTokenAuthenticationEntryPoint implements Authentication
 
 	private String defaultRealmName;
 
-
+	/**
+	 * Collect error details from the provided parameters and format according to
+	 * RFC 6750, specifically {@code error}, {@code error_description}, {@code error_uri}, and {@scope scope}.
+	 *
+	 *
+	 * @param request that resulted in an <code>AuthenticationException</code>
+	 * @param response so that the user agent can begin authentication
+	 * @param authException that caused the invocation
+	 */
 	@Override
 	public void commence(
 			HttpServletRequest request, HttpServletResponse response,
@@ -92,8 +100,13 @@ public final class BearerTokenAuthenticationEntryPoint implements Authentication
 		response.setStatus(status.value());
 	}
 
-	public void setDefaultRealmName(String realmName) {
-		this.defaultRealmName = realmName;
+	/**
+	 * Set the default realm name to use in the bearer token error response
+	 *
+	 * @param defaultRealmName
+	 */
+	public final void setDefaultRealmName(String defaultRealmName) {
+		this.defaultRealmName = defaultRealmName;
 	}
 
 	private static String computeWWWAuthenticateHeaderValue(Map<String, String> parameters) {

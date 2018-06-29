@@ -42,6 +42,9 @@ public final class DefaultBearerTokenResolver implements BearerTokenResolver {
 
 	private boolean allowUriQueryParameter = false;
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public String resolve(HttpServletRequest request) {
 		String authorizationHeaderToken = resolveFromAuthorizationHeader(request);

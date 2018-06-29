@@ -19,6 +19,7 @@ package org.springframework.security.oauth2.server.resource.web.access;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.server.resource.BearerTokenErrorCodes;
 import org.springframework.security.oauth2.server.resource.authentication.AbstractOAuth2TokenAuthenticationToken;
 import org.springframework.security.web.access.AccessDeniedHandler;
@@ -33,8 +34,12 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Translates any {@link AccessDeniedException} into a corresponding HTTP response in accordance with
- * <a href="https://tools.ietf.org/html/rfc6750#section-3" target="_blank">RFC 6750 Section 3: The WWW-Authenticate</a>
+ * Translates any {@link AccessDeniedException} into an HTTP response in accordance with
+ * <a href="https://tools.ietf.org/html/rfc6750#section-3" target="_blank">RFC 6750 Section 3: The WWW-Authenticate</a>.
+ *
+ * So long as the class can prove that the request has a valid OAuth 2.0 {@link Authentication}, then will return an
+ * <a href="https://tools.ietf.org/html/rfc6750#section-3.1" target="_blank">insufficient scope error</a>; otherwise,
+ * it will simply indicate the scheme (Bearer) and any configured realm.
  *
  * @author Josh Cummings
  * @since 5.1
@@ -46,6 +51,15 @@ public final class BearerTokenAccessDeniedHandler implements AccessDeniedHandler
 
 	private String defaultRealmName;
 
+	/**
+	 * Collect error details from the provided parameters and format according to
+	 * RFC 6750, specifically {@code error}, {@code error_description}, {@code error_uri}, and {@scope scope}.
+	 *
+	 * @param request that resulted in an <code>AccessDeniedException</code>
+	 * @param response so that the user agent can be advised of the failure
+	 * @param accessDeniedException that caused the invocation
+	 *
+	 */
 	@Override
 	public void handle(
 			HttpServletRequest request, HttpServletResponse response,
@@ -79,7 +93,12 @@ public final class BearerTokenAccessDeniedHandler implements AccessDeniedHandler
 		response.setStatus(HttpStatus.FORBIDDEN.value());
 	}
 
-	public void setDefaultRealmName(String defaultRealmName) {
+	/**
+	 * Set the default realm name to use in the bearer token error response
+	 *
+	 * @param defaultRealmName
+	 */
+	public final void setDefaultRealmName(String defaultRealmName) {
 		this.defaultRealmName = defaultRealmName;
 	}
 

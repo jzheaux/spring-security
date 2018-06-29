@@ -16,6 +16,7 @@
 package org.springframework.security.oauth2.server.resource.authentication;
 
 import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.SpringSecurityCoreVersion;
 import org.springframework.security.oauth2.core.AbstractOAuth2Token;
@@ -31,7 +32,7 @@ import java.util.Map;
  * that expose common attributes between different OAuth 2.0 Access Token Formats.
  *
  * <p>
- * For example, a {@link Jwt} could expose it's {@link Jwt#getClaims() claims} via
+ * For example, a {@link Jwt} could expose its {@link Jwt#getClaims() claims} via
  * {@link #getTokenAttributes()} or an &quot;Introspected&quot; OAuth 2.0 Access Token
  * could expose the attributes of the Introspection Response via {@link #getTokenAttributes()}.
  *
@@ -69,16 +70,25 @@ public abstract class AbstractOAuth2TokenAuthenticationToken<T extends AbstractO
 		this.token = token;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public Object getPrincipal() {
 		return this.getToken();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public Object getCredentials() {
 		return this.getToken();
 	}
 
+	/**
+	 * Get the token bound to this {@link Authentication}.
+	 */
 	public final T getToken() {
 		return this.token;
 	}
