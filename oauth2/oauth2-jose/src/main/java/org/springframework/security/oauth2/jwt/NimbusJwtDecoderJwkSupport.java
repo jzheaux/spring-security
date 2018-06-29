@@ -16,6 +16,7 @@
 package org.springframework.security.oauth2.jwt;
 
 import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.RemoteKeySourceException;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.jwk.source.RemoteJWKSet;
 import com.nimbusds.jose.proc.JWSKeySelector;
@@ -33,6 +34,7 @@ import org.springframework.util.Assert;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.text.ParseException;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -119,8 +121,18 @@ public final class NimbusJwtDecoderJwkSupport implements JwtDecoder {
 
 			jwt = new Jwt(token, issuedAt, expiresAt, headers, jwtClaimsSet.getClaims());
 
+		} catch ( RemoteKeySourceException jwkFailure ) {
+			if ( jwkFailure.getCause() instanceof ParseException ) {
+				throw new JwtException("An error occurred while attempting to decode the Jwt: Malformed Jwk set");
+			} else {
+				throw new JwtException("An error occurred while attempting to decode the Jwt: " + jwkFailure.getMessage(), jwkFailure);
+			}
 		} catch (Exception ex) {
-			throw new JwtException("An error occurred while attempting to decode the Jwt: " + ex.getMessage(), ex);
+			if ( ex.getCause() instanceof ParseException ) {
+				throw new JwtException("An error occurred while attempting to decode the Jwt: Malformed payload");
+			} else {
+				throw new JwtException("An error occurred while attempting to decode the Jwt: " + ex.getMessage(), ex);
+			}
 		}
 
 		return jwt;
