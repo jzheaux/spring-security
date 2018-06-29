@@ -46,10 +46,8 @@ import org.springframework.util.DigestUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -278,31 +276,6 @@ public final class SecurityMockMvcRequestPostProcessors {
 	 */
 	public static RequestPostProcessor httpBasic(String username, String password) {
 		return new HttpBasicRequestPostProcessor(username, password);
-	}
-
-	/**
-	 * Convenience mechanism for setting the Authorization header to use OAuth 2.0
-	 * Bearer Token authorization.
-	 *
-	 * @param token the bearer token to include in the Authorization header.
-	 * @return the {@link RequestPostProcessor} to use
-	 */
-	public static RequestPostProcessor bearerToken(String token) {
-		return new BearerTokenRequestPostProcessor(token);
-	}
-
-	/**
-	 * Convenience mechanism for setting the Authorization header to use OAuth 2.0
-	 * Bearer Token authorization.
-	 *
-	 * @param token the bearer token to include in the Authorization header.
-	 * @return the {@link RequestPostProcessor} to use
-	 */
-	public static RequestPostProcessor bearerToken(Resource token) throws IOException {
-		InputStream stream = token.getInputStream();
-		try ( BufferedReader reader = new BufferedReader(new InputStreamReader(stream)) ) {
-			return new BearerTokenRequestPostProcessor(reader.readLine());
-		}
 	}
 
 	/**
@@ -921,20 +894,6 @@ public final class SecurityMockMvcRequestPostProcessors {
 				throw new RuntimeException(e);
 			}
 			this.headerValue = "Basic " + new String(Base64.getEncoder().encode(toEncode));
-		}
-
-		@Override
-		public MockHttpServletRequest postProcessRequest(MockHttpServletRequest request) {
-			request.addHeader("Authorization", this.headerValue);
-			return request;
-		}
-	}
-
-	private static class BearerTokenRequestPostProcessor implements RequestPostProcessor {
-		private String headerValue;
-
-		private BearerTokenRequestPostProcessor(String token) {
-			this.headerValue = "Bearer " + token;
 		}
 
 		@Override

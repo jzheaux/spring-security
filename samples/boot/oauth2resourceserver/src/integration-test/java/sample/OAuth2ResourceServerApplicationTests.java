@@ -21,15 +21,21 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.bearerToken;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -101,5 +107,29 @@ public class OAuth2ResourceServerApplicationTests {
 								"error_description=\"The token provided has insufficient scope [message:read] for this request\", " +
 								"error_uri=\"https://tools.ietf.org/html/rfc6750#section-3.1\", " +
 								"scope=\"message:read\"")));
+	}
+
+	private static class BearerTokenRequestPostProcessor implements RequestPostProcessor {
+		private String token;
+
+		public BearerTokenRequestPostProcessor(String token) {
+			this.token = token;
+		}
+
+		@Override
+		public MockHttpServletRequest postProcessRequest(MockHttpServletRequest request) {
+			request.addHeader("Authorization", "Bearer " + this.token);
+			return request;
+		}
+	}
+
+	private static BearerTokenRequestPostProcessor bearerToken(String token) {
+		return new BearerTokenRequestPostProcessor(token);
+	}
+
+	private static BearerTokenRequestPostProcessor bearerToken(Resource resource) throws IOException {
+		try ( BufferedReader reader = new BufferedReader(new InputStreamReader(resource.getInputStream()))) {
+			return new BearerTokenRequestPostProcessor(reader.readLine());
+		}
 	}
 }
