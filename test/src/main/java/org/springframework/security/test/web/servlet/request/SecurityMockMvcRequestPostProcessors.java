@@ -26,7 +26,6 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
-
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -277,6 +276,22 @@ public final class SecurityMockMvcRequestPostProcessors {
 	 */
 	public static RequestPostProcessor httpBasic(String username, String password) {
 		return new HttpBasicRequestPostProcessor(username, password);
+	}
+
+	/**
+	 * Include this {@code token} as a
+	 * <a href="https://tools.ietf.org/html/rfc6750#section-1.2" target="_blank">Bearer Token</a>
+	 * in the request.
+	 *
+	 * This method does not perform any encoding on the token.
+	 *
+	 * @param token the token to include
+	 * @return a {@link BearerTokenRequestPostProcessor} for further customization
+	 *
+	 * @since 5.1
+	 */
+	public static BearerTokenRequestPostProcessor bearerToken(String token) {
+		return new BearerTokenRequestPostProcessor(token);
 	}
 
 	/**
@@ -901,6 +916,42 @@ public final class SecurityMockMvcRequestPostProcessors {
 		@Override
 		public MockHttpServletRequest postProcessRequest(MockHttpServletRequest request) {
 			request.addHeader("Authorization", this.headerValue);
+			return request;
+		}
+	}
+
+	/**
+	 * Populates a valid <a href="https://tools.ietf.org/html/rfc6750#section-1.2" target="_blank">Bearer Token</a>
+	 * into the request.
+	 *
+	 * @author Josh Cummings
+	 * @since 5.1
+	 */
+	public static class BearerTokenRequestPostProcessor implements RequestPostProcessor {
+		private String token;
+		private boolean asParameter;
+
+		private BearerTokenRequestPostProcessor(String token) {
+			this.token = token;
+		}
+
+		/**
+		 * Send {@code token} as a request parameter
+		 *
+		 * @return the {@link BearerTokenRequestPostProcessor} for further customizations
+		 */
+		public BearerTokenRequestPostProcessor asParameter() {
+			this.asParameter = true;
+			return this;
+		}
+
+		@Override
+		public MockHttpServletRequest postProcessRequest(MockHttpServletRequest request) {
+			if ( this.asParameter ) {
+				request.setParameter("access_token", this.token);
+			} else {
+				request.addHeader("Authorization", "Bearer " + this.token);
+			}
 			return request;
 		}
 	}

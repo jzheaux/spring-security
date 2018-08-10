@@ -48,7 +48,6 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.util.ReflectionUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -78,7 +77,6 @@ import org.springframework.security.web.access.AccessDeniedHandlerImpl;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultMatcher;
-import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
@@ -95,6 +93,7 @@ import static org.hamcrest.core.StringStartsWith.startsWith;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.bearerToken;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -236,7 +235,7 @@ public class OAuth2ResourceServerConfigurerTests {
 
 		this.mvc.perform(get("/")
 						.with(bearerToken("token"))
-						.with(bearerToken("token").asParam()))
+						.with(bearerToken("token").asParameter()))
 				.andExpect(status().isBadRequest())
 				.andExpect(invalidRequestHeader("Found multiple bearer tokens in the request"));
 	}
@@ -264,7 +263,7 @@ public class OAuth2ResourceServerConfigurerTests {
 		this.spring.register(DefaultConfig.class).autowire();
 
 		this.mvc.perform(post("/") // engage csrf
-				.with(bearerToken("token").asParam()))
+				.with(bearerToken("token").asParameter()))
 				.andExpect(status().isForbidden())
 				.andExpect(header().doesNotExist(HttpHeaders.WWW_AUTHENTICATE));
 	}
@@ -276,7 +275,7 @@ public class OAuth2ResourceServerConfigurerTests {
 		this.spring.register(CsrfDisabledConfig.class).autowire();
 
 		this.mvc.perform(post("/")
-				.with(bearerToken("token").asParam()))
+				.with(bearerToken("token").asParameter()))
 				.andExpect(status().isUnauthorized())
 				.andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, "Bearer"));
 	}
@@ -1337,36 +1336,6 @@ public class OAuth2ResourceServerConfigurerTests {
 			}
 			return null;
 		}
-	}
-
-	private static class BearerTokenRequestPostProcessor implements RequestPostProcessor {
-		private boolean asRequestParameter;
-
-		private String token;
-
-		public BearerTokenRequestPostProcessor(String token) {
-			this.token = token;
-		}
-
-		public BearerTokenRequestPostProcessor asParam() {
-			this.asRequestParameter = true;
-			return this;
-		}
-
-		@Override
-		public MockHttpServletRequest postProcessRequest(MockHttpServletRequest request) {
-			if (this.asRequestParameter) {
-				request.setParameter("access_token", this.token);
-			} else {
-				request.addHeader("Authorization", "Bearer " + this.token);
-			}
-
-			return request;
-		}
-	}
-
-	private static BearerTokenRequestPostProcessor bearerToken(String token) {
-		return new BearerTokenRequestPostProcessor(token);
 	}
 
 	private static ResultMatcher invalidRequestHeader(String message) {
