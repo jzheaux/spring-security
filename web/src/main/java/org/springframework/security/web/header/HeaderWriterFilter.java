@@ -140,6 +140,7 @@ public class HeaderWriterFilter extends OncePerRequestFilter {
 
 		@Override
 		public void forward(ServletRequest request, ServletResponse response) throws ServletException, IOException {
+			this.response.onResponseCommitted();
 			this.delegate.forward(request, response);
 		}
 

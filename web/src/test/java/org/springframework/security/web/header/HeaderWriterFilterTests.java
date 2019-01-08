@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 
 import javax.servlet.FilterChain;
+import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -36,6 +37,9 @@ import org.mockito.runners.MockitoJUnitRunner;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.mock.web.MockRequestDispatcher;
+import org.springframework.security.web.header.writers.DelegatingRequestMatcherHeaderWriter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
@@ -129,6 +133,42 @@ public class HeaderWriterFilterTests {
 			verifyZeroInteractions(HeaderWriterFilterTests.this.writer1);
 
 			request.getRequestDispatcher("/").include(request, response);
+
+			verify(HeaderWriterFilterTests.this.writer1).writeHeaders(
+					any(HttpServletRequest.class), any(HttpServletResponse.class));
+		});
+
+		verifyNoMoreInteractions(this.writer1);
+	}
+
+	// gh-5499
+	@Test
+	public void doFilterWhenRequestContainsForwardThenHeadersStillWritten() throws Exception {
+		HeaderWriterFilter filter = new HeaderWriterFilter(
+				Collections.singletonList(new DelegatingRequestMatcherHeaderWriter(
+						new AntPathRequestMatcher("/match"),
+						this.writer1)));
+
+		MockHttpServletRequest mockRequest = new MockHttpServletRequest() {
+			@Override
+			public RequestDispatcher getRequestDispatcher(String path) {
+				MockHttpServletRequest mockRequest = this;
+				return new MockRequestDispatcher(path) {
+					@Override
+					public void forward(ServletRequest request, ServletResponse response) {
+						mockRequest.setServletPath(path);
+						super.forward(request, response);
+					}
+				};
+			}
+		};
+		mockRequest.setServletPath("/match");
+		MockHttpServletResponse mockResponse = new MockHttpServletResponse();
+
+		filter.doFilter(mockRequest, mockResponse, (request, response) -> {
+			verifyZeroInteractions(HeaderWriterFilterTests.this.writer1);
+
+			request.getRequestDispatcher("/no-match").forward(request, response);
 
 			verify(HeaderWriterFilterTests.this.writer1).writeHeaders(
 					any(HttpServletRequest.class), any(HttpServletResponse.class));
