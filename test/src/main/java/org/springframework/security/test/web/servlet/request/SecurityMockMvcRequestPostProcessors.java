@@ -26,7 +26,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
-
+import java.util.function.Consumer;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -46,9 +46,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtClaimNames;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.test.context.TestSecurityContextHolder;
-import org.springframework.security.test.support.JwtAuthenticationTokenBuilder;
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
 import org.springframework.security.test.web.support.WebTestUtils;
 import org.springframework.security.web.context.HttpRequestResponseHolder;
@@ -222,7 +222,10 @@ public final class SecurityMockMvcRequestPostProcessors {
 	 * @return the {@link JwtRequestPostProcessor} for additional customization
 	 */
 	public static JwtRequestPostProcessor jwt() {
-		return new JwtRequestPostProcessor();
+		Jwt.JwtBuilder jwtBuilder = Jwt.withTokenValue("token");
+		jwtBuilder.header("alg", "none");
+		jwtBuilder.claim(JwtClaimNames.SUB, "user");
+		return new JwtRequestPostProcessor(jwtBuilder);
 	}
 
 	/**
@@ -246,11 +249,15 @@ public final class SecurityMockMvcRequestPostProcessors {
 	 * instance may make sense when using MockMvcBuilders standaloneSetup</li>
 	 * </ul>
 	 *
-	 * @param jwt a complete JWT to extract and apply token value subject, authorities and claims configuration
+	 * @param jwtBuilderConsumer a consumer that accepts a {@link org.springframework.security.oauth2.jwt.Jwt.JwtBuilder}
 	 * @return the {@link JwtRequestPostProcessor} for additional customization
 	 */
-	public static JwtRequestPostProcessor jwt(final Jwt jwt) {
-		return jwt().jwt(jwt);
+	public static JwtRequestPostProcessor jwt(Consumer<Jwt.JwtBuilder> jwtBuilderConsumer) {
+		Jwt.JwtBuilder jwtBuilder = Jwt.withTokenValue("token");
+		jwtBuilder.header("alg", "none");
+		jwtBuilder.claim(JwtClaimNames.SUB, "user");
+		jwtBuilderConsumer.accept(jwtBuilder);
+		return new JwtRequestPostProcessor(jwtBuilder);
 	}
 
 	/**
@@ -922,6 +929,85 @@ public final class SecurityMockMvcRequestPostProcessors {
 		}
 	}
 
+	/**
+	 * @author Jérôme Wacongne &lt;ch4mp&#64;c4-soft.com&gt;
+	 * @since 5.2
+	 */
+	public static class JwtRequestPostProcessor extends SecurityContextRequestPostProcessorSupport
+			implements RequestPostProcessor {
+
+		private static final String SCOPE_PREFIX = "SCOPE_";
+
+		private Collection<? extends GrantedAuthority> authorities = AuthorityUtils
+				.createAuthorityList(SCOPE_PREFIX + "USER");
+
+		private final Jwt.JwtBuilder jwtBuilder;
+
+		public JwtRequestPostProcessor(Jwt.JwtBuilder jwtBuilder) {
+			this.jwtBuilder = jwtBuilder;
+		}
+
+
+		/**
+		 * Specify the roles of the user to authenticate as. This method is similar to
+		 * {@link #authorities(GrantedAuthority...)}, but just not as flexible.
+		 *
+		 * @param scopes The roles to populate. Note that if the role does not start with
+		 * {@link #SCOPE_PREFIX} it will automatically be prepended.
+		 * @see #authorities(GrantedAuthority...)
+		 * @see #SCOPE_PREFIX
+		 * @return the UserRequestPostProcessor for further customizations
+		 */
+		public JwtRequestPostProcessor scopes(String... scopes) {
+			List<GrantedAuthority> authorities = new ArrayList<>(
+					scopes.length);
+			for (String role : scopes) {
+				if (role.startsWith(SCOPE_PREFIX)) {
+					throw new IllegalArgumentException(
+							"Scope should not start with " + SCOPE_PREFIX
+									+ " since this method automatically prefixes with this value. Got "
+									+ role);
+				}
+				else {
+					authorities.add(new SimpleGrantedAuthority(SCOPE_PREFIX + role));
+				}
+			}
+			this.authorities = authorities;
+			return this;
+		}
+
+		/**
+		 * Populates the user's {@link GrantedAuthority}'s. The default is SCOPE_USER.
+		 *
+		 * @param authorities
+		 * @see #scopes(String...)
+		 * @return the UserRequestPostProcessor for further customizations
+		 */
+		public JwtRequestPostProcessor authorities(GrantedAuthority... authorities) {
+			return authorities(Arrays.asList(authorities));
+		}
+
+		/**
+		 * Populates the user's {@link GrantedAuthority}'s. The default is SCOPE_USER.
+		 *
+		 * @param authorities
+		 * @see #scopes(String...)
+		 * @return the UserRequestPostProcessor for further customizations
+		 */
+		public JwtRequestPostProcessor authorities(
+				Collection<? extends GrantedAuthority> authorities) {
+			this.authorities = authorities;
+			return this;
+		}
+
+		@Override
+		public MockHttpServletRequest postProcessRequest(MockHttpServletRequest request) {
+			save(new JwtAuthenticationToken(this.jwtBuilder.build(), this.authorities), request);
+			return request;
+		}
+
+	}
+
 	private static class AnonymousRequestPostProcessor extends
 			SecurityContextRequestPostProcessorSupport implements RequestPostProcessor {
 		private AuthenticationRequestPostProcessor delegate = new AuthenticationRequestPostProcessor(
@@ -962,21 +1048,5 @@ public final class SecurityMockMvcRequestPostProcessors {
 	}
 
 	private SecurityMockMvcRequestPostProcessors() {
-	}
-	
-	/**
-	 * @author Jérôme Wacongne &lt;ch4mp&#64;c4-soft.com&gt;
-	 * @since 5.2
-	 */
-	public static class JwtRequestPostProcessor extends JwtAuthenticationTokenBuilder<JwtRequestPostProcessor>
-			implements
-			RequestPostProcessor {
-
-		@Override
-		public MockHttpServletRequest postProcessRequest(MockHttpServletRequest request) {
-			SecurityContextRequestPostProcessorSupport.save(build(), request);
-			return request;
-		}
-
 	}
 }

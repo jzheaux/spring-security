@@ -15,13 +15,14 @@
  */
 package org.springframework.security.oauth2.jwt;
 
-import org.springframework.security.oauth2.core.AbstractOAuth2Token;
-import org.springframework.util.Assert;
-
 import java.time.Instant;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+
+import org.springframework.security.oauth2.core.AbstractOAuth2Token;
+import org.springframework.util.Assert;
 
 /**
  * An implementation of an {@link AbstractOAuth2Token} representing a JSON Web Token (JWT).
@@ -43,6 +44,20 @@ import java.util.Map;
 public class Jwt extends AbstractOAuth2Token implements JwtClaimAccessor {
 	private final Map<String, Object> headers;
 	private final Map<String, Object> claims;
+
+	public Jwt(String tokenValue, Map<String, Object> headers, Map<String, Object> claims) {
+		this(tokenValue, getIssuedAt(claims), getExpiresAt(claims), headers, claims);
+	}
+
+	private static Instant getIssuedAt(Map<String, Object> claims) {
+		Assert.notEmpty(claims, "claims cannot be empty");
+		return (Instant) claims.get(JwtClaimNames.IAT);
+	}
+
+	private static Instant getExpiresAt(Map<String, Object> claims) {
+		Assert.notEmpty(claims, "claims cannot be empty");
+		return (Instant) claims.get(JwtClaimNames.EXP);
+	}
 
 	/**
 	 * Constructs a {@code Jwt} using the provided parameters.
@@ -79,5 +94,65 @@ public class Jwt extends AbstractOAuth2Token implements JwtClaimAccessor {
 	@Override
 	public Map<String, Object> getClaims() {
 		return this.claims;
+	}
+
+	public static JwtBuilder withTokenValue(String tokenValue) {
+		return new JwtBuilder(tokenValue);
+	}
+
+	public static final class JwtBuilder {
+		private String tokenValue;
+		private Map<String, Object> buildingClaims = new HashMap<>();
+		private Map<String, Object> buildingHeaders = new HashMap<>();
+		private Map<String, Object> claims;
+		private Map<String, Object> headers;
+
+		public JwtBuilder(String tokenValue) {
+			this.tokenValue = tokenValue;
+		}
+
+		public JwtBuilder header(String name, Object value) {
+			Assert.hasLength(name, "header name cannot be empty");
+			Assert.notNull(value, "header value cannot be null");
+			this.buildingHeaders.put(name, value);
+			return this;
+		}
+
+		public JwtBuilder headers(Map<String, Object> headers) {
+			Assert.notEmpty(headers, "headers cannot be empty");
+			this.headers = headers;
+			return this;
+		}
+
+		public JwtBuilder claim(String name, Object value) {
+			Assert.hasLength(name, "claim name cannot be empty");
+			Assert.notNull(value, "claim value cannot be null");
+			this.buildingClaims.put(name, value);
+			return this;
+		}
+
+		public JwtBuilder claims(Map<String, Object> claims) {
+			Assert.notEmpty(claims, "claims cannot be empty");
+			this.claims = claims;
+			return this;
+		}
+
+		private Map<String, Object> getHeaders() {
+			if (this.headers == null) {
+				return this.buildingHeaders;
+			}
+			return this.headers;
+		}
+
+		private Map<String, Object> getClaims() {
+			if (this.claims == null) {
+				return this.buildingClaims;
+			}
+			return this.claims;
+		}
+
+		public Jwt build() {
+			return new Jwt(this.tokenValue, getHeaders(), getClaims());
+		}
 	}
 }
