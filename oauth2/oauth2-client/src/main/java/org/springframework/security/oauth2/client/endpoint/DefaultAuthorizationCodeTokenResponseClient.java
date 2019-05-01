@@ -15,6 +15,8 @@
  */
 package org.springframework.security.oauth2.client.endpoint;
 
+import java.util.Arrays;
+
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
@@ -33,8 +35,6 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestOperations;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Arrays;
-
 /**
  * The default implementation of an {@link OAuth2AccessTokenResponseClient}
  * for the {@link AuthorizationGrantType#AUTHORIZATION_CODE authorization_code} grant.
@@ -51,6 +51,10 @@ import java.util.Arrays;
  */
 public final class DefaultAuthorizationCodeTokenResponseClient implements OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> {
 	private static final String INVALID_TOKEN_RESPONSE_ERROR_CODE = "invalid_token_response";
+	private static final String INVALID_TOKEN_RESPONSE_ERROR_DESCRIPTION =
+			"An error occurred while attempting to retrieve the OAuth 2.0 Access Token Response";
+	private static final OAuth2Error DEFAULT_INVALID_TOKEN_RESPONSE_ERROR =
+			new OAuth2Error(INVALID_TOKEN_RESPONSE_ERROR_CODE, INVALID_TOKEN_RESPONSE_ERROR_DESCRIPTION, null);
 
 	private Converter<OAuth2AuthorizationCodeGrantRequest, RequestEntity<?>> requestEntityConverter =
 			new OAuth2AuthorizationCodeGrantRequestEntityConverter();
@@ -74,8 +78,7 @@ public final class DefaultAuthorizationCodeTokenResponseClient implements OAuth2
 		try {
 			response = this.restOperations.exchange(request, OAuth2AccessTokenResponse.class);
 		} catch (RestClientException ex) {
-			OAuth2Error oauth2Error = new OAuth2Error(INVALID_TOKEN_RESPONSE_ERROR_CODE,
-					"An error occurred while attempting to retrieve the OAuth 2.0 Access Token Response: " + ex.getMessage(), null);
+			OAuth2Error oauth2Error = invalidTokenResponse(ex.getMessage());
 			throw new OAuth2AuthorizationException(oauth2Error, ex);
 		}
 
@@ -120,5 +123,15 @@ public final class DefaultAuthorizationCodeTokenResponseClient implements OAuth2
 	public void setRestOperations(RestOperations restOperations) {
 		Assert.notNull(restOperations, "restOperations cannot be null");
 		this.restOperations = restOperations;
+	}
+
+	private static OAuth2Error invalidTokenResponse(String message) {
+		try {
+			return new OAuth2Error(INVALID_TOKEN_RESPONSE_ERROR_CODE,
+					INVALID_TOKEN_RESPONSE_ERROR_DESCRIPTION + ": " + message, null);
+		} catch (IllegalArgumentException ex) {
+			// some third-party library error messages are not suitable for RFC 6749's error message charset
+			return DEFAULT_INVALID_TOKEN_RESPONSE_ERROR;
+		}
 	}
 }

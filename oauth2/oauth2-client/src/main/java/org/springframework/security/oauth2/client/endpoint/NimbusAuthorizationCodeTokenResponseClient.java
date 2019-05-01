@@ -16,6 +16,13 @@
 package org.springframework.security.oauth2.client.endpoint;
 
 
+import java.io.IOException;
+import java.net.URI;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
+
 import com.nimbusds.oauth2.sdk.AccessTokenResponse;
 import com.nimbusds.oauth2.sdk.AuthorizationCode;
 import com.nimbusds.oauth2.sdk.AuthorizationCodeGrant;
@@ -30,6 +37,7 @@ import com.nimbusds.oauth2.sdk.auth.ClientSecretPost;
 import com.nimbusds.oauth2.sdk.auth.Secret;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.id.ClientID;
+
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
@@ -39,13 +47,6 @@ import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenResponse;
 import org.springframework.util.CollectionUtils;
-
-import java.io.IOException;
-import java.net.URI;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * An implementation of an {@link OAuth2AccessTokenResponseClient} that &quot;exchanges&quot;
@@ -68,6 +69,10 @@ import java.util.Set;
 @Deprecated
 public class NimbusAuthorizationCodeTokenResponseClient implements OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> {
 	private static final String INVALID_TOKEN_RESPONSE_ERROR_CODE = "invalid_token_response";
+	private static final String INVALID_TOKEN_RESPONSE_DESCRIPTION =
+			"An error occurred while attempting to retrieve the OAuth 2.0 Access Token Response";
+	private static OAuth2Error DEFAULT_INVALID_TOKEN_RESPONSE_ERROR =
+			new OAuth2Error(INVALID_TOKEN_RESPONSE_ERROR_CODE, INVALID_TOKEN_RESPONSE_DESCRIPTION, null);
 
 	@Override
 	public OAuth2AccessTokenResponse getTokenResponse(OAuth2AuthorizationCodeGrantRequest authorizationGrantRequest) {
@@ -100,8 +105,7 @@ public class NimbusAuthorizationCodeTokenResponseClient implements OAuth2AccessT
 			httpRequest.setReadTimeout(30000);
 			tokenResponse = com.nimbusds.oauth2.sdk.TokenResponse.parse(httpRequest.send());
 		} catch (ParseException | IOException ex) {
-			OAuth2Error oauth2Error = new OAuth2Error(INVALID_TOKEN_RESPONSE_ERROR_CODE,
-					"An error occurred while attempting to retrieve the OAuth 2.0 Access Token Response: " + ex.getMessage(), null);
+			OAuth2Error oauth2Error = invalidTokenResponse(ex.getMessage());
 			throw new OAuth2AuthorizationException(oauth2Error, ex);
 		}
 
@@ -163,6 +167,15 @@ public class NimbusAuthorizationCodeTokenResponseClient implements OAuth2AccessT
 			return new URI(uriStr);
 		} catch (Exception ex) {
 			throw new IllegalArgumentException("An error occurred parsing URI: " + uriStr, ex);
+		}
+	}
+
+	private static OAuth2Error invalidTokenResponse(String message) {
+		try {
+			return new OAuth2Error(INVALID_TOKEN_RESPONSE_ERROR_CODE,
+					INVALID_TOKEN_RESPONSE_DESCRIPTION + ": " + message, null);
+		} catch (IllegalArgumentException ex) {
+			return DEFAULT_INVALID_TOKEN_RESPONSE_ERROR;
 		}
 	}
 }

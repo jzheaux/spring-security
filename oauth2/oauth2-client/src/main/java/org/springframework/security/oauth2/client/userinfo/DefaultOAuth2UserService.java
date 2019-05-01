@@ -15,6 +15,10 @@
  */
 package org.springframework.security.oauth2.client.userinfo;
 
+import java.util.Collections;
+import java.util.Map;
+import java.util.Set;
+
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.RequestEntity;
@@ -34,10 +38,6 @@ import org.springframework.web.client.ResponseErrorHandler;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestOperations;
 import org.springframework.web.client.RestTemplate;
-
-import java.util.Collections;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * An implementation of an {@link OAuth2UserService} that supports standard OAuth 2.0 Provider's.
@@ -62,6 +62,10 @@ public class DefaultOAuth2UserService implements OAuth2UserService<OAuth2UserReq
 	private static final String MISSING_USER_NAME_ATTRIBUTE_ERROR_CODE = "missing_user_name_attribute";
 
 	private static final String INVALID_USER_INFO_RESPONSE_ERROR_CODE = "invalid_user_info_response";
+	private static final String INVALID_USER_INFO_RESPONSE_DESCRIPTION =
+			"An error occurred while attempting to retrieve the UserInfo Resource";
+	private static final OAuth2Error DEFAULT_INVALID_USER_INFO_RESPONSE_ERROR =
+			new OAuth2Error(INVALID_USER_INFO_RESPONSE_ERROR_CODE, INVALID_USER_INFO_RESPONSE_DESCRIPTION, null);
 
 	private static final ParameterizedTypeReference<Map<String, Object>> PARAMETERIZED_RESPONSE_TYPE =
 			new ParameterizedTypeReference<Map<String, Object>>() {};
@@ -94,7 +98,7 @@ public class DefaultOAuth2UserService implements OAuth2UserService<OAuth2UserReq
 		if (!StringUtils.hasText(userNameAttributeName)) {
 			OAuth2Error oauth2Error = new OAuth2Error(
 				MISSING_USER_NAME_ATTRIBUTE_ERROR_CODE,
-				"Missing required \"user name\" attribute name in UserInfoEndpoint for Client Registration: " +
+				"Missing required 'user_name' attribute name in UserInfoEndpoint for Client Registration: " +
 					userRequest.getClientRegistration().getRegistrationId(),
 				null
 			);
@@ -117,12 +121,10 @@ public class DefaultOAuth2UserService implements OAuth2UserService<OAuth2UserReq
 				errorDetails.append(", Error Description: ").append(oauth2Error.getDescription());
 			}
 			errorDetails.append("]");
-			oauth2Error = new OAuth2Error(INVALID_USER_INFO_RESPONSE_ERROR_CODE,
-					"An error occurred while attempting to retrieve the UserInfo Resource: " + errorDetails.toString(), null);
+			oauth2Error = invalidUserInfoResponse(errorDetails.toString());
 			throw new OAuth2AuthenticationException(oauth2Error, oauth2Error.toString(), ex);
 		} catch (RestClientException ex) {
-			OAuth2Error oauth2Error = new OAuth2Error(INVALID_USER_INFO_RESPONSE_ERROR_CODE,
-					"An error occurred while attempting to retrieve the UserInfo Resource: " + ex.getMessage(), null);
+			OAuth2Error oauth2Error = invalidUserInfoResponse(ex.getMessage());
 			throw new OAuth2AuthenticationException(oauth2Error, oauth2Error.toString(), ex);
 		}
 
@@ -159,5 +161,14 @@ public class DefaultOAuth2UserService implements OAuth2UserService<OAuth2UserReq
 	public final void setRestOperations(RestOperations restOperations) {
 		Assert.notNull(restOperations, "restOperations cannot be null");
 		this.restOperations = restOperations;
+	}
+
+	private static OAuth2Error invalidUserInfoResponse(String message) {
+		try {
+			return new OAuth2Error(INVALID_USER_INFO_RESPONSE_ERROR_CODE,
+					INVALID_USER_INFO_RESPONSE_DESCRIPTION + ": " + message, null);
+		} catch (IllegalArgumentException ex) {
+			return DEFAULT_INVALID_USER_INFO_RESPONSE_ERROR;
+		}
 	}
 }

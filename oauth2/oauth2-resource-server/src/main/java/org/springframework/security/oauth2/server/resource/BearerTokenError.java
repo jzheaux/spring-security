@@ -56,15 +56,9 @@ public final class BearerTokenError extends OAuth2Error {
 	 * @param scope the scope
 	 */
 	public BearerTokenError(String errorCode, HttpStatus httpStatus, String description, String errorUri, String scope) {
-		super(errorCode, description, errorUri);
+		super(assertErrorCode(errorCode), assertDescription(description), assertErrorUri(errorUri));
 		Assert.notNull(httpStatus, "httpStatus cannot be null");
 
-		Assert.isTrue(isDescriptionValid(description),
-				"description contains invalid ASCII characters, it must conform to RFC 6750");
-		Assert.isTrue(isErrorCodeValid(errorCode),
-				"errorCode contains invalid ASCII characters, it must conform to RFC 6750");
-		Assert.isTrue(isErrorUriValid(errorUri),
-				"errorUri contains invalid ASCII characters, it must conform to RFC 6750");
 		Assert.isTrue(isScopeValid(scope),
 				"scope contains invalid ASCII characters, it must conform to RFC 6750");
 
@@ -86,6 +80,25 @@ public final class BearerTokenError extends OAuth2Error {
 	 */
 	public String getScope() {
 		return this.scope;
+	}
+
+	private static String assertDescription(String description) {
+		Assert.isTrue(isDescriptionValid(description),
+				"description contains invalid ASCII characters, it must conform to RFC 6750");
+		return description;
+	}
+
+	private static String assertErrorCode(String errorCode) {
+		Assert.notNull(errorCode, "errorCode cannot be empty");
+		Assert.isTrue(isErrorCodeValid(errorCode),
+				"errorCode contains invalid ASCII characters, it must conform to RFC 6750");
+		return errorCode;
+	}
+
+	private static String assertErrorUri(String errorUri) {
+		Assert.isTrue(isErrorUriValid(errorUri),
+				"errorUri contains invalid ASCII characters, it must conform to RFC 6750");
+		return errorUri;
 	}
 
 	private static boolean isDescriptionValid(String description) {

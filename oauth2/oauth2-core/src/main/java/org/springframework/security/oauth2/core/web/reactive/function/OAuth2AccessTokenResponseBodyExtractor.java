@@ -16,6 +16,12 @@
 
 package org.springframework.security.oauth2.core.web.reactive.function;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
+
 import com.nimbusds.oauth2.sdk.AccessTokenResponse;
 import com.nimbusds.oauth2.sdk.ErrorObject;
 import com.nimbusds.oauth2.sdk.ParseException;
@@ -23,6 +29,8 @@ import com.nimbusds.oauth2.sdk.TokenErrorResponse;
 import com.nimbusds.oauth2.sdk.TokenResponse;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import net.minidev.json.JSONObject;
+import reactor.core.publisher.Mono;
+
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.ReactiveHttpInputMessage;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
@@ -32,13 +40,6 @@ import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenResponse;
 import org.springframework.web.reactive.function.BodyExtractor;
 import org.springframework.web.reactive.function.BodyExtractors;
-import reactor.core.publisher.Mono;
-
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Provides a way to create an {@link OAuth2AccessTokenResponse} from a {@link ReactiveHttpInputMessage}
@@ -49,6 +50,10 @@ class OAuth2AccessTokenResponseBodyExtractor
 		implements BodyExtractor<Mono<OAuth2AccessTokenResponse>, ReactiveHttpInputMessage> {
 
 	private static final String INVALID_TOKEN_RESPONSE_ERROR_CODE = "invalid_token_response";
+	private static final String INVALID_TOKEN_RESPONSE_DESCRIPTION =
+			"An error occurred parsing the Access Token response";
+	private static final OAuth2Error DEFAULT_INVALID_TOKEN_RESPONSE_ERROR =
+			new OAuth2Error(INVALID_TOKEN_RESPONSE_ERROR_CODE, INVALID_TOKEN_RESPONSE_DESCRIPTION, null);
 
 	OAuth2AccessTokenResponseBodyExtractor() {}
 
@@ -68,8 +73,7 @@ class OAuth2AccessTokenResponseBodyExtractor
 			return TokenResponse.parse(new JSONObject(json));
 		}
 		catch (ParseException pe) {
-			OAuth2Error oauth2Error = new OAuth2Error(INVALID_TOKEN_RESPONSE_ERROR_CODE,
-					"An error occurred parsing the Access Token response: " + pe.getMessage(), null);
+			OAuth2Error oauth2Error = invalidTokenResponse(pe.getMessage());
 			throw new OAuth2AuthorizationException(oauth2Error, pe);
 		}
 	}
@@ -119,5 +123,14 @@ class OAuth2AccessTokenResponseBodyExtractor
 				.refreshToken(refreshToken)
 				.additionalParameters(additionalParameters)
 				.build();
+	}
+
+	private static OAuth2Error invalidTokenResponse(String message) {
+		try {
+			return new OAuth2Error(INVALID_TOKEN_RESPONSE_ERROR_CODE,
+					INVALID_TOKEN_RESPONSE_DESCRIPTION + ": " + message, null);
+		} catch (IllegalArgumentException ex) {
+			return DEFAULT_INVALID_TOKEN_RESPONSE_ERROR;
+		}
 	}
 }

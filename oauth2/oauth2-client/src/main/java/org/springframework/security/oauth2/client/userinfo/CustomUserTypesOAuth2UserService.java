@@ -15,6 +15,10 @@
  */
 package org.springframework.security.oauth2.client.userinfo;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
@@ -28,10 +32,6 @@ import org.springframework.web.client.ResponseErrorHandler;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestOperations;
 import org.springframework.web.client.RestTemplate;
-
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 /**
  * An implementation of an {@link OAuth2UserService} that supports custom {@link OAuth2User} types.
@@ -49,6 +49,10 @@ import java.util.Map;
  */
 public class CustomUserTypesOAuth2UserService implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
 	private static final String INVALID_USER_INFO_RESPONSE_ERROR_CODE = "invalid_user_info_response";
+	private static final String INVALID_USER_INFO_RESPONSE_DESCRIPTION =
+			"An error occurred while attempting to retrieve the UserInfo Resource";
+	private static final OAuth2Error DEFAULT_INVALID_USER_INFO_RESPONSE_ERROR =
+			new OAuth2Error(INVALID_USER_INFO_RESPONSE_ERROR_CODE, INVALID_USER_INFO_RESPONSE_DESCRIPTION, null);
 
 	private final Map<String, Class<? extends OAuth2User>> customUserTypes;
 
@@ -84,8 +88,7 @@ public class CustomUserTypesOAuth2UserService implements OAuth2UserService<OAuth
 		try {
 			response = this.restOperations.exchange(request, customUserType);
 		} catch (RestClientException ex) {
-			OAuth2Error oauth2Error = new OAuth2Error(INVALID_USER_INFO_RESPONSE_ERROR_CODE,
-					"An error occurred while attempting to retrieve the UserInfo Resource: " + ex.getMessage(), null);
+			OAuth2Error oauth2Error = invalidUserInfoResponse(ex.getMessage());
 			throw new OAuth2AuthenticationException(oauth2Error, oauth2Error.toString(), ex);
 		}
 
@@ -121,5 +124,14 @@ public class CustomUserTypesOAuth2UserService implements OAuth2UserService<OAuth
 	public final void setRestOperations(RestOperations restOperations) {
 		Assert.notNull(restOperations, "restOperations cannot be null");
 		this.restOperations = restOperations;
+	}
+
+	private static OAuth2Error invalidUserInfoResponse(String message) {
+		try {
+			return new OAuth2Error(INVALID_USER_INFO_RESPONSE_ERROR_CODE,
+					INVALID_USER_INFO_RESPONSE_DESCRIPTION + ": " + message, null);
+		} catch (IllegalArgumentException ex) {
+			return DEFAULT_INVALID_USER_INFO_RESPONSE_ERROR;
+		}
 	}
 }

@@ -15,10 +15,10 @@
  */
 package org.springframework.security.oauth2.core;
 
+import java.io.Serializable;
+
 import org.springframework.security.core.SpringSecurityCoreVersion;
 import org.springframework.util.Assert;
-
-import java.io.Serializable;
 
 /**
  * A representation of an OAuth 2.0 Error.
@@ -58,6 +58,14 @@ public class OAuth2Error implements Serializable {
 	 */
 	public OAuth2Error(String errorCode, String description, String uri) {
 		Assert.hasText(errorCode, "errorCode cannot be empty");
+
+		Assert.isTrue(isDescriptionValid(description),
+				"description contains invalid ASCII characters, it must conform to RFC 6749");
+		Assert.isTrue(isErrorCodeValid(errorCode),
+				"errorCode contains invalid ASCII characters, it must conform to RFC 6749");
+		Assert.isTrue(isErrorUriValid(uri),
+				"errorUri contains invalid ASCII characters, it must conform to RFC 6749");
+
 		this.errorCode = errorCode;
 		this.description = description;
 		this.uri = uri;
@@ -94,5 +102,32 @@ public class OAuth2Error implements Serializable {
 	public String toString() {
 		return "[" + this.getErrorCode() + "] " +
 				(this.getDescription() != null ? this.getDescription() : "");
+	}
+
+	private static boolean isDescriptionValid(String description) {
+		return description == null ||
+				description.chars().allMatch(c ->
+						withinTheRangeOf(c, 0x20, 0x21) ||
+								withinTheRangeOf(c, 0x23, 0x5B) ||
+								withinTheRangeOf(c, 0x5D, 0x7E));
+	}
+
+	private static boolean isErrorCodeValid(String errorCode) {
+		return errorCode.chars().allMatch(c ->
+				withinTheRangeOf(c, 0x20, 0x21) ||
+						withinTheRangeOf(c, 0x23, 0x5B) ||
+						withinTheRangeOf(c, 0x5D, 0x7E));
+	}
+
+	private static boolean isErrorUriValid(String errorUri) {
+		return errorUri == null ||
+				errorUri.chars().allMatch(c ->
+						c == 0x21 ||
+								withinTheRangeOf(c, 0x23, 0x5B) ||
+								withinTheRangeOf(c, 0x5D, 0x7E));
+	}
+
+	private static boolean withinTheRangeOf(int c, int min, int max) {
+		return c >= min && c <= max;
 	}
 }

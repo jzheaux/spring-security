@@ -22,6 +22,11 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import com.nimbusds.oauth2.sdk.ErrorObject;
+import com.nimbusds.openid.connect.sdk.UserInfoErrorResponse;
+import net.minidev.json.JSONObject;
+import reactor.core.publisher.Mono;
+
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -38,12 +43,6 @@ import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
-
-import com.nimbusds.oauth2.sdk.ErrorObject;
-import com.nimbusds.openid.connect.sdk.UserInfoErrorResponse;
-
-import net.minidev.json.JSONObject;
-import reactor.core.publisher.Mono;
 
 /**
  * An implementation of an {@link ReactiveOAuth2UserService} that supports standard OAuth 2.0 Provider's.
@@ -64,6 +63,10 @@ import reactor.core.publisher.Mono;
  */
 public class DefaultReactiveOAuth2UserService implements ReactiveOAuth2UserService<OAuth2UserRequest, OAuth2User> {
 	private static final String INVALID_USER_INFO_RESPONSE_ERROR_CODE = "invalid_user_info_response";
+	private static final String INVALID_USER_INFO_RESPONSE_DESCRIPTION =
+			"An error occurred while attempting to retrieve the UserInfo Success Response";
+	private static final OAuth2Error DEFAULT_INVALID_USER_INFO_RESPONSE_ERROR =
+			new OAuth2Error(INVALID_USER_INFO_RESPONSE_ERROR_CODE, INVALID_USER_INFO_RESPONSE_DESCRIPTION, null);
 	private static final String MISSING_USER_INFO_URI_ERROR_CODE = "missing_user_info_uri";
 	private static final String MISSING_USER_NAME_ATTRIBUTE_ERROR_CODE = "missing_user_name_attribute";
 
@@ -91,7 +94,7 @@ public class DefaultReactiveOAuth2UserService implements ReactiveOAuth2UserServi
 			if (!StringUtils.hasText(userNameAttributeName)) {
 				OAuth2Error oauth2Error = new OAuth2Error(
 						MISSING_USER_NAME_ATTRIBUTE_ERROR_CODE,
-						"Missing required \"user name\" attribute name in UserInfoEndpoint for Client Registration: "
+						"Missing required 'user_name' attribute name in UserInfoEndpoint for Client Registration: "
 								+ userRequest.getClientRegistration().getRegistrationId(),
 						null);
 				throw new OAuth2AuthenticationException(oauth2Error, oauth2Error.toString());
@@ -138,7 +141,7 @@ public class DefaultReactiveOAuth2UserService implements ReactiveOAuth2UserServi
 			})
 			.onErrorMap(UnknownHostException.class, t -> new AuthenticationServiceException("Unable to access the userInfoEndpoint " + userInfoUri, t))
 			.onErrorMap(t -> !(t instanceof AuthenticationServiceException), t -> {
-				OAuth2Error oauth2Error = new OAuth2Error(INVALID_USER_INFO_RESPONSE_ERROR_CODE,  "An error occurred reading the UserInfo Success response: " + t.getMessage(), null);
+				OAuth2Error oauth2Error = invalidUserInfoResponse(t.getMessage());
 				return new OAuth2AuthenticationException(oauth2Error, oauth2Error.toString(), t);
 			});
 		});
@@ -168,5 +171,14 @@ public class DefaultReactiveOAuth2UserService implements ReactiveOAuth2UserServi
 		return httpResponse
 			.bodyToMono(typeReference)
 			.map(body -> new UserInfoErrorResponse(ErrorObject.parse(new JSONObject(body))));
+	}
+
+	private static OAuth2Error invalidUserInfoResponse(String message) {
+		try {
+			return new OAuth2Error(INVALID_USER_INFO_RESPONSE_ERROR_CODE,
+					INVALID_USER_INFO_RESPONSE_DESCRIPTION + ": " + message, null);
+		} catch (IllegalArgumentException ex) {
+			return DEFAULT_INVALID_USER_INFO_RESPONSE_ERROR;
+		}
 	}
 }
