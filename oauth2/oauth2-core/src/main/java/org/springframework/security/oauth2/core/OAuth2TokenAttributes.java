@@ -25,16 +25,23 @@ import java.util.Map;
  * @author Clement Ng
  * @since 5.2
  */
-public final class OAuth2TokenAttributes {
+public class OAuth2TokenAttributes {
+	private final String token;
 	private final Map<String, Object> attributes;
 
 	/**
 	 * Constructs an {@code OAuth2TokenAttributes} using the provided parameters.
 	 *
+	 * @param token the OAuth 2.0 token
 	 * @param attributes the attributes of the OAuth 2.0 token
 	 */
-	public OAuth2TokenAttributes(Map<String, Object> attributes) {
+	public OAuth2TokenAttributes(String token, Map<String, Object> attributes) {
+		this.token = token;
 		this.attributes = Collections.unmodifiableMap(attributes);
+	}
+
+	public String getToken() {
+		return this.token;
 	}
 
 	/**

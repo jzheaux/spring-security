@@ -15,33 +15,24 @@
  */
 package org.springframework.security.oauth2.server.resource.authentication;
 
-import java.time.Instant;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
+import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenAttributes;
-import org.springframework.security.oauth2.server.resource.introspection.OAuth2IntrospectionException;
-import org.springframework.security.oauth2.server.resource.introspection.OAuth2TokenIntrospectionClient;
 import org.springframework.security.oauth2.server.resource.BearerTokenAuthenticationToken;
 import org.springframework.security.oauth2.server.resource.BearerTokenError;
+import org.springframework.security.oauth2.server.resource.introspection.OAuth2IntrospectionException;
+import org.springframework.security.oauth2.server.resource.introspection.OAuth2TokenIntrospectionClient;
 import org.springframework.util.Assert;
-
-import static org.springframework.security.oauth2.server.resource.introspection.OAuth2IntrospectionClaimNames.EXPIRES_AT;
-import static org.springframework.security.oauth2.server.resource.introspection.OAuth2IntrospectionClaimNames.ISSUED_AT;
-import static org.springframework.security.oauth2.server.resource.introspection.OAuth2IntrospectionClaimNames.SCOPE;
 
 /**
  * An {@link AuthenticationProvider} implementation for opaque
@@ -70,6 +61,8 @@ public final class OAuth2IntrospectionAuthenticationProvider implements Authenti
 			invalidToken("An error occurred while attempting to introspect the token: Invalid token");
 
 	private OAuth2TokenIntrospectionClient introspectionClient;
+	private Converter<OAuth2TokenAttributes, ? extends AbstractAuthenticationToken> tokenAttributesAuthenticationConverter =
+			new OAuth2TokenAttributesAuthenticationConverter();
 
 	/**
 	 * Creates a {@code OAuth2IntrospectionAuthenticationProvider} with the provided parameters
@@ -110,6 +103,11 @@ public final class OAuth2IntrospectionAuthenticationProvider implements Authenti
 		return result;
 	}
 
+	public void setTokenAttributesAuthenticationConverter
+			(Converter<OAuth2TokenAttributes, ? extends AbstractAuthenticationToken> tokenAttributesAuthenticationConverter) {
+		this.tokenAttributesAuthenticationConverter = tokenAttributesAuthenticationConverter;
+	}
+
 	/**
 	 * {@inheritDoc}
 	 */
@@ -119,20 +117,7 @@ public final class OAuth2IntrospectionAuthenticationProvider implements Authenti
 	}
 
 	private AbstractAuthenticationToken convert(String token, Map<String, Object> claims) {
-		Instant iat = (Instant) claims.get(ISSUED_AT);
-		Instant exp = (Instant) claims.get(EXPIRES_AT);
-		OAuth2AccessToken accessToken  = new OAuth2AccessToken(OAuth2AccessToken.TokenType.BEARER,
-				token, iat, exp);
-		Collection<GrantedAuthority> authorities = extractAuthorities(claims);
-		return new OAuth2IntrospectionAuthenticationToken(accessToken, new OAuth2TokenAttributes(claims), authorities);
-	}
-
-	private Collection<GrantedAuthority> extractAuthorities(Map<String, Object> claims) {
-		Collection<String> scopes = (Collection<String>) claims.get(SCOPE);
-		return Optional.ofNullable(scopes).orElse(Collections.emptyList())
-				.stream()
-				.map(authority -> new SimpleGrantedAuthority("SCOPE_" + authority))
-				.collect(Collectors.toList());
+		return this.tokenAttributesAuthenticationConverter.convert(new OAuth2TokenAttributes(token, claims));
 	}
 
 	private static BearerTokenError invalidToken(String message) {
