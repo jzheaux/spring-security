@@ -17,9 +17,9 @@
 package org.springframework.security.oauth2.server.resource.web.reactive.function.client;
 
 import reactor.core.publisher.Mono;
+import reactor.util.context.Context;
 
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.AbstractOAuth2Token;
 import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ClientResponse;
@@ -61,14 +61,16 @@ public final class ServletBearerExchangeFilterFunction
 	}
 
 	private Mono<AbstractOAuth2Token> oauth2Token() {
-		return currentAuthentication()
+		return Mono.subscriberContext()
+				.flatMap(this::currentAuthentication)
 				.filter(authentication -> authentication.getCredentials() instanceof AbstractOAuth2Token)
 				.map(Authentication::getCredentials)
 				.cast(AbstractOAuth2Token.class);
 	}
 
-	private Mono<Authentication> currentAuthentication() {
-		return Mono.justOrEmpty(SecurityContextHolder.getContext().getAuthentication());
+	private Mono<Authentication> currentAuthentication(Context ctx) {
+		Authentication authentication = ctx.getOrDefault(Authentication.class, null);
+		return Mono.justOrEmpty(authentication);
 	}
 
 	private ClientRequest bearer(ClientRequest request, AbstractOAuth2Token token) {
