@@ -17,7 +17,6 @@
 package org.springframework.security.oauth2.server.resource.authentication;
 
 import java.util.Collection;
-import java.util.Map;
 
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
@@ -26,6 +25,7 @@ import org.springframework.security.oauth2.core.DefaultOAuth2AuthenticatedPrinci
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2AuthenticatedPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.util.Assert;
 
 /**
  * A {@link Converter} that takes a {@link Jwt} and converts it into a {@link BearerTokenAuthentication}.
@@ -41,18 +41,23 @@ import org.springframework.security.oauth2.jwt.Jwt;
  * @since 5.2
  */
 public final class JwtBearerTokenAuthenticationConverter implements Converter<Jwt, AbstractAuthenticationToken> {
-	private final JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
+	private final JwtGrantedAuthoritiesConverter jwtGrantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
+	private Converter<Jwt, OAuth2AuthenticatedPrincipal> jwtPrincipalConverter = jwt -> {
+		Collection<GrantedAuthority> authorities = this.jwtGrantedAuthoritiesConverter.convert(jwt);
+		return new DefaultOAuth2AuthenticatedPrincipal(jwt.getClaims(), authorities);
+	};
 
 	@Override
 	public AbstractAuthenticationToken convert(Jwt jwt) {
-		OAuth2AccessToken accessToken = new OAuth2AccessToken(
+		OAuth2AuthenticatedPrincipal principal = this.jwtPrincipalConverter.convert(jwt);
+		OAuth2AccessToken credentials = new OAuth2AccessToken(
 				OAuth2AccessToken.TokenType.BEARER, jwt.getTokenValue(), jwt.getIssuedAt(), jwt.getExpiresAt());
-		Map<String, Object> attributes = jwt.getClaims();
 
-		AbstractAuthenticationToken token = this.jwtAuthenticationConverter.convert(jwt);
-		Collection<GrantedAuthority> authorities = token.getAuthorities();
+		return new BearerTokenAuthentication(principal, credentials, principal.getAuthorities());
+	}
 
-		OAuth2AuthenticatedPrincipal principal = new DefaultOAuth2AuthenticatedPrincipal(attributes, authorities);
-		return new BearerTokenAuthentication(principal, accessToken, authorities);
+	public void setJwtPrincipalConverter(Converter<Jwt, OAuth2AuthenticatedPrincipal> jwtPrincipalConverter) {
+		Assert.notNull(jwtPrincipalConverter, "jwtPrincipalConverter cannot be null");
+		this.jwtPrincipalConverter = jwtPrincipalConverter;
 	}
 }
