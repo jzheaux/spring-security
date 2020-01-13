@@ -129,7 +129,7 @@ public class OAuth2AccessTokenResponseHttpMessageConverter extends AbstractHttpM
 	 * A {@link Converter} that converts the provided
 	 * OAuth 2.0 Access Token Response parameters to an {@link OAuth2AccessTokenResponse}.
 	 */
-	private static class OAuth2AccessTokenResponseConverter implements Converter<Map<String, String>, OAuth2AccessTokenResponse> {
+	public static class OAuth2AccessTokenResponseConverter implements Converter<Map<String, String>, OAuth2AccessTokenResponse> {
 		private static final Set<String> TOKEN_RESPONSE_PARAMETER_NAMES = new HashSet<>(Arrays.asList(
 				OAuth2ParameterNames.ACCESS_TOKEN,
 				OAuth2ParameterNames.TOKEN_TYPE,

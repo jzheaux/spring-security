@@ -16,6 +16,7 @@
 package org.springframework.security.oauth2.client.endpoint;
 
 import java.time.Instant;
+import java.util.Arrays;
 
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -27,6 +28,7 @@ import org.junit.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.http.converter.FormHttpMessageConverter;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
@@ -36,6 +38,9 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenRespon
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationExchange;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationResponse;
+import org.springframework.security.oauth2.core.http.converter.OAuth2AccessTokenResponseHttpMessageConverter;
+import org.springframework.web.client.RestOperations;
+import org.springframework.web.client.RestTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -98,7 +103,7 @@ public class DefaultAuthorizationCodeTokenResponseClientTests {
 	public void getTokenResponseWhenSuccessResponseThenReturnAccessTokenResponse() throws Exception {
 		String accessTokenSuccessResponse = "{\n" +
 				"	\"access_token\": \"access-token-1234\",\n" +
-				"   \"token_type\": \"bearer\",\n" +
+//				"   \"token_type\": \"bearer\",\n" +
 				"   \"expires_in\": \"3600\",\n" +
 				"   \"scope\": \"read write\",\n" +
 				"   \"refresh_token\": \"refresh-token-1234\",\n" +
@@ -109,8 +114,21 @@ public class DefaultAuthorizationCodeTokenResponseClientTests {
 
 		Instant expiresAtBefore = Instant.now().plusSeconds(3600);
 
+		OAuth2AccessTokenResponseHttpMessageConverter messageConverter =
+				new OAuth2AccessTokenResponseHttpMessageConverter();
+		OAuth2AccessTokenResponseHttpMessageConverter.OAuth2AccessTokenResponseConverter responseConverter =
+				new OAuth2AccessTokenResponseHttpMessageConverter.OAuth2AccessTokenResponseConverter();
+		messageConverter.setTokenResponseConverter(map -> {
+			map.put("token_type", "bearer");
+			return responseConverter.convert(map);
+		});
+		DefaultAuthorizationCodeTokenResponseClient tokenResponseClient =
+				new DefaultAuthorizationCodeTokenResponseClient();
+		RestOperations rest = new RestTemplate(Arrays.asList(new FormHttpMessageConverter(), messageConverter));
+		tokenResponseClient.setRestOperations(rest);
+
 		OAuth2AccessTokenResponse accessTokenResponse =
-				this.tokenResponseClient.getTokenResponse(this.authorizationCodeGrantRequest());
+				tokenResponseClient.getTokenResponse(this.authorizationCodeGrantRequest());
 
 		Instant expiresAtAfter = Instant.now().plusSeconds(3600);
 
