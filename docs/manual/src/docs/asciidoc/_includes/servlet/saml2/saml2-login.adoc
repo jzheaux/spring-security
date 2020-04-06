@@ -1,29 +1,60 @@
 [[servlet-saml2-login]]
 == SAML 2.0 Login
+:figures: images/servlet/saml2
+:icondir: images/icons
 
-The SAML 2.0 Login, `saml2Login()`, feature provides an application with the capability to have users log in to the application by using their existing account at an SAML 2.0 Identity Provider (Okta, ADFS, etc).
+The SAML 2.0 Login feature provides an application with the capability to act as a SAML 2.0 Service Provider, having users log in to the application by using their existing account at a SAML 2.0 Identity Provider (Okta, ADFS, etc).
 
 NOTE: SAML 2.0 Login is implemented by using the *Web Browser SSO Profile*, as specified in
 https://www.oasis-open.org/committees/download.php/35389/sstc-saml-profiles-errata-2.0-wd-06-diff.pdf#page=15[SAML 2 Profiles].
-Our implementation is currently limited to a simple authentication scheme.
 
 [[servlet-saml2-spring-security-history]]
-=== SAML 2 Support in Spring Security
+Since 2009, support for service providers has existed as an https://github.com/spring-projects/spring-security-saml/tree/1e013b07a7772defd6a26fcfae187c9bf661ee8f#spring-saml[extension project].
+In 2019, the process began to port that into https://github.com/spring-projects/spring-security[Spring Security] proper.
+This process is similar to the once started in 2017 for <<oauth2,Spring Security's OAuth 2.0 support>>.
 
-SAML 2 Service Provider, SP a.k.a. a relying party, support existed as an
-https://github.com/spring-projects/spring-security-saml/tree/1e013b07a7772defd6a26fcfae187c9bf661ee8f#spring-saml[independent project]
-since 2009. The 1.0.x branch is still in use, including in the
-https://github.com/cloudfoundry/uaa[Cloud Foundry User Account and Authentication Server] that
-also created a SAML 2.0 Identity Provider implementation based on the SP implementation.
+[NOTE]
+====
+A working sample for {gh-samples-url}/boot/saml2login[SAML 2.0 Login] is available in the {gh-samples-url}[Spring Security repository].
+====
 
-In 2018 we experimented with creating an updated implementation of both a
-https://github.com/spring-projects/spring-security-saml#spring-saml[Service Provider and Identity Provider]
-as a standalone library. After careful, and lengthy, deliberation we, the Spring Security team, decided
-to discontinue that effort. While this effort created a replacement for that standalone 1.0.x library
-we didn't feel that we should build a library on top of another library.
+=== Dependencies
 
-Instead we opted to provide framework support for SAML 2 authentication as part of
-https://github.com/spring-projects/spring-security[core Spring Security] instead.
+SAML 2.0 service provider support is found in `spring-security-saml2-service-provider`.
+It builds off of the OpenSAML library.
+
+[[saml2login-minimalconfiguration]]
+=== Minimal Configuration
+
+When using https://spring.io/projects/spring-boot[Spring Boot], configuring an application as a service provider consists of two basic steps.
+First, include the needed dependencies and second, indicate the necessary identity provider metadata.
+
+==== Specifying Identity Provider Metadata
+
+In a Spring Boot application, to specify an identity provider's metadata, simply do:
+
+[source,yml]
+----
+spring:
+  security:
+    saml2:
+      relyingparty:
+        registration:
+          example:
+            identityprovider:
+              entity-id: https://idp.example.com/issuer
+              verification.credentials:
+                - certificate-location: "classpath:idp.crt"
+              sso-url: https://idp.example.com/issuer/SSO.saml2
+----
+
+where
+
+* `https://idp.example.com/issuer` is the value contained in the `Issuer` attribute SAML responses that the identity provider will issue
+* `classpath:idp.crt` is the location on the classpath for the identity provider's certificate for verifying SAML responses, and
+* `https://idp.example.com/issuer/SSO.saml2` is the endpoint where the identity provider is expecting `AuthnRequest` s.
+
+And that's it!
 
 [[servlet-saml2-login-concepts]]
 === Saml 2 Login - High Level Concepts
