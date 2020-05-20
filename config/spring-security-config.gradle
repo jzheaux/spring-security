@@ -46,6 +46,7 @@ dependencies {
 	testCompile apachedsDependencies
 	testCompile powerMock2Dependencies
 	testCompile 'com.squareup.okhttp3:mockwebserver'
+	testCompile 'com.tngtech.archunit:archunit-junit4'
 	testCompile 'ch.qos.logback:logback-classic'
 	testCompile 'io.projectreactor.netty:reactor-netty'
 	testCompile 'io.rsocket:rsocket-transport-netty'

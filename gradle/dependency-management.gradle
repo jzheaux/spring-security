@@ -42,6 +42,7 @@ dependencies {
 		management "com.sun.xml.bind:jaxb-core:2.+"
 		management "com.sun.xml.bind:jaxb-impl:2.+"
 		management "com.unboundid:unboundid-ldapsdk:4.+"
+		management "com.tngtech.archunit:archunit-junit4:0.+"
 		management "commons-codec:commons-codec:1.+"
 		management "commons-collections:commons-collections:3.+"
 		management "commons-httpclient:commons-httpclient:3.+"
