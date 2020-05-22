@@ -24,8 +24,6 @@ import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.lang.EvaluationResult;
-import com.tngtech.archunit.library.dependencies.SliceAssignment;
-import com.tngtech.archunit.library.dependencies.SliceIdentifier;
 import org.junit.Test;
 
 import static com.tngtech.archunit.base.DescribedPredicate.alwaysTrue;
@@ -39,7 +37,7 @@ public class ArchitectureTests {
 	public void freeOfCycles() {
 		String pkg = "org.springframework.security.config";
 		JavaClasses classes = new ClassFileImporter().importPackages(pkg);
-		EvaluationResult result = slices().assignedFrom(this.fullPackageSlices).should().beFreeOfCycles()
+		EvaluationResult result = slices().matching("(**)").should().beFreeOfCycles()
 				.ignoreDependency(this.shouldIgnore, alwaysTrue())
 				.ignoreDependency(alwaysTrue(), this.shouldIgnore)
 				.evaluate(classes);
@@ -68,7 +66,7 @@ public class ArchitectureTests {
 			}
 		}
 		String message = System.lineSeparator() + String.join(System.lineSeparator(), formatted);
-		assertThat(cycles.size()).overridingErrorMessage("Cycles Detected " + message).isEqualTo(0);
+		assertThat(cycles.size()).overridingErrorMessage(cycles.size() + " cycle(s) detected " + message).isEqualTo(0);
 	}
 
 	DescribedPredicate<JavaClass> shouldIgnore = describe("tests and legacy hot spots", input -> {
@@ -86,16 +84,4 @@ public class ArchitectureTests {
 
 		return false;
 	});
-
-	SliceAssignment fullPackageSlices = new SliceAssignment() {
-		@Override
-		public SliceIdentifier getIdentifierOf(JavaClass javaClass) {
-			return SliceIdentifier.of(javaClass.getPackageName());
-		}
-
-		@Override
-		public String getDescription() {
-			return "full package slices";
-		}
-	};
 }
