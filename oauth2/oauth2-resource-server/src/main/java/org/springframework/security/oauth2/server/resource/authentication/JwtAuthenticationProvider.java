@@ -17,6 +17,9 @@ package org.springframework.security.oauth2.server.resource.authentication;
 
 import java.util.Collection;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -57,6 +60,8 @@ import org.springframework.util.Assert;
  * @see JwtDecoder
  */
 public final class JwtAuthenticationProvider implements AuthenticationProvider {
+	private final Log logger = LogFactory.getLog(getClass());
+
 	private final JwtDecoder jwtDecoder;
 
 	private Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthenticationConverter = new JwtAuthenticationConverter();
@@ -91,6 +96,8 @@ public final class JwtAuthenticationProvider implements AuthenticationProvider {
 		AbstractAuthenticationToken token = this.jwtAuthenticationConverter.convert(jwt);
 		token.setDetails(bearer.getDetails());
 
+		logAuthorities(jwt, token.getAuthorities());
+
 		return token;
 	}
 
@@ -107,5 +114,15 @@ public final class JwtAuthenticationProvider implements AuthenticationProvider {
 
 		Assert.notNull(jwtAuthenticationConverter, "jwtAuthenticationConverter cannot be null");
 		this.jwtAuthenticationConverter = jwtAuthenticationConverter;
+	}
+
+	private void logAuthorities(Jwt jwt, Collection<GrantedAuthority> authorities) {
+		if (logger.isDebugEnabled()) {
+			logger.debug(String.format(
+					"Token [%s] contains %d authorities", jwt.getId(), authorities.size()));
+		} else if (logger.isTraceEnabled()) {
+			logger.debug(String.format(
+					"Token [%s] contains authorities: %s", jwt.getId(), authorities));
+		}
 	}
 }

@@ -106,6 +106,10 @@ public final class BearerTokenAuthenticationFilter extends OncePerRequestFilter 
 		try {
 			token = this.bearerTokenResolver.resolve(request);
 		} catch ( OAuth2AuthenticationException invalid ) {
+			if (debug) {
+				this.logger.debug("Bearer token resolution failure", invalid);
+			}
+
 			this.authenticationEntryPoint.commence(request, response, invalid);
 			return;
 		}
@@ -123,6 +127,10 @@ public final class BearerTokenAuthenticationFilter extends OncePerRequestFilter 
 			AuthenticationManager authenticationManager = this.authenticationManagerResolver.resolve(request);
 			Authentication authenticationResult = authenticationManager.authenticate(authenticationRequest);
 
+			if (debug) {
+				this.logger.debug("Authentication success: " + authenticationResult);
+			}
+
 			SecurityContext context = SecurityContextHolder.createEmptyContext();
 			context.setAuthentication(authenticationResult);
 			SecurityContextHolder.setContext(context);
@@ -132,7 +140,7 @@ public final class BearerTokenAuthenticationFilter extends OncePerRequestFilter 
 			SecurityContextHolder.clearContext();
 
 			if (debug) {
-				this.logger.debug("Authentication request for failed!", failed);
+				this.logger.debug("Authentication failure", failed);
 			}
 
 			this.authenticationFailureHandler.onAuthenticationFailure(request, response, failed);

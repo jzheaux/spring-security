@@ -18,6 +18,9 @@ package org.springframework.security.oauth2.server.resource.authentication;
 import java.time.Instant;
 import java.util.Collection;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.AuthenticationServiceException;
@@ -29,6 +32,7 @@ import org.springframework.security.oauth2.core.OAuth2AuthenticatedPrincipal;
 import org.springframework.security.oauth2.server.resource.BearerTokenAuthenticationToken;
 import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException;
 import org.springframework.security.oauth2.server.resource.introspection.BadOpaqueTokenException;
+import org.springframework.security.oauth2.server.resource.introspection.OAuth2IntrospectionClaimNames;
 import org.springframework.security.oauth2.server.resource.introspection.OAuth2IntrospectionException;
 import org.springframework.security.oauth2.server.resource.introspection.OpaqueTokenIntrospector;
 import org.springframework.util.Assert;
@@ -59,6 +63,8 @@ import static org.springframework.security.oauth2.server.resource.introspection.
  * @see AuthenticationProvider
  */
 public final class OpaqueTokenAuthenticationProvider implements AuthenticationProvider {
+	private final Log logger = LogFactory.getLog(getClass());
+
 	private OpaqueTokenIntrospector introspector;
 
 	/**
@@ -98,6 +104,9 @@ public final class OpaqueTokenAuthenticationProvider implements AuthenticationPr
 
 		AbstractAuthenticationToken result = convert(principal, bearer.getToken());
 		result.setDetails(bearer.getDetails());
+
+		logAuthorities(principal, result.getAuthorities());
+
 		return result;
 	}
 
@@ -115,5 +124,15 @@ public final class OpaqueTokenAuthenticationProvider implements AuthenticationPr
 		OAuth2AccessToken accessToken = new OAuth2AccessToken(OAuth2AccessToken.TokenType.BEARER,
 				token, iat, exp);
 		return new BearerTokenAuthentication(principal, accessToken, principal.getAuthorities());
+	}
+
+	private void logAuthorities(OAuth2AuthenticatedPrincipal principal, Collection<GrantedAuthority> authorities) {
+		if (logger.isDebugEnabled()) {
+			logger.debug(String.format("Token [%s] contains %d authorities",
+					principal.getAttribute(OAuth2IntrospectionClaimNames.JTI), authorities.size()));
+		} else if (logger.isTraceEnabled()) {
+			logger.debug(String.format("Token [%s] contains authorities: %s",
+					principal.getAttribute(OAuth2IntrospectionClaimNames.JTI), authorities));
+		}
 	}
 }
