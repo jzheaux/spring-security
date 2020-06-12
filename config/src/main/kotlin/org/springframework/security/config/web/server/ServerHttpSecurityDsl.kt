@@ -176,6 +176,36 @@ class ServerHttpSecurityDsl(private val http: ServerHttpSecurity, private val in
     }
 
     /**
+     * Enables password management.
+     *
+     * Example:
+     *
+     * ```
+     * @EnableWebFluxSecurity
+     * class SecurityConfig {
+     *
+     *  @Bean
+     *  fun springWebFilterChain(http: ServerHttpSecurity): SecurityWebFilterChain {
+     *      return http {
+     *          passwordManagement {
+     *              changePasswordPage = "/custom-change-password-page"
+     *          }
+     *       }
+     *   }
+     * }
+     * ```
+     *
+     * @param passwordManagementConfiguration custom configuration to be applied to the
+     * password management
+     * @see [ServerPasswordManagementDsl]
+     * @since 5.4
+     */
+    fun passwordManagement(passwordManagementConfiguration: ServerPasswordManagementDsl.() -> Unit) {
+        val passwordManagementCustomizer = ServerPasswordManagementDsl().apply(passwordManagementConfiguration).get()
+        this.http.passwordManagement(passwordManagementCustomizer)
+    }
+
+    /**
      * Allows configuring response headers.
      *
      * Example:

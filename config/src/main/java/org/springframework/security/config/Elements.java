@@ -80,4 +80,6 @@ public abstract class Elements {
 	public static final String OAUTH2_LOGIN = "oauth2-login";
 	public static final String OAUTH2_CLIENT = "oauth2-client";
 	public static final String CLIENT_REGISTRATIONS = "client-registrations";
+
+	public static final String PASSWORD_MANAGEMENT = "password-management";
 }

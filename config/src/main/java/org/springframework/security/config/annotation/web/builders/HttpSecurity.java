@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,6 +54,7 @@ import org.springframework.security.config.annotation.web.configurers.oauth2.cli
 import org.springframework.security.config.annotation.web.configurers.oauth2.server.resource.OAuth2ResourceServerConfigurer;
 import org.springframework.security.config.annotation.web.configurers.openid.OpenIDLoginConfigurer;
 import org.springframework.security.config.annotation.web.configurers.saml2.Saml2LoginConfigurer;
+import org.springframework.security.config.annotation.web.configurers.PasswordManagementConfigurer;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -2523,6 +2524,46 @@ public final class HttpSecurity extends
 	 */
 	public HttpSecurity httpBasic(Customizer<HttpBasicConfigurer<HttpSecurity>> httpBasicCustomizer) throws Exception {
 		httpBasicCustomizer.customize(getOrApply(new HttpBasicConfigurer<>()));
+		return HttpSecurity.this;
+	}
+
+	/**
+	 * Adds support for the password management.
+	 *
+	 * <h2>Example Configuration</h2>
+	 * The example below demonstrates how to configure password management for an
+	 * application. The default change password page is "/change-password", but can be
+	 * customized using {@link PasswordManagementConfigurer#changePasswordPage(String)}.
+	 *
+	 * <pre>
+	 * &#064;Configuration
+	 * &#064;EnableWebSecurity
+	 * public class PasswordManagementSecurityConfig extends WebSecurityConfigurerAdapter {
+	 *
+	 * 	&#064;Override
+	 * 	protected void configure(HttpSecurity http) throws Exception {
+	 * 		http
+	 * 			.authorizeRequests(authorizeRequests ->
+	 * 				authorizeRequests
+	 * 					.antMatchers(&quot;/**&quot;).hasRole(&quot;USER&quot;)
+	 * 			)
+	 * 			.passwordManagement(passwordManagement ->
+	 * 				passwordManagement
+	 * 					.changePasswordPage(&quot;/custom-change-password-page&quot;)
+	 * 			);
+	 *    }
+	 * }
+	 * </pre>
+	 *
+	 * @param passwordManagementCustomizer the {@link Customizer} to provide more options for
+	 *                                     the {@link PasswordManagementConfigurer}
+	 * @return the {@link HttpSecurity} for further customizations
+	 * @throws Exception
+	 * @since 5.4
+	 */
+	public HttpSecurity passwordManagement(Customizer<PasswordManagementConfigurer<HttpSecurity>> passwordManagementCustomizer)
+			throws Exception {
+		passwordManagementCustomizer.customize(getOrApply(new PasswordManagementConfigurer<>()));
 		return HttpSecurity.this;
 	}
 

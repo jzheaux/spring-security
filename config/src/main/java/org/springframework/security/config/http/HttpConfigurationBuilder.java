@@ -91,6 +91,7 @@ import static org.springframework.security.config.http.SecurityFilters.SECURITY_
 import static org.springframework.security.config.http.SecurityFilters.SERVLET_API_SUPPORT_FILTER;
 import static org.springframework.security.config.http.SecurityFilters.SESSION_MANAGEMENT_FILTER;
 import static org.springframework.security.config.http.SecurityFilters.WEB_ASYNC_MANAGER_FILTER;
+import static org.springframework.security.config.http.SecurityFilters.WELL_KNOWN_CHANGE_PASSWORD_REDIRECT_FILTER;
 
 /**
  * Stateful class which helps HttpSecurityBDP to create the configuration for the
@@ -144,6 +145,7 @@ class HttpConfigurationBuilder {
 	private BeanDefinition addHeadersFilter;
 	private BeanMetadataElement corsFilter;
 	private BeanDefinition csrfFilter;
+	private BeanDefinition wellKnownChangePasswordRedirectFilter;
 	private BeanMetadataElement csrfLogoutHandler;
 	private BeanMetadataElement csrfAuthStrategy;
 
@@ -193,6 +195,7 @@ class HttpConfigurationBuilder {
 		createFilterSecurityInterceptor(authenticationManager);
 		createAddHeadersFilter();
 		createCorsFilter();
+		createWellKnownChangePasswordRedirectFilter();
 	}
 
 	private SessionCreationPolicy createPolicy(String createSession) {
@@ -803,6 +806,16 @@ class HttpConfigurationBuilder {
 		this.csrfLogoutHandler = csrfParser.getCsrfLogoutHandler();
 	}
 
+	private void createWellKnownChangePasswordRedirectFilter() {
+		Element element = DomUtils.getChildElementByTagName(this.httpElt, Elements.PASSWORD_MANAGEMENT);
+		if (element == null) {
+			return;
+		}
+
+		WellKnownChangePasswordBeanDefinitionParser parser = new WellKnownChangePasswordBeanDefinitionParser();
+		this.wellKnownChangePasswordRedirectFilter = parser.parse(element, this.pc);
+	}
+
 	BeanMetadataElement getCsrfLogoutHandler() {
 		return this.csrfLogoutHandler;
 	}
@@ -867,6 +880,11 @@ class HttpConfigurationBuilder {
 
 		if (csrfFilter != null) {
 			filters.add(new OrderDecorator(csrfFilter, CSRF_FILTER));
+		}
+
+		if (this.wellKnownChangePasswordRedirectFilter != null) {
+			filters.add(new OrderDecorator(this.wellKnownChangePasswordRedirectFilter,
+					WELL_KNOWN_CHANGE_PASSWORD_REDIRECT_FILTER));
 		}
 
 		return filters;
