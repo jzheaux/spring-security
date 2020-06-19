@@ -1,4 +1,4 @@
-[[servlet-saml2-login]]
+[[servlet-saml2login]]
 == SAML 2.0 Login
 :figures: images/servlet/saml2
 :icondir: images/icons
@@ -18,12 +18,13 @@ This process is similar to the once started in 2017 for <<oauth2,Spring Security
 A working sample for {gh-samples-url}/boot/saml2login[SAML 2.0 Login] is available in the {gh-samples-url}[Spring Security repository].
 ====
 
-=== Dependencies
+[[servlet-saml2login-minimaldependencies]]
+=== Minimal Dependencies
 
 SAML 2.0 service provider support is found in `spring-security-saml2-service-provider`.
 It builds off of the OpenSAML library.
 
-[[saml2login-minimalconfiguration]]
+[[servlet-saml2login-minimalconfiguration]]
 === Minimal Configuration
 
 When using https://spring.io/projects/spring-boot[Spring Boot], configuring an application as a service provider consists of two basic steps.
@@ -56,78 +57,159 @@ where
 
 And that's it!
 
-[[servlet-saml2-login-concepts]]
-=== Saml 2 Login - High Level Concepts
+From here, consider jumping to:
 
-`saml2Login()` is aimed to support a fraction of the https://saml.xml.org/saml-specifications[SAML 2 feature set]
-with a focus on authentication being a Service Provider, SP, a relying party, receiving XML assertions from an
-Identity Provider, aka an asserting party.
+* <<servlet-saml2login-architecture,How SAML 2.0 Login Works>>
+* <<servlet-saml2login-authenticatedprincipal,How to Use the `Saml2AuthenticatedPrincipal`>>
+* <<servlet-saml2login-sansboot,How to Configure without Spring Boot>>
 
-A SAML 2 login, or authentication, is the concept that the SP receives and validates an XML message called
-an assertion from an IDP.
+[[servlet-saml2login-architecture]]
+=== How SAML 2.0 Login Works
 
-There are currently two supported authentication flows
+When the above configuration is used, the application will automatically configure itself as a SAML 2.0 Service Provider - also called a relying party - that points to one or many identity providers - also called asserting parties.
 
-1. IDP Initiated flow - example: You login in directly to Okta, and then select a web application to be authenticated for.
-Okta, the IDP, sends an assertion to the web application, the SP.
-2. SP Initiated flow - example: You access a web application, a SP, the application sends an
-authentication request to the IDP requesting an assertion. Upon successful authentication on the IDP,
-the IDP sends an assertion to the SP.
+[NOTE]
+Identity Provider and Asserting Party are synonymous, as are Service Provider and Relying Party.
 
-[[servlet-saml2-login-feature-set]]
-=== Saml 2 Login - Current Feature Set
+There are two supported authentication flows:
 
-1. Service Provider (SP/Relying Party) is identified by `+entityId = {baseUrl}/saml2/service-provider-metadata/{registrationId}+`
-2. Receive assertion embedded in a SAML response via Http-POST or Http-Redirect at `+{baseUrl}/login/saml2/sso/{registrationId}+`
-3. Requires the assertion to be signed, unless the response is signed
-4. Supports encrypted assertions
-5. Supports encrypted NameId elements
-6. Allows for extraction of assertion attributes into authorities using a `Converter<Assertion, Collection<? extends GrantedAuthority>>`
-7. Allows mapping and white listing of authorities using a `GrantedAuthoritiesMapper`
-8. Public keys in `java.security.cert.X509Certificate` format.
-9. SP Initiated Authentication via an `AuthNRequest`
+1. AP-Initiated flow, which is when you login in directly to the asserting party, and then select a web application to be authenticated for.
+2. RP-Initiated flow, which is when you access your relying party, and it sends an authentication request to the asserting party.
+You then authenticate and are redirected back to the relying party.
 
-[[servlet-saml2-login-tbd]]
-==== Saml 2 Login - Not Yet Supported
+To see this in action, you can navigate to a protected page in your app, for example `http://localhost:8080` is protected by default, and it will redirect you to the configured aserting party where you can authenticate.
 
-1. Mappings assertion conditions and attributes to session features (timeout, tracking, etc)
-2. Single logout
-3. Dynamic metadata generation
-4. Receiving and validating standalone assertion (not wrapped in a response object)
+Once authenticated, the asserting party will issue an authentication response.
+Your application will then:
 
-[[servlet-saml2-javaconfig]]
-=== Saml 2 Login - Introduction to Java Configuration
+1. Validate the response's signature against the set of public keys obtained from configuration
+2. Decrypt any encrypted assertions
+3. Validate the `ExpiresAt` and `NotBefore` timestamps and the `Issuer` url
+4. Map each attribute in the `AttributeStatement` into principal attributes
+5. Grant the authority `ROLE_USER` to the resulting authentication
 
-To add `saml2Login()` to a Spring Security filter chain,
-the minimal Java configuration requires a configuration repository,
-the `RelyingPartyRegistrationRepository`, that contains the SAML configuration and
-the invocation of the `HttpSecurity.saml2Login()` method:
-[source,java]
+[TIP]
+Because Spring Security iterates through the set of configured public keys, it's possible to achieve key rotation by adding a new key to the list before removing a key you are retiring.
+
+The resulting `Authentication#getPrincipal`, by default, is a Spring Security `Saml2AuthenticatedPrincipal` object, and `Authentication#getName` maps to the first assertion's `NameID` element, if one is present.
+
+[[servlet-saml2login-sansboot]]
+=== Overriding or Replacing Boot Auto Configuration
+
+There are two `@Bean` s that Spring Boot generates for a relying party.
+
+The first is a `WebSecurityConfigurerAdapter` that configures the app as a relying party.
+When including `spring-security-saml2-service-provider`, the `WebSecurityConfigurerAdapter` looks like:
+
+.Default JWT Configuration
+====
+.Java
+[source,java,role="primary"]
+----
+protected void configure(HttpSecurity http) {
+    http
+        .authorizeRequests(authorize -> authorize
+            .anyRequest().authenticated()
+        )
+        .saml2Login(saml2 -> {});
+}
+----
+
+.Kotlin
+[source,kotlin,role="secondary"]
+----
+fun configure(http: HttpSecurity) {
+    http {
+        authorizeRequests {
+            authorize(anyRequest, authenticated)
+        }
+        saml2Login { }
+    }
+}
+----
+====
+
+If the application doesn't expose a `WebSecurityConfigurerAdapter` bean, then Spring Boot will expose the above default one.
+
+Replacing this is as simple as exposing the bean within the application:
+
+.Custom JWT Configuration
+====
+.Java
+[source,java,role="primary"]
 ----
 @EnableWebSecurity
-public class SecurityConfig extends WebSecurityConfigurerAdapter {
-
-    @Bean
-    public RelyingPartyRegistrationRepository relyingPartyRegistrationRepository() {
-        //SAML configuration
-        //Mapping this application to one or more Identity Providers
-        return new InMemoryRelyingPartyRegistrationRepository(...);
-    }
-
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
+public class MyCustomSecurityConfiguration extends WebSecurityConfigurerAdapter {
+    protected void configure(HttpSecurity http) {
         http
             .authorizeRequests(authorize -> authorize
+                .mvcMatchers("/messages/**").hasAuthority("SCOPE_message:read")
                 .anyRequest().authenticated()
             )
-            .saml2Login(withDefaults())
-        ;
+            .saml2Login(saml2 -> saml2
+                .relyingPartyRegistrationRepository(myRepository())
+            );
     }
 }
 ----
 
-The bean declaration is a convenient, but optional, approach.
-You can directly wire up the repository using a method call
+.Kotlin
+[source,kotlin,role="secondary"]
+----
+@EnableWebSecurity
+class MyCustomSecurityConfiguration : WebSecurityConfigurerAdapter() {
+    override fun configure(http: HttpSecurity) {
+        http {
+            authorizeRequests {
+                authorize("/messages/**", hasAuthority("SCOPE_message:read"))
+                authorize(anyRequest, authenticated)
+            }
+            saml2Login {
+                relyingPartyRegistrationRepository = myRepository()
+            }
+        }
+    }
+}
+----
+====
+
+The above requires the scope of `message:read` for any URL that starts with `/messages/`.
+
+Methods on the `saml2Login` DSL will also override or replace auto configuration.
+
+[[servlet-saml2login-relyingpartyregistrationrepository]]
+For example, the second `@Bean` Spring Boot creates is a `RelyingPartyRegistrationRepository`, which represents the AP and RP metadata.
+This includes things like the location of the SSO endpoint the relying party should use when requesting authentication from the asserting party.
+
+You can override the default by publishing your own `RelyingPartyRegistrationRepository` bean.
+For example, the equivalent for the earlier configuration would be:
+
+.Relying Party Registration Repository
+====
+[source,java]
+----
+@Value("${spring.security.saml2.relyingparty.registration.example.identityprovider.verification.credentials}")
+List<RSAPublicKey> keys;
+
+@Bean
+public RelyingPartyRegistrationRepository relyingPartyRegistrations() {
+	RelyingPartyRegistration registration = withRelyingPartyRegistration("example")
+            .providerDetails(p -> p
+                    .entityId("https://idp.example.com/issuer")
+                    .webSsoUrl("https://idp.example.com/SSO.saml2")
+                    .signAuthnRequest(false)
+            )
+            .credentials(c -> c.addAll(this.keys))
+            .build();
+    return new InMemoryRelyingPartyRegistrationRepository(registration);
+}
+----
+====
+
+[[servlet-saml2login-relyingpartyregistrationrepository-dsl]]
+
+Alternatively, you can directly wire up the repository using the DSL:
+
 [source,java]
 ----
 @EnableWebSecurity
@@ -140,9 +222,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .anyRequest().authenticated()
             )
             .saml2Login(saml2 -> saml2
-                .relyingPartyRegistrationRepository(...)
-            )
-        ;
+                .relyingPartyRegistrationRepository(myRepository())
+            );
     }
 }
 ----
