@@ -222,7 +222,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .anyRequest().authenticated()
             )
             .saml2Login(saml2 -> saml2
-                .relyingPartyRegistrationRepository(myRepository())
+                .relyingPartyRegistrationRepository(myRe)
             );
     }
 }
