@@ -46,7 +46,7 @@ spring:
               entity-id: https://idp.example.com/issuer
               verification.credentials:
                 - certificate-location: "classpath:idp.crt"
-              sso-url: https://idp.example.com/issuer/SSO.saml2
+              singlesignon.url: https://idp.example.com/issuer/SSO.saml2
 ----
 
 where
@@ -190,12 +190,12 @@ public RelyingPartyRegistrationRepository relyingPartyRegistrations() {
         Saml2X509Credential.Saml2X509CredentialType.VERIFICATION);
 
 	RelyingPartyRegistration registration = withRelyingPartyRegistration("example")
-            .providerDetails(p -> p
+            .assertingParty(ap -> ap
+                    .credentials(c -> c.addAll(assertingPartyVerificationCertificate()))
                     .entityId("https://idp.example.com/issuer")
-                    .webSsoUrl("https://idp.example.com/SSO.saml2")
-                    .signAuthnRequest(false)
+                    .singleSignOnUrl("https://idp.example.com/SSO.saml2")
+                    .wantAuthnRequestsSigned(false)
             )
-            .credentials(c -> c.addAll(this.keys))
             .build();
     return new InMemoryRelyingPartyRegistrationRepository(registration);
 }
@@ -272,10 +272,10 @@ The following `RelyingPartyRegistration` is the minimum required for most setups
 [source,java]
 ----
 RelyingPartyRegistration relyingPartyRegistration = RelyingPartyRegistration.withRegistrationId("my-id")
-        .credentials(c -> c.add(assertingPartyVerifyingCredential()))
         .assertingParty(ap -> ap
                 .entityId("https://ap.example.org")
-                .webSsoUrl("https://ap.example.org/SSO.saml2")
+                .credentials(c -> c.add(assertingPartyVerifyingCredential()))
+                .singleSignOnUrl("https://ap.example.org/SSO.saml2")
         );
 ----
 
@@ -285,12 +285,12 @@ Though a more sophisticated setup is also possible, like so:
 ----
 RelyingPartyRegistration relyingPartyRegistration = RelyingPartyRegistration.withRegistrationId("my-id")
         .entityId("{baseUrl}/{registrationId}")
-        .authenticationResponseUri("/my-login-endpoint/{registrationId}")
         .credentials(c -> c.add(relyingPartyDecryptingCredential()))
+        .assertionConsumerUrl("/my-login-endpoint/{registrationId}")
         .assertingParty(ap -> ap
                 .entityId("https://ap.example.org")
-                .authenticationRequestUri("https://ap.example.org/SSO.saml2")
                 .credentials(c -> c.add(assertingPartyVerifyingCredential()))
+                .singleSignOnUrl("https://ap.example.org/SSO.saml2")
         );
 ----
 
@@ -303,7 +303,7 @@ The location where an RP is expecting SAML Responses is also knows as the Assert
 The default for the RP's `entityId` is `{baseUrl}/saml2/service-provider-metadata/{registrationId}`.
 This is this value needed when configuring the AP to know about your RP.
 
-The default for the `authenticationResponseUri` is `/login/saml2/sso/{registrationId}`.
+The default for the `assertionConsumerUrl` is `/login/saml2/sso/{registrationId}`.
 It's mapped by default to https://github.com/spring-projects/spring-security/blob/5.2.0.RELEASE/saml2/saml2-service-provider/src/main/java/org/springframework/security/saml2/provider/service/servlet/filter/Saml2WebSsoAuthenticationFilter.java#L42[`Saml2WebSsoAuthenticationFilter`] in the filter chain.
 
 [[servlet-saml2-rpr-uripatterns]]
@@ -311,7 +311,7 @@ It's mapped by default to https://github.com/spring-projects/spring-security/blo
 
 You probably noticed in the above examples the `{baseUrl}` and `{registrationId}` placeholders.
 
-These are useful for generating URIs. As such, the RP's `entityId` and `authenticationResponseUri` support the following placeholders:
+These are useful for generating URIs. As such, the RP's `entityId` and `assertionConsumerUrl` support the following placeholders:
 
 * `baseUrl` - the scheme, host, and port of a deployed application
 * `registrationId` - the registration id for this relying party
@@ -319,7 +319,7 @@ These are useful for generating URIs. As such, the RP's `entityId` and `authenti
 * `baseHost` - the host of a deployed application
 * `basePort` - the port of a deployed application
 
-For example, the `authenticationResponseUri` defined above was:
+For example, the `assertionConsumerUrl` defined above was:
 
 `+/my-login-endpoint/{registrationId}+`
 
@@ -384,39 +384,272 @@ When you specify the locations of these files as the appropriate Spring Boot pro
 [[servlet-saml2-rpr-duplicated]]
 ===== Duplicated Relying Party Configurations
 
-When an application uses multiple asserting parties, some configuration is duplicated between `RelyingPartyRegistration` objects:
+When an application uses multiple asserting parties, some configuration is duplicated between `RelyingPartyRegistration` instances:
 
 * The RP's `entityId` template
-* Its `authenticationResponseUri` template, and
-* Its credentials, e.g. its decryption credential
+* Its `assertionConsumerUrl` template, and
+* Its credentials, e.g. its signing or decryption credentials
 
-[TIP]
-While there is some drawback in duplicating configuration values, the back end configuration repository does not need to replicate this data storage model.
+What's nice about this setup is credentials may be more easily rotated for some identity providers vs others.
 
-There is a benefit that comes with this setup.
+The duplication can be alleviated in a few different ways.
 
-Credentials may be more easily rotated for some identity providers vs others.
-This object model can ensure that there is no disruption when configuration is changed in a multi-AP use case and you're not able to rotate
-credentials on all the asserting parties.
+First, in YAML this can be alleviated with references, like so:
+
+[source,yaml]
+----
+spring:
+  security:
+    saml2:
+      relyingparty:
+        okta:
+          signing.credentials: &relying-party-credentials
+            - private-key-location: classpath:rp.key
+            - certificate-location: classpath:rp.crt
+          identityprovider:
+            entity-id: ...
+        azure:
+          signing.credentials: *relying-party-credentials
+          identityprovider:
+            entity-id: ...
+----
+
+Second, in a database, it's not necessary to replicate `RelyingPartyRegistration`'s model.
+
+Third, in Java, one can reuse a shared `RelyingPartyRegistration.Builder`, like so:
+
+[source,java]
+----
+RelyingPartyRegistration.Builder builder = RelyingPartyRegistration.withRegistrationId("okta")
+        .credentials(c -> c.addAll(mySigningCredentials()));
+
+RelyingPartyRegistration okta = builder.assertingParty(ap -> ap
+        .entityId(oktaEntityId)
+        .credentials(c -> c.addAll(oktaCredentials))
+        .singleSignOnUrl(oktaSingleSignOnUrl)
+).build();
+
+RelyingPartyRegistration azure = builder.assertingParty(ap -> ap
+        .entityId(azureEntityId)
+        .credentials(c -> c.addAll(azureCredentials))
+        .singleSignOnUrl(azureSingleSignOnUrl)
+).build();
+
+return new InMemoryRelyingPartyRegistrationRepository(okta, azure);
+----
 
 [[servlet-saml2-sp-initiated]]
 ==== SP-initiated Login
 
-Recall what's been said already about placeholders for SAML 2.0 URIs.
-
-Another important one is for initiating authentication from a relying party.
-
-To do so, you can navigate to:
+You can initiate login by navigating to the SAML 2.0 login endpoint for a given `RelyingPartyRegistration`, like so:
 
 `+{baseUrl}/saml2/authenticate/{registrationId}+`
 
-This is the default URI that's mapped to `Saml2WebSsoAuthenticationRequestFilter`.
+Where you replace `{baseUrl}` and `{registrationId}` with the deployed location of your application and the identifier for that registration.
 
-By default, it will generate an `AuthNRequest` as a Redirect.
-But your `RelyingPartyRegistration.AssertingParty#authenticationRequestBinding` property can be set to `POST`, and it will use POST instead.
+For example, if you were deployed to `https://rp.example.org` and you gave your registration an ID of `ping`, you could navigate to:
+
+`https://rp.example.org/saml2/authenticate/ping`
+
+You can modify this by post-processing the `Saml2WebSsoAuthenticationRequestFilter`.
+
+By default, this filter will use HTTP-Redirect for the AuthNRequest.
+However, by setting `RelyingPartyRegistration.AssertingParty#singleSignOnBinding` to `Saml2MessageType.POST`, like so, it will use HTTP-POST instead:
+
+[source,java]
+----
+RelyingPartyRegistration relyingPartyRegistration = RelyingPartyRegistration.withRegistrationId("my-id")
+        // ...
+        .assertingParty(ap -> ap
+                // ...
+                .singleSignOnBinding(Saml2MessageType.POST)
+        );
+----
+
+[[servlet-saml2-opensaml-dependencyinjection]]
+==== Injecting OpenSAML Components
+
+Spring Security doesn't provide direct support for autowiring any OpenSAML components.
+However, doing so yourself is quite simple by post processing the `BeanFactory`:
+
+[source,java]
+----
+@Component
+public class XmlObjectProviderBeanFactoryPostProcessor
+        implements BeanFactoryPostProcessor {
+
+	XMLObjectProviderRegistry registry = ConfigurationService.get(XMLObjectProviderRegistry.class);
+
+	public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) {
+		Map<QName, XMLObjectBuilder<?>> builders = registry.getBuilderFactory().getBuilders();
+		for (XMLObjectBuilder<?> builder : builders.values()) {
+			beanFactory.registerSingleton(builder.getClass().getName(), builder);
+		}
+
+		Map<QName, Marshaller> marshallers = registry.getMarshallerFactory().getMarshallers();
+		for (Marshaller marshaller : marshallers.values()) {
+			beanFactory.registerSingleton(marshaller.getClass().getName(), marshaller);
+		}
+
+		Map<QName, Unmarshaller> unmarshallers = registry.getUnmarshallerFactory().getUnmarshallers();
+		for (Unmarshaller unmarshaller : unmarshallers.values()) {
+			beanFactory.registerSingleton(unmarshaller.getClass().getName(), unmarshaller);
+		}
+	}
+}
+----
+
+[[servlet-saml2-sp-initiated-factory]]
+==== Customizing the AuthNRequest
+
+There are a number of reasons that you may want to adjust an AuthNRequest.
+For example, you may want `ForceAuthN` to be set to `true`, which Spring Security sets to `false` by default.
+
+If you don't need information from the `HttpServletRequest` to make your decision, then the easiest way is to register a custom `AuthnRequestMarshaller` with OpenSAML.
+This will give you access to post-process the `AuthnRequest` instance before it's serialized.
+
+But, if you do need something from the request, then you can use create your own `Converter<Saml2AuthenticationRequestContext, AuthnRequest>` to build it yourself, like so:
+
+[source,java]
+----
+@Component
+public class AuthnRequestConverter implements Converter<Saml2AuthenticationRequestContext, AuthnRequest> {
+	@Autowired
+	private XMLObjectBuilder<AuthnRequest> authnRequestBuilder;
+
+	@Autowired
+	private XMLObjectBuilder<Issuer> issuerBuilder;
+
+	public AuthnRequest convert(Saml2AuthenticationRequestContext context) {
+		Issuer iss = issuerBuilder.buildObject();
+		iss.setValue(context.getIssuer());
+
+		AuthnRequest authnRequest = authnRequestBuilder.buildObject();
+		authnRequest.setIssuer(iss);
+        authnRequest.setDestination(context.getDestination());
+		authnRequest.setAssertionConsumerServiceURL(context.getAssertionConsumerServiceUrl());
+
+		HttpServletRequest request = context.getAttribute(HttpServletRequest.class.getName());
+		if ("true".equals(request.getParameter("force"))) {
+			authRequest.setForceAuthn(true);
+		}
+
+		return authnRequest;
+	}
+}
+----
+
+And then you can construct your own `OpenSamlAuthenticationRequestFactory`, and publish it as a `@Bean`:
+
+[source,java]
+----
+@Bean
+Saml2AuthenticationRequestFactory authenticationRequestFactory(AuthnRequestConverter authnRequestConverter) {
+	OpenSamlAuthenticationRequestFactory authenticationRequestFactory =
+            new OpenSamlAuthenticationRequestFactory();
+	authenticationRequestFactory.setAuthenticationRequestContextConverter(authnRequestConverter);
+	return authenticationRequestFactory;
+}
+----
+
+[[servlet-saml2-login-customize]]
+=== Customizing Authentication Logic
+
+To verify SAML 2.0 Responses, Spring Security uses `OpenSamlAuthenticationProvider` by default.
+
+You can configure this in a number of ways including:
+
+1. Mapping the assertion to a list of `GrantedAuthority` instances
+2. Setting a clock skew to timestamp validation
+
+To configure these, you'll use the `saml2Login#authenticationManager` method in the DSL.
+
+[[servlet-saml2-opensamlauthenticationprovider-authenticationmanager]]
+==== Setting a Clock Skew
+
+It's not uncommon for the asserting and relying parties to have system clocks that aren't perfectly synchronized.
+For that reason, you can configure the `OpenSamlAuthenticationProvider` with some tolerance, like so:
+
+[source,java]
+----
+@EnableWebSecurity
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        OpenSamlAuthenticationProvider authenticationProvider = new OpenSamlAuthenticationProvider();
+        authenticationProvider.setResponseTimeValidationSkew(Duration.ofSeconds(10));
+
+        http
+            .authorizeRequests(authz -> authz
+                .anyRequest().authenticated()
+            )
+            .saml2Login(saml2 -> saml2
+                .authenticationManager(new ProviderManager(authenticationProvider))
+            );
+    }
+}
+----
+
+==== Coordinating with a `UserDetailsService`
+
+Or, perhaps you would like to collect granted authorities from a legacy `UserDetailsService`.
+In that case, the granted authorities extractor can come in handy, as can be seen below:
+
+[source,java]
+----
+@EnableWebSecurity
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+    @Autowired
+    UserDetailsService userDetailsService;
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        OpenSamlAuthenticationProvider authenticationProvider = new OpenSamlAuthenticationProvider();
+        authenticationProvider.setGrantedAuthoritiesExtractor(assertion -> {
+            String username = assertion.getSubject().getNameID().getValue();
+            return this.userDetailsService.loadUserByUsername(username).getAuthorities();
+        });
+
+        http
+            .authorizeRequests(authz -> authz
+                .anyRequest().authenticated()
+            )
+            .saml2Login(saml2 -> saml2
+                .authenticationManager(new ProviderManager(authenticationProvider))
+            );
+    }
+}
+----
+
+[[servlet-saml2-custom-authenticationmanager]]
+==== Custom Authentication Manager
+
+Of course, the `authenticationManager` DSL method can be used to perform a completely custom SAML 2.0 authentication.
+This authentication manager should expect a `Saml2AuthenticationToken` object containing the SAML 2 Response XML data.
+
+[source,java]
+----
+@EnableWebSecurity
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        AuthenticationManager authenticationManager = new MySaml2AuthenticationManager(...);
+        http
+            .authorizeRequests(authorize -> authorize
+                .anyRequest().authenticated()
+            )
+            .saml2Login(saml2 -> saml2
+                .authenticationManager(authenticationManager)
+            )
+        ;
+    }
+}
+----
 
 [[servlet-saml2-authenticatedprincipal]]
-==== Using `Saml2AuthenticatedPrincipal`
+=== Using `Saml2AuthenticatedPrincipal`
 
 With the relying party correctly configured for a given asserting party, it's ready to accept assertions.
 Once the relying party validates an assertion, the result is a `Saml2Authentication` with a `Saml2AuthenticatedPrincipal`.
@@ -439,255 +672,5 @@ public class MainController {
 [TIP]
 Because the SAML 2.0 specification allows for each attribute to have multiple values, you can either call `getAttribute` to get the list of attributes or `getFirstAttribute` to get the first in the list.
 `getFirstAttribute` is quite handy when you know that there is only one value.
-
-[[servlet-saml2-sp-initiated-factory]]
-==== Customizing the AuthNRequest
-
-To adjust the `AuthNRequest`, you can publish an instance of `Saml2AuthenticationRequestFactory`.
-
-For example, if you wanted to configure the `AuthNRequest` to request the IDP to send the SAML `Assertion` by REDIRECT, you could do:
-
-[source,java]
-----
-@Bean
-public Saml2AuthenticationRequestFactory authenticationRequestFactory() {
-    OpenSamlAuthenticationRequestFactory authenticationRequestFactory =
-        new OpenSamlAuthenticationRequestFactory();
-    authenticationRequestFactory.setProtocolBinding("urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect");
-    return authenticationRequestFactory;
-}
-----
-
-[[servlet-saml2-sp-initiated-factory-delegate]]
-==== Delegating to an AuthenticationRequestFactory
-
-Or, in circumstances where you need more control over what is sent as parameters to the `AuthenticationRequestFactory`, you can use delegation:
-
-[source,java]
-----
-@Component
-public class IssuerSaml2AuthenticationRequestFactory implements Saml2AuthenticationRequestFactory {
-	private OpenSamlAuthenticationRequestFactory delegate = new OpenSamlAuthenticationRequestFactory();
-
-	@Override
-	public String createAuthenticationRequest(Saml2AuthenticationRequest request) {
-		return this.delegate.createAuthenticationRequest(request);
-	}
-
-	@Override
-    public Saml2PostAuthenticationRequest createPostAuthenticationRequest
-        (Saml2AuthenticationRequestContext context) {
-
-		String issuer = // ... calculate issuer
-
-		Saml2AuthenticationRequestContext customIssuer = Saml2AuthenticationRequestContext.builder()
-                .assertionConsumerServiceUrl(context.getAssertionConsumerServiceUrl())
-                .issuer(issuer)
-                .relayState(context.getRelayState())
-                .relyingPartyRegistration(context.getRelyingPartyRegistration())
-                .build();
-
-		return this.delegate.createPostAuthenticationRequest(customIssuer);
-	}
-
-	@Override
-    public Saml2RedirectAuthenticationRequest createRedirectAuthenticationRequest
-        (Saml2AuthenticationRequestContext context) {
-
-		throw new UnsupportedOperationException("unsupported");
-	}
-}
-----
-
-[[servlet-saml2-login-customize]]
-=== Customizing Authentication Logic
-
-By default Spring Security configures the `OpenSamlAuthenticationProvider`
-to validate and parse the SAML 2 response and assertions that are received.
-This provider has three configuration options
-
-1. An authorities extractor - extract group information from the assertion
-2. An authorities mapper - map extracted group information to internal authorities
-3. Response time validation duration - the built in tolerances for timestamp validation
-should be used when there may be a time synchronization issue.
-
-One customization strategy is to use an `ObjectPostProcessor`, which allows you to modify the
-objects created by the implementation. Another option is to override the authentication
-manager for the filter that intercepts the SAMLResponse.
-
-[[servlet-saml2-opensamlauthenticationprovider]]
-==== OpenSamlAuthenticationProvider ObjectPostProcessor
-
-[source,java]
-----
-@EnableWebSecurity
-public class SecurityConfig extends WebSecurityConfigurerAdapter {
-
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
-        ObjectPostProcessor<OpenSamlAuthenticationProvider> processor = new ObjectPostProcessor<>() {
-            @Override
-            public <O extends OpenSamlAuthenticationProvider> O postProcess(O provider) {
-                provider.setResponseTimeValidationSkew(RESPONSE_TIME_VALIDATION_SKEW);
-                provider.setAuthoritiesMapper(AUTHORITIES_MAPPER);
-                provider.setAuthoritiesExtractor(AUTHORITIES_EXTRACTOR);
-                return provider;
-            }
-        };
-
-        http
-            .authorizeRequests(authorize -> authorize
-                .anyRequest().authenticated()
-            )
-            .saml2Login(saml2 -> saml2
-               .addObjectPostProcessor(processor)
-            )
-        ;
-    }
-}
-----
-
-[[servlet-saml2-opensamlauthenticationprovider-authenticationmanager]]
-==== Configure OpenSamlAuthenticationProvider as an Authentication Manager
-We can leverage the same method, `authenticationManager`, to override and customize the default
-`OpenSamlAuthenticationProvider`.
-
-[source,java]
-----
-@EnableWebSecurity
-public class SecurityConfig extends WebSecurityConfigurerAdapter {
-
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
-        OpenSamlAuthenticationProvider authProvider = new OpenSamlAuthenticationProvider();
-        authProvider.setResponseTimeValidationSkew(RESPONSE_TIME_VALIDATION_SKEW);
-        authProvider.setAuthoritiesMapper(AUTHORITIES_MAPPER);
-        authProvider.setAuthoritiesExtractor(AUTHORITIES_EXTRACTOR);
-        http
-            .authorizeRequests(authorize -> authorize
-                .anyRequest().authenticated()
-            )
-            .saml2Login(saml2 -> saml2
-                .authenticationManager(new ProviderManager(asList(authProvider)))
-            )
-        ;
-    }
-}
-----
-
-[[servlet-saml2-custom-authenticationmanager]]
-==== Custom Authentication Manager
-The authentication manager for the security filter can also be overwritten, using your own
-custom `AuthenticationManager` implementation.
-This authentication manager should expect a `Saml2AuthenticationToken` object
-containing the SAML 2 Response XML data.
-
-[source,java]
-----
-@EnableWebSecurity
-public class SecurityConfig extends WebSecurityConfigurerAdapter {
-
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
-        AuthenticationManager authenticationManager = new MySaml2AuthenticationManager(...);
-        http
-            .authorizeRequests(authorize -> authorize
-                .anyRequest().authenticated()
-            )
-            .saml2Login(saml2 -> saml2
-                .authenticationManager(authenticationManager)
-            )
-        ;
-    }
-}
-----
-
-[[servlet-saml2-sample-boot]]
-=== Spring Boot 2.x Sample
-
-We are currently working with the Spring Boot team on the
-https://github.com/spring-projects/spring-boot/issues/18260[Auto Configuration for Spring Security SAML Login].
-In the meantime, we have provided a Spring Boot sample that supports a Yaml configuration.
-
-To run the sample, follow these three steps
-
-1. Launch the Spring Boot application
-** `./gradlew :spring-security-samples-boot-saml2login:bootRun`
-2. Open a browser
-** http://localhost:8080/[http://localhost:8080/]
-3. This will take you to an identity provider, log in using:
-** User: `user`
-** Password: `password`
-
-[[servlet-saml2-sample-idps]]
-==== Multiple Identity Provider Sample
-
-It's very simple to use multiple providers, but there are some defaults that
-may trip you up if you don't pay attention. In our SAML configuration of
-`RelyingPartyRegistration` objects, we default an SP entity ID to
-`+{baseUrl}/saml2/service-provider-metadata/{registrationId}+`
-
-That means in our two provider configuration, our system would look like
-
-```
-registration-1 (Identity Provider 1) - Our local SP Entity ID is:
-http://localhost:8080/saml2/service-provider-metadata/registration-1
-
-registration-2 (Identity Provider 2) - Our local SP Entity ID is:
-http://localhost:8080/saml2/service-provider-metadata/registration-2
-```
-
-In this configuration, illustrated in the sample below, to the outside world,
-we have actually created two virtual Service Provider identities
-hosted within the same application.
-
-[source,yaml]
-----
-spring:
-  security:
-    saml2:
-      login:
-        relying-parties:
-          - entity-id: &idp-entity-id https://simplesaml-for-spring-saml.cfapps.io/saml2/idp/metadata.php
-            registration-id: simplesamlphp
-            web-sso-url: &idp-sso-url https://simplesaml-for-spring-saml.cfapps.io/saml2/idp/SSOService.php
-            signing-credentials: &service-provider-credentials
-              - private-key: |
-                  -----BEGIN PRIVATE KEY-----
-                  MIICeAIBADANBgkqhkiG9w0BAQEFAASCAmIwggJeAgEAAoGBANG7v8QjQGU3MwQE
-                  ...................SHORTENED FOR READ ABILITY...................
-                  INrtuLp4YHbgk1mi
-                  -----END PRIVATE KEY-----
-                certificate: |
-                  -----BEGIN CERTIFICATE-----
-                  MIICgTCCAeoCCQCuVzyqFgMSyDANBgkqhkiG9w0BAQsFADCBhDELMAkGA1UEBhMC
-                  ...................SHORTENED FOR READ ABILITY...................
-                  RZ/nbTJ7VTeZOSyRoVn5XHhpuJ0B
-                  -----END CERTIFICATE-----
-            verification-credentials: &idp-certificates
-              - |
-                -----BEGIN CERTIFICATE-----
-                MIIEEzCCAvugAwIBAgIJAIc1qzLrv+5nMA0GCSqGSIb3DQEBCwUAMIGfMQswCQYD
-                ...................SHORTENED FOR READ ABILITY...................
-                lx13Y1YlQ4/tlpgTgfIJxKV6nyPiLoK0nywbMd+vpAirDt2Oc+hk
-                -----END CERTIFICATE-----
-          - entity-id: *idp-entity-id
-            registration-id: simplesamlphp2
-            web-sso-url: *idp-sso-url
-            signing-credentials: *service-provider-credentials
-            verification-credentials: *idp-certificates
-----
-
-If this is not desirable, you can manually override the local SP entity ID by using the
-
-[source,attrs="-attributes"]
-----
-localEntityIdTemplate = {baseUrl}/saml2/service-provider-metadata
-----
-
-If we change our local SP entity ID to this value, it is still important that we give
-out the correct single sign on URL (the assertion consumer service URL)
-for each registered identity provider based on the registration Id.
-`+{baseUrl}/login/saml2/sso/{registrationId}+`
 
 
