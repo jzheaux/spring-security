@@ -31,6 +31,7 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 
 import net.shibboleth.utilities.java.support.resolver.CriteriaSet;
+import net.shibboleth.utilities.java.support.xml.SerializeSupport;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.joda.time.DateTime;
@@ -38,7 +39,8 @@ import org.opensaml.core.criterion.EntityIdCriterion;
 import org.opensaml.core.xml.XMLObject;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport;
 import org.opensaml.core.xml.io.Marshaller;
-
+import org.opensaml.core.xml.io.MarshallerFactory;
+import org.opensaml.core.xml.io.MarshallingException;
 import org.opensaml.core.xml.schema.XSAny;
 import org.opensaml.core.xml.schema.XSBoolean;
 import org.opensaml.core.xml.schema.XSBooleanValue;
@@ -85,6 +87,7 @@ import org.opensaml.xmlsec.keyinfo.impl.StaticKeyInfoCredentialResolver;
 import org.opensaml.xmlsec.signature.support.SignaturePrevalidator;
 import org.opensaml.xmlsec.signature.support.SignatureTrustEngine;
 import org.opensaml.xmlsec.signature.support.impl.ExplicitKeySignatureTrustEngine;
+import org.w3c.dom.Element;
 
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -100,6 +103,7 @@ import org.springframework.util.StringUtils;
 
 import static java.util.Collections.singleton;
 import static java.util.Collections.singletonList;
+import static org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport.getMarshallerFactory;
 import static org.opensaml.saml.saml2.assertion.SAML2AssertionValidationParameters.CLOCK_SKEW;
 import static org.opensaml.saml.saml2.assertion.SAML2AssertionValidationParameters.COND_VALID_AUDIENCES;
 import static org.opensaml.saml.saml2.assertion.SAML2AssertionValidationParameters.SIGNATURE_REQUIRED;
@@ -557,9 +561,19 @@ public final class OpenSamlAuthenticationProvider implements AuthenticationProvi
 	private Object getXSAnyObjectValue(XSAny xsAny) {
 		Marshaller marshaller = XMLObjectProviderRegistrySupport.getMarshallerFactory().getMarshaller(xsAny);
 		if (marshaller != null) {
-			return this.saml.serialize(xsAny);
+			return serialize(xsAny);
 		}
 		return xsAny.getTextContent();
+	}
+
+	private String serialize(XMLObject xmlObject) {
+		final MarshallerFactory marshallerFactory = getMarshallerFactory();
+		try {
+			Element element = marshallerFactory.getMarshaller(xmlObject).marshall(xmlObject);
+			return SerializeSupport.nodeToString(element);
+		} catch (MarshallingException e) {
+			throw new Saml2Exception(e);
+		}
 	}
 
 	private Saml2Error validationError(String code, String description) {

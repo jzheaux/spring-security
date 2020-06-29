@@ -16,6 +16,11 @@
 
 package org.springframework.security.saml2.provider.service.authentication;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Consumer;
+
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 import org.springframework.util.Assert;
 
@@ -34,19 +39,31 @@ public class Saml2AuthenticationRequestContext {
 	private final String issuer;
 	private final String assertionConsumerServiceUrl;
 	private final String relayState;
+	private final Map<String, Object> attributes;
 
 	protected Saml2AuthenticationRequestContext(
 			RelyingPartyRegistration relyingPartyRegistration,
 			String issuer,
 			String assertionConsumerServiceUrl,
 			String relayState) {
+		this(relyingPartyRegistration, issuer, assertionConsumerServiceUrl, relayState, Collections.emptyMap());
+	}
+
+	protected Saml2AuthenticationRequestContext(
+			RelyingPartyRegistration relyingPartyRegistration,
+			String issuer,
+			String assertionConsumerServiceUrl,
+			String relayState,
+			Map<String, Object> attributes) {
 		Assert.hasText(issuer, "issuer cannot be null or empty");
 		Assert.notNull(relyingPartyRegistration, "relyingPartyRegistration cannot be null");
 		Assert.hasText(assertionConsumerServiceUrl, "spAssertionConsumerServiceUrl cannot be null or empty");
+		Assert.notNull(attributes, "attributes cannot be null");
 		this.issuer = issuer;
 		this.relyingPartyRegistration = relyingPartyRegistration;
 		this.assertionConsumerServiceUrl = assertionConsumerServiceUrl;
 		this.relayState = relayState;
+		this.attributes = attributes;
 	}
 
 	/**
@@ -94,6 +111,10 @@ public class Saml2AuthenticationRequestContext {
 		return this.getRelyingPartyRegistration().getProviderDetails().getWebSsoUrl();
 	}
 
+	public Map<String, Object> getAttributes() {
+		return this.attributes;
+	}
+
 	/**
 	 * A builder for {@link Saml2AuthenticationRequestContext}.
 	 * @return a builder object
@@ -106,6 +127,7 @@ public class Saml2AuthenticationRequestContext {
 	 * A builder for {@link Saml2AuthenticationRequestContext}.
 	 */
 	public static class Builder {
+		private Map<String, Object> attributes = new HashMap<>();
 		private String issuer;
 		private String assertionConsumerServiceUrl;
 		private String relayState;
@@ -156,6 +178,16 @@ public class Saml2AuthenticationRequestContext {
 		}
 
 		/**
+		 * Consume the {@link Map} of attributes
+		 * @param attributesConsumer
+		 * @return
+		 */
+		public Builder attributes(Consumer<Map<String, Object>> attributesConsumer) {
+			attributesConsumer.accept(this.attributes);
+			return this;
+		}
+
+		/**
 		 * Creates a {@link Saml2AuthenticationRequestContext} object.
 		 * @return the Saml2AuthenticationRequest object
 		 * @throws {@link IllegalArgumentException} if a required property is not set
@@ -165,7 +197,8 @@ public class Saml2AuthenticationRequestContext {
 					this.relyingPartyRegistration,
 					this.issuer,
 					this.assertionConsumerServiceUrl,
-					this.relayState
+					this.relayState,
+					this.attributes
 			);
 		}
 	}

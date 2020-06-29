@@ -74,6 +74,7 @@ public final class DefaultSaml2AuthenticationRequestContextResolver implements S
 				.relyingPartyRegistration(relyingParty)
 				.assertionConsumerServiceUrl(assertionConsumerServiceUrl)
 				.relayState(request.getParameter("RelayState"))
+				.attributes(a -> a.put(HttpServletRequest.class.getName(), request))
 				.build();
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,24 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package sample;
+
+package org.springframework.security.config.annotation.web.configuration;
 
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.security.saml2.provider.service.OpenSamlBeanFactoryPostProcessor;
 
-@SpringBootApplication
-public class Saml2LoginApplication {
-
+@Configuration(proxyBeanMethods = false)
+public class Saml2ServiceProviderConfiguration {
 	@Bean
-	BeanFactoryPostProcessor opensaml() {
+	BeanFactoryPostProcessor saml2BeanFactoryPostProcessor() {
 		return new OpenSamlBeanFactoryPostProcessor();
 	}
-
-	public static void main(String[] args) {
-		SpringApplication.run(Saml2LoginApplication.class, args);
-	}
-
 }

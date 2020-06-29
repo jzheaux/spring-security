@@ -74,7 +74,8 @@ import org.springframework.security.config.annotation.web.WebSecurityConfigurer;
 @Documented
 @Import({ WebSecurityConfiguration.class,
 		SpringWebMvcImportSelector.class,
-		OAuth2ImportSelector.class })
+		OAuth2ImportSelector.class,
+		Saml2ImportSelector.class})
 @EnableGlobalAuthentication
 @Configuration
 public @interface EnableWebSecurity {

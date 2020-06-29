@@ -1,16 +1,16 @@
 if (!project.hasProperty("reactorVersion")) {
-	ext.reactorVersion = "Dysprosium-SR+"
+	ext.reactorVersion = "Dysprosium-SR9"
 }
 
 if (!project.hasProperty("springVersion")) {
-	ext.springVersion = "latest.release"
+	ext.springVersion = "5.2.7.RELEASE"
 }
 
 if (!project.hasProperty("springDataVersion")) {
-	ext.springDataVersion = "Moore-SR+"
+	ext.springDataVersion = "Moore-SR8"
 }
 if (!project.hasProperty("kotlinVersion")) {
-	ext.kotlinVersion = "1.+"
+	ext.kotlinVersion = "1.3.72"
 }
 if (!project.hasProperty("locksDisabled")) {
 	dependencyLocking {
@@ -52,7 +52,7 @@ dependencies {
 		management "javax.annotation:jsr250-api:1.+"
 		management "javax.servlet.jsp.jstl:javax.servlet.jsp.jstl-api:1.+"
 		management "javax.servlet.jsp:javax.servlet.jsp-api:2.+"
-		management "javax.servlet:javax.servlet-api:4.+"
+		management "javax.servlet:javax.servlet-api:4.0.1"
 		management "javax.validation:validation-api:2.+"
 		management "javax.xml.bind:jaxb-api:2.+"
 		management "junit:junit:4.12"
@@ -74,8 +74,8 @@ dependencies {
 		management "org.aspectj:aspectjtools:$aspectjVersion"
 		management "org.aspectj:aspectjweaver:$aspectjVersion"
 		management "org.assertj:assertj-core:3.+"
-		management "org.bouncycastle:bcpkix-jdk15on:1.+"
-		management "org.bouncycastle:bcprov-jdk15on:1.+"
+		management "org.bouncycastle:bcpkix-jdk15on:1.65"
+		management "org.bouncycastle:bcprov-jdk15on:1.65.01"
 		management "org.eclipse.jetty:jetty-server:9.4.19.v20190610"
 		management "org.eclipse.jetty:jetty-servlet:9.4.19.v20190610"
 		management "org.eclipse.persistence:javax.persistence:2.+"
