@@ -67,8 +67,8 @@ public final class DefaultSaml2AuthenticationRequestContextResolver implements S
 
 		String applicationUri = getApplicationUri(request);
 		Function<String, String> resolver = templateResolver(applicationUri, relyingParty);
-		String localSpEntityId = resolver.apply(relyingParty.getLocalEntityIdTemplate());
-		String assertionConsumerServiceUrl = resolver.apply(relyingParty.getAssertionConsumerServiceUrlTemplate());
+		String localSpEntityId = resolver.apply(relyingParty.getEntityId());
+		String assertionConsumerServiceUrl = resolver.apply(relyingParty.getAssertionConsumerServiceLocation());
 		return Saml2AuthenticationRequestContext.builder()
 				.issuer(localSpEntityId)
 				.relyingPartyRegistration(relyingParty)

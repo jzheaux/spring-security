@@ -45,6 +45,8 @@ public class RelyingPartyRegistrationTests {
 				.isEqualTo("https://simplesaml-for-spring-saml.cfapps.io/saml2/idp/metadata.php");
 		assertThat(copy.getAssertionConsumerServiceUrlTemplate())
 				.isEqualTo(registration.getAssertionConsumerServiceUrlTemplate())
+				.isEqualTo(copy.getAssertionConsumerServiceLocation())
+				.isEqualTo(registration.getAssertionConsumerServiceLocation())
 				.isEqualTo("{baseUrl}" + Saml2WebSsoAuthenticationFilter.DEFAULT_FILTER_PROCESSES_URI);
 		assertThat(copy.getCredentials())
 				.containsAll(registration.getCredentials())
@@ -54,15 +56,23 @@ public class RelyingPartyRegistrationTests {
 				);
 		assertThat(copy.getLocalEntityIdTemplate())
 				.isEqualTo(registration.getLocalEntityIdTemplate())
+				.isEqualTo(copy.getEntityId())
+				.isEqualTo(registration.getEntityId())
 				.isEqualTo("{baseUrl}/saml2/service-provider-metadata/{registrationId}");
 		assertThat(copy.getProviderDetails().getWebSsoUrl())
 				.isEqualTo(registration.getProviderDetails().getWebSsoUrl())
+				.isEqualTo(copy.getProviderDetails().getSingleSignOnServiceLocation())
+				.isEqualTo(registration.getProviderDetails().getSingleSignOnServiceLocation())
 				.isEqualTo("https://simplesaml-for-spring-saml.cfapps.io/saml2/idp/SSOService.php");
 		assertThat(copy.getProviderDetails().getBinding())
 				.isEqualTo(registration.getProviderDetails().getBinding())
+				.isEqualTo(copy.getProviderDetails().getSingleSignOnServiceBinding())
+				.isEqualTo(registration.getProviderDetails().getSingleSignOnServiceBinding())
 				.isEqualTo(POST);
 		assertThat(copy.getProviderDetails().isSignAuthNRequest())
 				.isEqualTo(registration.getProviderDetails().isSignAuthNRequest())
+				.isEqualTo(copy.getProviderDetails().getWantsAuthnRequestsSigned())
+				.isEqualTo(registration.getProviderDetails().getWantsAuthnRequestsSigned())
 				.isFalse();
 	}
 }
