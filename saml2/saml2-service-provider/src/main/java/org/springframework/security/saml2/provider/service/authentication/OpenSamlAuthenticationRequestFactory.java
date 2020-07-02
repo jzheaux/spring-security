@@ -18,7 +18,7 @@ package org.springframework.security.saml2.provider.service.authentication;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.List;
+import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
 
@@ -58,7 +58,7 @@ public class OpenSamlAuthenticationRequestFactory implements Saml2Authentication
 	public Saml2PostAuthenticationRequest createPostAuthenticationRequest(Saml2AuthenticationRequestContext context) {
 		AuthnRequest authnRequest = createAuthnRequest(context);
 		String xml = context.getRelyingPartyRegistration().getProviderDetails().getWantsAuthnRequestsSigned() ?
-			this.saml.serialize(authnRequest, context.getRelyingPartyRegistration().getSigningCredentials()) :
+			this.saml.serialize(authnRequest, context.getRelyingPartyRegistration().getSigningX509Credentials()) :
 			this.saml.serialize(authnRequest);
 
 		return Saml2PostAuthenticationRequest.withAuthenticationRequestContext(context)
@@ -79,7 +79,7 @@ public class OpenSamlAuthenticationRequestFactory implements Saml2Authentication
 				.relayState(context.getRelayState());
 
 		if (context.getRelyingPartyRegistration().getProviderDetails().getWantsAuthnRequestsSigned()) {
-			List<Saml2X509Credential> signingCredentials = context.getRelyingPartyRegistration().getSigningCredentials();
+			Collection<Saml2X509Credential> signingCredentials = context.getRelyingPartyRegistration().getSigningX509Credentials();
 			Map<String, String> signedParams = this.saml.signQueryParameters(
 					signingCredentials,
 					deflatedAndEncoded,

@@ -40,12 +40,13 @@ public class TestRelyingPartyRegistrations {
 
 		return RelyingPartyRegistration.withRegistrationId(registrationId)
 				.entityId(rpEntityId)
+				.signingX509Credentials(c -> c.add(signingCredential))
 				.assertionConsumerServiceLocation(assertionConsumerServiceLocation)
-				.providerDetails(c -> c
+				.providerDetails(assertingParty -> assertingParty
 						.entityId(apEntityId)
-						.singleSignOnServiceLocation(singleSignOnServiceLocation))
-				.credentials(c -> c.add(signingCredential))
-				.credentials(c -> c.add(verificationCertificate));
+						.verificationX509Credentials(c -> c.add(verificationCertificate))
+						.singleSignOnServiceLocation(singleSignOnServiceLocation)
+				);
 	}
 
 

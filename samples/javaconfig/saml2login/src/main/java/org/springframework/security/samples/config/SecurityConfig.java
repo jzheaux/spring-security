@@ -54,12 +54,13 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 		Saml2X509Credential idpVerificationCertificate = getVerificationCertificate();
 		String acsUrlTemplate = "{baseUrl}" + Saml2WebSsoAuthenticationFilter.DEFAULT_FILTER_PROCESSES_URI;
 		return RelyingPartyRegistration.withRegistrationId(registrationId)
-				.providerDetails(config -> config.entityId(idpEntityId))
-				.providerDetails(config -> config.singleSignOnServiceLocation(webSsoEndpoint))
-				.credentials(c -> c.add(signingCredential))
-				.credentials(c -> c.add(idpVerificationCertificate))
+				.signingX509Credentials(c -> c.add(signingCredential))
 				.entityId(localEntityIdTemplate)
 				.assertionConsumerServiceLocation(acsUrlTemplate)
+				.providerDetails(assertingParty -> assertingParty
+						.entityId(idpEntityId)
+						.verificationX509Credentials(c -> c.add(idpVerificationCertificate))
+						.singleSignOnServiceLocation(webSsoEndpoint))
 				.build();
 	}
 
