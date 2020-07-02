@@ -16,10 +16,13 @@
 
 package org.springframework.security.saml2.provider.service.authentication;
 
+import java.util.Collections;
+import java.util.List;
+
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.saml2.credentials.Saml2X509Credential;
-
-import java.util.List;
+import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
+import org.springframework.util.Assert;
 
 /**
  * Represents an incoming SAML 2.0 response containing an assertion that has not been validated.
@@ -28,11 +31,56 @@ import java.util.List;
  */
 public class Saml2AuthenticationToken extends AbstractAuthenticationToken {
 
+	private final RelyingPartyRegistration relyingPartyRegistration;
 	private final String saml2Response;
-	private final String recipientUri;
-	private String idpEntityId;
-	private String localSpEntityId;
-	private List<Saml2X509Credential> credentials;
+
+	/**
+	 * Construct a {@link Saml2AuthenticationToken} with the provided parameters
+	 *
+	 * <p>
+	 * Note that the {@link RelyingPartyRegistration} should have any placeholders resolved to be included
+	 * in this token. This can be achieved with {@link RelyingPartyRegistration#withRelyingPartyRegistration}:
+	 *
+	 * <pre>
+	 * 	RelyingPartyRegistration resolved = withRelyingPartyRegistration(unresolved)
+	 * 			.entityId(...)
+	 * 			.assertionConsumerServiceLocation(...)
+	 * 			.build();
+	 * 	Saml2AuthenticationToken token = new Saml2AuthenticationToken(resolved, saml2Response);
+	 * </pre>
+	 *
+	 * @param relyingPartyRegistration The {@link RelyingPartyRegistration} associated with this token
+	 * @param saml2Response The serialized SAML 2.0 Response associated with this token
+	 * @since 5.4
+	 */
+	public Saml2AuthenticationToken(RelyingPartyRegistration relyingPartyRegistration, String saml2Response) {
+		super(Collections.emptyList());
+		Assert.isTrue(isResolved(relyingPartyRegistration.getAssertionConsumerServiceLocation()),
+				"relyingPartyRegistration must have its placeholders resolved for inclusion in this token");
+		Assert.isTrue(isResolved(relyingPartyRegistration.getEntityId()),
+				"relyingPartyRegistration must have its placeholders resolved for inclusion in this token");
+		this.relyingPartyRegistration = relyingPartyRegistration;
+		this.saml2Response = saml2Response;
+	}
+
+	private static boolean isResolved(String template) {
+		if (template.contains("{registrationId}")) {
+			return false;
+		}
+		if (template.contains("{baseUrl}")) {
+			return false;
+		}
+		if (template.contains("{baseScheme}")) {
+			return false;
+		}
+		if (template.contains("{baseHost}")) {
+			return false;
+		}
+		if (template.contains("{basePort}")) {
+			return false;
+		}
+		return true;
+	}
 
 	/**
 	 * Creates an authentication token from an incoming SAML 2 Response object
@@ -41,18 +89,31 @@ public class Saml2AuthenticationToken extends AbstractAuthenticationToken {
 	 * @param idpEntityId the entity ID of the asserting entity
 	 * @param localSpEntityId the configured local SP, the relying party, entity ID
 	 * @param credentials the credentials configured for signature verification and decryption
+	 * @deprecated Use {@link Saml2AuthenticationToken(RelyingPartyRegistration, String)} instead
 	 */
+	@Deprecated
 	public Saml2AuthenticationToken(String saml2Response,
 									String recipientUri,
 									String idpEntityId,
 									String localSpEntityId,
 									List<Saml2X509Credential> credentials) {
-		super(null);
-		this.saml2Response = saml2Response;
-		this.recipientUri = recipientUri;
-		this.idpEntityId = idpEntityId;
-		this.localSpEntityId = localSpEntityId;
-		this.credentials = credentials;
+		this(RelyingPartyRegistration.withRegistrationId(localSpEntityId)
+				.entityId(localSpEntityId)
+				.credentials(c -> c.addAll(credentials))
+				.assertionConsumerServiceLocation(recipientUri)
+				.providerDetails(ap -> ap.entityId(idpEntityId))
+				.build(),
+			saml2Response);
+	}
+
+	/**
+	 * Get the {@link RelyingPartyRegistration} associated with this authentication token
+	 *
+	 * @return the {@link RelyingPartyRegistration} associated with this authentication token
+	 * @since 5.4
+	 */
+	public RelyingPartyRegistration getRelyingPartyRegistration() {
+		return this.relyingPartyRegistration;
 	}
 
 	/**
@@ -84,25 +145,31 @@ public class Saml2AuthenticationToken extends AbstractAuthenticationToken {
 	/**
 	 * Returns the URI that the SAML 2 Response object came in on
 	 * @return URI as a string
+	 * @deprecated Use {@link #getRelyingPartyRegistration().getAssertionConsumerServiceUrlTemplate()} instead
 	 */
+	@Deprecated
 	public String getRecipientUri() {
-		return this.recipientUri;
+		return this.relyingPartyRegistration.getAssertionConsumerServiceLocation();
 	}
 
 	/**
 	 * Returns the configured entity ID of the receiving relying party, SP
 	 * @return an entityID for the configured local relying party
+	 * @deprecated Use {@link #getRelyingPartyRegistration().getEntityId()} instead
 	 */
+	@Deprecated
 	public String getLocalSpEntityId() {
-		return this.localSpEntityId;
+		return this.relyingPartyRegistration.getEntityId();
 	}
 
 	/**
 	 * Returns all the credentials associated with the relying party configuraiton
 	 * @return
+	 * @deprecated Use {@link #getRelyingPartyRegistration()} instead
 	 */
+	@Deprecated
 	public List<Saml2X509Credential> getX509Credentials() {
-		return this.credentials;
+		return this.relyingPartyRegistration.getCredentials();
 	}
 
 	/**
@@ -126,8 +193,10 @@ public class Saml2AuthenticationToken extends AbstractAuthenticationToken {
 	/**
 	 * Returns the configured IDP, asserting party, entity ID
 	 * @return a string representing the entity ID
+	 * @deprecated Use {@link #getRelyingPartyRegistration().getProviderDetails.getEntityId()} instead
 	 */
+	@Deprecated
 	public String getIdpEntityId() {
-		return this.idpEntityId;
+		return this.relyingPartyRegistration.getProviderDetails().getEntityId();
 	}
 }

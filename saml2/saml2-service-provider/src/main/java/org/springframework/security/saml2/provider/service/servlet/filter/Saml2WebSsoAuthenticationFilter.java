@@ -35,6 +35,7 @@ import org.springframework.util.Assert;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.springframework.security.saml2.provider.service.authentication.Saml2ErrorCodes.RELYING_PARTY_REGISTRATION_NOT_FOUND;
+import static org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration.withRelyingPartyRegistration;
 import static org.springframework.util.StringUtils.hasText;
 
 /**
@@ -90,22 +91,23 @@ public class Saml2WebSsoAuthenticationFilter extends AbstractAuthenticationProce
 
 		String responseXml = inflateIfRequired(request, b);
 		String registrationId = this.matcher.matcher(request).getVariables().get("registrationId");
-		RelyingPartyRegistration rp =
+		RelyingPartyRegistration relyingPartyRegistration =
 				this.relyingPartyRegistrationRepository.findByRegistrationId(registrationId);
-		if (rp == null) {
+		if (relyingPartyRegistration == null) {
 			Saml2Error saml2Error = new Saml2Error(RELYING_PARTY_REGISTRATION_NOT_FOUND,
 					"Relying Party Registration not found with ID: " + registrationId);
 			throw new Saml2AuthenticationException(saml2Error);
 		}
 		String applicationUri = Saml2ServletUtils.getApplicationUri(request);
-		String localSpEntityId = Saml2ServletUtils.resolveUrlTemplate(rp.getEntityId(), applicationUri, rp);
-		final Saml2AuthenticationToken authentication = new Saml2AuthenticationToken(
-				responseXml,
-				request.getRequestURL().toString(),
-				rp.getProviderDetails().getEntityId(),
-				localSpEntityId,
-				rp.getCredentials()
-		);
+		String localSpEntityId = Saml2ServletUtils.resolveUrlTemplate(
+				relyingPartyRegistration.getEntityId(), applicationUri, relyingPartyRegistration);
+		RelyingPartyRegistration resolvedRelyingPartyRegistration =
+				withRelyingPartyRegistration(relyingPartyRegistration)
+						.assertionConsumerServiceLocation(request.getRequestURL().toString())
+						.entityId(localSpEntityId)
+						.build();
+		Saml2AuthenticationToken authentication =
+				new Saml2AuthenticationToken(resolvedRelyingPartyRegistration, responseXml);
 		return getAuthenticationManager().authenticate(authentication);
 	}
 

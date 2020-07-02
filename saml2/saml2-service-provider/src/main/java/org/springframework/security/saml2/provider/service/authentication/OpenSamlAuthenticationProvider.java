@@ -15,7 +15,6 @@
  */
 package org.springframework.security.saml2.provider.service.authentication;
 
-import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -24,7 +23,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -38,7 +36,6 @@ import org.opensaml.core.criterion.EntityIdCriterion;
 import org.opensaml.core.xml.XMLObject;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport;
 import org.opensaml.core.xml.io.Marshaller;
-
 import org.opensaml.core.xml.schema.XSAny;
 import org.opensaml.core.xml.schema.XSBoolean;
 import org.opensaml.core.xml.schema.XSBooleanValue;
@@ -95,6 +92,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
 import org.springframework.security.saml2.Saml2Exception;
 import org.springframework.security.saml2.credentials.Saml2X509Credential;
+import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
@@ -218,9 +216,9 @@ public final class OpenSamlAuthenticationProvider implements AuthenticationProvi
 		try {
 			Saml2AuthenticationToken token = (Saml2AuthenticationToken) authentication;
 			Response response = parse(token.getSaml2Response());
-			List<Assertion> validAssertions = validateResponse(token, response);
+			List<Assertion> validAssertions = validateResponse(token.getRelyingPartyRegistration(), response);
 			Assertion assertion = validAssertions.get(0);
-			String username = getUsername(token, assertion);
+			String username = getUsername(token.getRelyingPartyRegistration(), assertion);
 			Map<String, List<Object>> attributes = getAssertionAttributes(assertion);
 			return new Saml2Authentication(
 					new SimpleSaml2AuthenticatedPrincipal(username, attributes), token.getSaml2Response(),
@@ -259,7 +257,7 @@ public final class OpenSamlAuthenticationProvider implements AuthenticationProvi
 
 	}
 
-	private List<Assertion> validateResponse(Saml2AuthenticationToken token, Response response)
+	private List<Assertion> validateResponse(RelyingPartyRegistration relyingParty, Response response)
 			throws Saml2AuthenticationException {
 
 		List<Assertion> validAssertions = new ArrayList<>();
@@ -270,7 +268,7 @@ public final class OpenSamlAuthenticationProvider implements AuthenticationProvi
 
 		List<Assertion> assertions = new ArrayList<>(response.getAssertions());
 		for (EncryptedAssertion encryptedAssertion : response.getEncryptedAssertions()) {
-			Assertion assertion = decrypt(token, encryptedAssertion);
+			Assertion assertion = decrypt(relyingParty, encryptedAssertion);
 			assertions.add(assertion);
 		}
 		if (assertions.isEmpty()) {
@@ -282,7 +280,7 @@ public final class OpenSamlAuthenticationProvider implements AuthenticationProvi
 					"Please either sign the response or all of the assertions.");
 		}
 
-		SignatureTrustEngine signatureTrustEngine = buildSignatureTrustEngine(token);
+		SignatureTrustEngine signatureTrustEngine = buildSignatureTrustEngine(relyingParty);
 
 		Map<String, Saml2AuthenticationException> validationExceptions = new HashMap<>();
 		if (response.isSigned()) {
@@ -310,18 +308,18 @@ public final class OpenSamlAuthenticationProvider implements AuthenticationProvi
 		}
 
 		String destination = response.getDestination();
-		if (StringUtils.hasText(destination) && !destination.equals(token.getRecipientUri())) {
+		if (StringUtils.hasText(destination) && !destination.equals(relyingParty.getAssertionConsumerServiceLocation())) {
 			String message = "Invalid destination [" + destination + "] for SAML response [" + response.getID() + "]";
 			validationExceptions.put(INVALID_DESTINATION, authException(INVALID_DESTINATION, message));
 		}
 
-		if (!StringUtils.hasText(issuer) || !issuer.equals(token.getIdpEntityId())) {
+		if (!StringUtils.hasText(issuer) || !issuer.equals(relyingParty.getProviderDetails().getEntityId())) {
 			String message = String.format("Invalid issuer [%s] for SAML response [%s]", issuer, response.getID());
 			validationExceptions.put(INVALID_ISSUER, authException(INVALID_ISSUER, message));
 		}
 
 		SAML20AssertionValidator validator = buildSamlAssertionValidator(signatureTrustEngine);
-		ValidationContext context = buildValidationContext(token, response);
+		ValidationContext context = buildValidationContext(relyingParty, response);
 
 		if (logger.isDebugEnabled()) {
 			logger.debug("Validating " + assertions.size() + " assertions");
@@ -375,12 +373,12 @@ public final class OpenSamlAuthenticationProvider implements AuthenticationProvi
 		return true;
 	}
 
-	private SignatureTrustEngine buildSignatureTrustEngine(Saml2AuthenticationToken token) {
+	private SignatureTrustEngine buildSignatureTrustEngine(RelyingPartyRegistration relyingParty) {
 		Set<Credential> credentials = new HashSet<>();
-		for (X509Certificate key : getVerificationCertificates(token)) {
-			BasicX509Credential cred = new BasicX509Credential(key);
+		for (Saml2X509Credential credential : relyingParty.getProviderDetails().getVerificationX509Credentials()) {
+			BasicX509Credential cred = new BasicX509Credential(credential.getCertificate());
 			cred.setUsageType(UsageType.SIGNING);
-			cred.setEntityId(token.getIdpEntityId());
+			cred.setEntityId(relyingParty.getProviderDetails().getEntityId());
 			credentials.add(cred);
 		}
 		CredentialResolver credentialsResolver = new CollectionCredentialResolver(credentials);
@@ -390,13 +388,15 @@ public final class OpenSamlAuthenticationProvider implements AuthenticationProvi
 		);
 	}
 
-	private ValidationContext buildValidationContext(Saml2AuthenticationToken token, Response response) {
+	private ValidationContext buildValidationContext(RelyingPartyRegistration relyingParty, Response response) {
 		Map<String, Object> validationParams = new HashMap<>();
 		validationParams.put(SIGNATURE_REQUIRED, !response.isSigned());
 		validationParams.put(CLOCK_SKEW, this.responseTimeValidationSkew.toMillis());
-		validationParams.put(COND_VALID_AUDIENCES, singleton(token.getLocalSpEntityId()));
-		if (StringUtils.hasText(token.getRecipientUri())) {
-			validationParams.put(SAML2AssertionValidationParameters.SC_VALID_RECIPIENTS, singleton(token.getRecipientUri()));
+		validationParams.put(COND_VALID_AUDIENCES, singleton(relyingParty.getEntityId()));
+		String assertionConsumerServiceLocation = relyingParty.getAssertionConsumerServiceLocation();
+		if (StringUtils.hasText(assertionConsumerServiceLocation)) {
+			validationParams.put(SAML2AssertionValidationParameters.SC_VALID_RECIPIENTS,
+					singleton(assertionConsumerServiceLocation));
 		}
 		return new ValidationContext(validationParams);
 	}
@@ -422,11 +422,11 @@ public final class OpenSamlAuthenticationProvider implements AuthenticationProvi
 		return assertion;
 	}
 
-	private Assertion decrypt(Saml2AuthenticationToken token, EncryptedAssertion assertion)
+	private Assertion decrypt(RelyingPartyRegistration relyingParty, EncryptedAssertion assertion)
 			throws Saml2AuthenticationException {
 
 		Saml2AuthenticationException last = null;
-		List<Saml2X509Credential> decryptionCredentials = getDecryptionCredentials(token);
+		Collection<Saml2X509Credential> decryptionCredentials = relyingParty.getDecryptionX509Credentials();
 		if (decryptionCredentials.isEmpty()) {
 			throw authException(DECRYPTION_ERROR, "No valid decryption credentials found.");
 		}
@@ -450,27 +450,7 @@ public final class OpenSamlAuthenticationProvider implements AuthenticationProvi
 		return decrypter;
 	}
 
-	private List<Saml2X509Credential> getDecryptionCredentials(Saml2AuthenticationToken token) {
-		List<Saml2X509Credential> result = new LinkedList<>();
-		for (Saml2X509Credential c : token.getX509Credentials()) {
-			if (c.isDecryptionCredential()) {
-				result.add(c);
-			}
-		}
-		return result;
-	}
-
-	private List<X509Certificate> getVerificationCertificates(Saml2AuthenticationToken token) {
-		List<X509Certificate> result = new LinkedList<>();
-		for (Saml2X509Credential c : token.getX509Credentials()) {
-			if (c.isSignatureVerficationCredential()) {
-				result.add(c.getCertificate());
-			}
-		}
-		return result;
-	}
-
-	private String getUsername(Saml2AuthenticationToken token, Assertion assertion)
+	private String getUsername(RelyingPartyRegistration relyingParty, Assertion assertion)
 			throws Saml2AuthenticationException {
 
 		String username = null;
@@ -482,7 +462,7 @@ public final class OpenSamlAuthenticationProvider implements AuthenticationProvi
 			username = subject.getNameID().getValue();
 		}
 		else if (subject.getEncryptedID() != null) {
-			NameID nameId = decrypt(token, subject.getEncryptedID());
+			NameID nameId = decrypt(relyingParty, subject.getEncryptedID());
 			username = nameId.getValue();
 		}
 		if (username == null) {
@@ -491,11 +471,11 @@ public final class OpenSamlAuthenticationProvider implements AuthenticationProvi
 		return username;
 	}
 
-	private NameID decrypt(Saml2AuthenticationToken token, EncryptedID assertion)
+	private NameID decrypt(RelyingPartyRegistration relyingParty, EncryptedID assertion)
 			throws Saml2AuthenticationException {
 
 		Saml2AuthenticationException last = null;
-		List<Saml2X509Credential> decryptionCredentials = getDecryptionCredentials(token);
+		Collection<Saml2X509Credential> decryptionCredentials = relyingParty.getDecryptionX509Credentials();
 		if (decryptionCredentials.isEmpty()) {
 			throw authException(DECRYPTION_ERROR, "No valid decryption credentials found.");
 		}

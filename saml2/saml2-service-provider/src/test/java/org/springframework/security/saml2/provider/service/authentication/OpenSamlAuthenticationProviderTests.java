@@ -70,6 +70,7 @@ import static org.springframework.security.saml2.provider.service.authentication
 import static org.springframework.security.saml2.provider.service.authentication.TestOpenSamlObjects.encrypted;
 import static org.springframework.security.saml2.provider.service.authentication.TestOpenSamlObjects.response;
 import static org.springframework.security.saml2.provider.service.authentication.TestOpenSamlObjects.signed;
+import static org.springframework.security.saml2.provider.service.registration.TestRelyingPartyRegistrations.relyingPartyRegistration;
 import static org.springframework.util.StringUtils.hasText;
 
 /**
@@ -387,8 +388,12 @@ public class OpenSamlAuthenticationProviderTests {
 	}
 
 	private Saml2AuthenticationToken token(String payload, Saml2X509Credential... credentials) {
-		return new Saml2AuthenticationToken(payload,
-				DESTINATION, ASSERTING_PARTY_ENTITY_ID, RELYING_PARTY_ENTITY_ID, Arrays.asList(credentials));
+		return new Saml2AuthenticationToken(relyingPartyRegistration()
+				.assertionConsumerServiceLocation(DESTINATION)
+				.entityId(RELYING_PARTY_ENTITY_ID)
+				.providerDetails(details -> details.entityId(ASSERTING_PARTY_ENTITY_ID))
+				.credentials(c -> c.addAll(Arrays.asList(credentials)))
+				.build(), payload);
 	}
 
 	private static Element element(String xml) throws Exception {
