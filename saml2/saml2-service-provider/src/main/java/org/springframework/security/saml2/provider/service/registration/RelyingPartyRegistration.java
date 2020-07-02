@@ -16,8 +16,10 @@
 
 package org.springframework.security.saml2.provider.service.registration;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -50,13 +52,13 @@ import org.springframework.util.Assert;
  *
  *	RelyingPartyRegistration rp = RelyingPartyRegistration.withRegistrationId(registrationId)
  * 			.entityId(relyingPartyEntityId)
+ * 		 	.signingX509Credentials(c -> c.add(relyingPartySigningCredential))
  * 			.assertionConsumerServiceLocation(assertingConsumerServiceLocation)
- * 		 	.credentials(c -> c.add(relyingPartySigningCredential))
  * 			.providerDetails(details -> details
  * 				.entityId(assertingPartyEntityId));
+ * 				.verificationX509Credentials(c -> c.add(assertingPartyVerificationCredential))
  * 				.singleSignOnServiceLocation(singleSignOnServiceLocation)
  * 			)
- * 			.credentials(c -> c.add(assertingPartyVerificationCredential))
  * 			.build();
  * </pre>
  *
@@ -69,30 +71,46 @@ public class RelyingPartyRegistration {
 	private final String registrationId;
 	private final String assertionConsumerServiceLocation;
 	private final List<Saml2X509Credential> credentials;
+	private final Collection<Saml2X509Credential> signingX509Credentials;
+	private final Collection<Saml2X509Credential> decryptionX509Credentials;
 	private final String entityId;
 	private final ProviderDetails providerDetails;
 
 	private RelyingPartyRegistration(
 			String registrationId,
 			String entityId,
+			Collection<Saml2X509Credential> credentials,
+			Collection<Saml2X509Credential> signingX509Credentials,
+			Collection<Saml2X509Credential> decryptionX509Credentials,
 			String assertionConsumerServiceLocation,
-			ProviderDetails providerDetails,
-			List<Saml2X509Credential> credentials) {
+			ProviderDetails providerDetails) {
 
 		Assert.hasText(registrationId, "registrationId cannot be empty");
 		Assert.hasText(entityId, "entityId cannot be empty");
 		Assert.hasText(assertionConsumerServiceLocation, "assertionConsumerServiceLocation cannot be empty");
+		Assert.notEmpty(credentials, "credentials cannot be empty");
+		for (Saml2X509Credential credential : credentials) {
+			Assert.notNull(credential, "credentials cannot have null values");
+		}
+		for (Saml2X509Credential credential : signingX509Credentials) {
+			Assert.notNull(credential, "signingX509Credentials cannot have null values");
+			Assert.isTrue(credential.isSigningCredential(),
+					"All signingX509Credentials must have a usage of SIGNING set");
+		}
+		for (Saml2X509Credential credential : decryptionX509Credentials) {
+			Assert.notNull(credential, "decryptionX509Credentials cannot have null values");
+			Assert.isTrue(credential.isDecryptionCredential(),
+					"All decryptionX509Credentials must have a usage of DECRYPTION set");
+		}
 		Assert.notNull(providerDetails, "providerDetails cannot be null");
 		Assert.hasText(providerDetails.singleSignOnServiceLocation, "providerDetails.webSsoUrl cannot be empty");
-		Assert.notEmpty(credentials, "credentials cannot be empty");
-		for (Saml2X509Credential c : credentials) {
-			Assert.notNull(c, "credentials cannot contain null elements");
-		}
 		this.registrationId = registrationId;
 		this.entityId = entityId;
+		this.credentials = Collections.unmodifiableList(new ArrayList<>(credentials));
+		this.signingX509Credentials = Collections.unmodifiableCollection(signingX509Credentials);
+		this.decryptionX509Credentials = Collections.unmodifiableCollection(decryptionX509Credentials);
 		this.assertionConsumerServiceLocation = assertionConsumerServiceLocation;
 		this.providerDetails = providerDetails;
-		this.credentials = Collections.unmodifiableList(new LinkedList<>(credentials));
 	}
 
 	/**
@@ -122,6 +140,26 @@ public class RelyingPartyRegistration {
 	 */
 	public String getEntityId() {
 		return this.entityId;
+	}
+
+	/**
+	 * Get the {@link Collection} of signing {@link Saml2X509Credential}s associated with this relying party
+	 *
+	 * @return the {@link Collection} of signing {@link Saml2X509Credential}s associated with this relying party
+	 * @since 5.4
+	 */
+	public Collection<Saml2X509Credential> getSigningX509Credentials() {
+		return this.signingX509Credentials;
+	}
+
+	/**
+	 * Get the {@link Collection} of decryption {@link Saml2X509Credential}s associated with this relying party
+	 *
+	 * @return the {@link Collection} of decryption {@link Saml2X509Credential}s associated with this relying party
+	 * @since 5.4
+	 */
+	public Collection<Saml2X509Credential> getDecryptionX509Credentials() {
+		return this.decryptionX509Credentials;
 	}
 
 	/**
@@ -199,7 +237,11 @@ public class RelyingPartyRegistration {
 	 * Returns a list of configured credentials to be used in message exchanges between relying party, SP, and
 	 * asserting party, IDP.
 	 * @return a list of credentials
+	 * @deprecated Use {@link #getSigningX509Credentials}, {@link #getDecryptionX509Credentials()},
+	 * {@link ProviderDetails#getVerificationX509Credentials()}, or {@link ProviderDetails#getEncryptionX509Credentials()}
+	 * instead
 	 */
+	@Deprecated
 	public List<Saml2X509Credential> getCredentials() {
 		return this.credentials;
 	}
@@ -208,46 +250,44 @@ public class RelyingPartyRegistration {
 	 * @return a filtered list containing only credentials of type
 	 * {@link Saml2X509CredentialType#VERIFICATION}.
 	 * Returns an empty list of credentials are not found
+	 * @deprecated Use {@link ProviderDetails#getVerificationX509Credentials} instead
 	 */
+	@Deprecated
 	public List<Saml2X509Credential> getVerificationCredentials() {
-		return filterCredentials(c -> c.isSignatureVerficationCredential());
+		return new ArrayList<>(this.providerDetails.getVerificationX509Credentials());
 	}
 
 	/**
 	 * @return a filtered list containing only credentials of type
 	 * {@link Saml2X509CredentialType#SIGNING}.
 	 * Returns an empty list of credentials are not found
+	 * @deprecated Use {@link #getSigningX509Credentials} instead
 	 */
+	@Deprecated
 	public List<Saml2X509Credential> getSigningCredentials() {
-		return filterCredentials(c -> c.isSigningCredential());
+		return new ArrayList<>(this.signingX509Credentials);
 	}
 
 	/**
 	 * @return a filtered list containing only credentials of type
 	 * {@link Saml2X509CredentialType#ENCRYPTION}.
 	 * Returns an empty list of credentials are not found
+	 * @deprecated Use {@link ProviderDetails#getEncryptionX509Credentials} instead
 	 */
+	@Deprecated
 	public List<Saml2X509Credential> getEncryptionCredentials() {
-		return filterCredentials(c -> c.isEncryptionCredential());
+		return new ArrayList<>(this.providerDetails.getEncryptionX509Credentials());
 	}
 
 	/**
 	 * @return a filtered list containing only credentials of type
 	 * {@link Saml2X509CredentialType#DECRYPTION}.
 	 * Returns an empty list of credentials are not found
+	 * @deprecated Use {@link #getDecryptionX509Credentials} instead
 	 */
+	@Deprecated
 	public List<Saml2X509Credential> getDecryptionCredentials() {
-		return filterCredentials(c -> c.isDecryptionCredential());
-	}
-
-	private List<Saml2X509Credential> filterCredentials(Function<Saml2X509Credential, Boolean> filter) {
-		List<Saml2X509Credential> result = new LinkedList<>();
-		for (Saml2X509Credential c : getCredentials()) {
-			if (filter.apply(c)) {
-				result.add(c);
-			}
-		}
-		return result;
+		return new ArrayList<>(this.decryptionX509Credentials);
 	}
 
 	/**
@@ -267,38 +307,61 @@ public class RelyingPartyRegistration {
 	 */
 	public static Builder withRelyingPartyRegistration(RelyingPartyRegistration registration) {
 		Assert.notNull(registration, "registration cannot be null");
+		ProviderDetails details = registration.getProviderDetails();
 		return withRegistrationId(registration.getRegistrationId())
 				.entityId(registration.getEntityId())
+				.signingX509Credentials(c -> c.addAll(registration.getSigningX509Credentials()))
+				.decryptionX509Credentials(c -> c.addAll(registration.getDecryptionX509Credentials()))
 				.assertionConsumerServiceLocation(registration.getAssertionConsumerServiceUrlTemplate())
-				.providerDetails(c -> c
-					.entityId(registration.getProviderDetails().getEntityId())
-					.wantsAuthnRequestsSigned(registration.getProviderDetails().getWantsAuthnRequestsSigned())
+				.providerDetails(d -> d
+					.entityId(details.getEntityId())
+					.wantsAuthnRequestsSigned(details.getWantsAuthnRequestsSigned())
+					.verificationX509Credentials(c -> c.addAll(details.getVerificationX509Credentials()))
+					.encryptionX509Credentials(c -> c.addAll(details.getEncryptionX509Credentials()))
 					.singleSignOnServiceLocation(registration.getProviderDetails().getSingleSignOnServiceLocation())
 					.singleSignOnServiceBinding(registration.getProviderDetails().getSingleSignOnServiceBinding())
-				)
-				.credentials(c -> c.addAll(registration.getCredentials()));
+				);
 	}
 
 	/**
-	 * Configuration for IDP SSO endpoint configuration
+	 * Configuration for the asserting party.
+	 *
+	 * Intended to represent the asserting party's &lt;IDPSSODescriptor&gt;.
+	 *
 	 * @since 5.3
 	 */
 	public final static class ProviderDetails {
 		private final String entityId;
+		private final boolean signAuthNRequest;
+		private final Collection<Saml2X509Credential> verificationX509Credentials;
+		private final Collection<Saml2X509Credential> encryptionX509Credentials;
 		private final String singleSignOnServiceLocation;
 		private final Saml2MessageBinding singleSignOnServiceBinding;
-		private final boolean signAuthNRequest;
 
 		private ProviderDetails(
 				String entityId,
 				boolean wantsAuthnRequestsSigned,
+				Collection<Saml2X509Credential> verificationX509Credentials,
+				Collection<Saml2X509Credential> encryptionX509Credentials,
 				String singleSignOnServiceLocation,
 				Saml2MessageBinding singleSignOnServiceBinding) {
 
 			Assert.hasText(entityId, "entityId cannot be null or empty");
+			for (Saml2X509Credential credential : verificationX509Credentials) {
+				Assert.notNull(credential, "verificationX509Credentials cannot have null values");
+				Assert.isTrue(credential.isSignatureVerficationCredential(),
+						"All verificationX509Credentials must have a usage of VERIFICATION set");
+			}
+			for (Saml2X509Credential credential : encryptionX509Credentials) {
+				Assert.notNull(credential, "encryptionX509Credentials cannot have null values");
+				Assert.isTrue(credential.isEncryptionCredential(),
+						"All encryptionX509Credentials must have a usage of ENCRYPTION set");
+			}
 			Assert.notNull(singleSignOnServiceLocation, "singleSignOnServiceLocation cannot be null");
 			Assert.notNull(singleSignOnServiceBinding, "singleSignOnServiceBinding cannot be null");
 			this.entityId = entityId;
+			this.verificationX509Credentials = verificationX509Credentials;
+			this.encryptionX509Credentials = encryptionX509Credentials;
 			this.signAuthNRequest = wantsAuthnRequestsSigned;
 			this.singleSignOnServiceLocation = singleSignOnServiceLocation;
 			this.singleSignOnServiceBinding = singleSignOnServiceBinding;
@@ -333,6 +396,26 @@ public class RelyingPartyRegistration {
 		 */
 		public boolean getWantsAuthnRequestsSigned() {
 			return this.signAuthNRequest;
+		}
+
+		/**
+		 * Get all verification {@link Saml2X509Credential}s associated with this asserting party
+		 *
+		 * @return all verification {@link Saml2X509Credential}s associated with this asserting party
+		 * @since 5.4
+		 */
+		public Collection<Saml2X509Credential> getVerificationX509Credentials() {
+			return this.verificationX509Credentials;
+		}
+
+		/**
+		 * Get all encryption {@link Saml2X509Credential}s associated with this asserting party
+		 *
+		 * @return all encryption {@link Saml2X509Credential}s associated with this asserting party
+		 * @since 5.4
+		 */
+		public Collection<Saml2X509Credential> getEncryptionX509Credentials() {
+			return this.encryptionX509Credentials;
 		}
 
 		/**
@@ -398,14 +481,19 @@ public class RelyingPartyRegistration {
 		}
 
 		/**
-		 * Builder for IDP SSO endpoint configuration
+		 * A builder for the asserting party.
+		 *
+		 * Intended to represent the asserting party's &lt;EntityDescriptor&gt;
+		 *
 		 * @since 5.3
 		 */
 		public final static class Builder {
 			private String entityId;
+			private boolean wantsAuthnRequestsSigned = true;
+			private Collection<Saml2X509Credential> verificationX509Credentials = new HashSet<>();
+			private Collection<Saml2X509Credential> encryptionX509Credentials = new HashSet<>();
 			private String singleSignOnServiceLocation;
 			private Saml2MessageBinding singleSignOnServiceBinding = Saml2MessageBinding.REDIRECT;
-			private boolean wantsAuthnRequestsSigned = true;
 
 			/**
 			 * Set the asserting party's
@@ -432,6 +520,30 @@ public class RelyingPartyRegistration {
 			 */
 			public Builder wantsAuthnRequestsSigned(boolean wantsAuthnRequestsSigned) {
 				this.wantsAuthnRequestsSigned = wantsAuthnRequestsSigned;
+				return this;
+			}
+
+			/**
+			 * Apply this {@link Consumer} to the list of {@link Saml2X509Credential}s
+			 *
+			 * @param credentialsConsumer a {@link Consumer} of the {@link List} of {@link Saml2X509Credential}s
+			 * @return the {@link RelyingPartyRegistration.Builder} for further configuration
+			 * @since 5.4
+			 */
+			public Builder verificationX509Credentials(Consumer<Collection<Saml2X509Credential>> credentialsConsumer) {
+				credentialsConsumer.accept(this.verificationX509Credentials);
+				return this;
+			}
+
+			/**
+			 * Apply this {@link Consumer} to the list of {@link Saml2X509Credential}s
+			 *
+			 * @param credentialsConsumer a {@link Consumer} of the {@link List} of {@link Saml2X509Credential}s
+			 * @return the {@link RelyingPartyRegistration.Builder} for further configuration
+			 * @since 5.4
+			 */
+			public Builder encryptionX509Credentials(Consumer<Collection<Saml2X509Credential>> credentialsConsumer) {
+				credentialsConsumer.accept(this.encryptionX509Credentials);
 				return this;
 			}
 
@@ -519,6 +631,8 @@ public class RelyingPartyRegistration {
 				return new ProviderDetails(
 						this.entityId,
 						this.wantsAuthnRequestsSigned,
+						this.verificationX509Credentials,
+						this.encryptionX509Credentials,
 						this.singleSignOnServiceLocation,
 						this.singleSignOnServiceBinding
 				);
@@ -531,7 +645,9 @@ public class RelyingPartyRegistration {
 		private String entityId = "{baseUrl}/saml2/service-provider-metadata/{registrationId}";
 		private String assertionConsumerServiceLocation;
 		private ProviderDetails.Builder providerDetails = new ProviderDetails.Builder();
-		private List<Saml2X509Credential> credentials = new LinkedList<>();
+		private Collection<Saml2X509Credential> credentials = new HashSet<>();
+		private Collection<Saml2X509Credential> signingX509Credentials = new HashSet<>();
+		private Collection<Saml2X509Credential> decryptionX509Credentials = new HashSet<>();
 
 		private Builder(String registrationId) {
 			this.registrationId = registrationId;
@@ -563,6 +679,32 @@ public class RelyingPartyRegistration {
 		 */
 		public Builder entityId(String entityId) {
 			this.entityId = entityId;
+			return this;
+		}
+
+		/**
+		 * Apply this {@link Consumer} to the {@link Collection} of {@link Saml2X509Credential}s
+		 * for the purposes of modifying the {@link Collection}
+		 *
+		 * @param credentialsConsumer - the {@link Consumer} for modifying the {@link Collection}
+		 * @return the {@link Builder} for further configuration
+		 * @since 5.4
+		 */
+		public Builder signingX509Credentials(Consumer<Collection<Saml2X509Credential>> credentialsConsumer) {
+			credentialsConsumer.accept(this.signingX509Credentials);
+			return this;
+		}
+
+		/**
+		 * Apply this {@link Consumer} to the {@link Collection} of {@link Saml2X509Credential}s
+		 * for the purposes of modifying the {@link Collection}
+		 *
+		 * @param credentialsConsumer - the {@link Consumer} for modifying the {@link Collection}
+		 * @return the {@link Builder} for further configuration
+		 * @since 5.4
+		 */
+		public Builder decryptionX509Credentials(Consumer<Collection<Saml2X509Credential>> credentialsConsumer) {
+			credentialsConsumer.accept(this.decryptionX509Credentials);
 			return this;
 		}
 
@@ -610,8 +752,12 @@ public class RelyingPartyRegistration {
 		 *             .build();
 		 * </code>
 		 * @param credentials - a consumer that can modify the collection of credentials
-		 * @return this object
+		 * @return this object'
+		 * @deprecated Use {@link #signingX509Credentials} or {@link #decryptionX509Credentials} instead
+		 * for relying party keys or {@link ProviderDetails.Builder#verificationX509Credentials} or
+		 * {@link ProviderDetails.Builder#encryptionX509Credentials} for asserting party keys
 		 */
+		@Deprecated
 		public Builder credentials(Consumer<Collection<Saml2X509Credential>> credentials) {
 			credentials.accept(this.credentials);
 			return this;
@@ -675,14 +821,45 @@ public class RelyingPartyRegistration {
 		 * @return a RelyingPartyRegistration instance
 		 */
 		public RelyingPartyRegistration build() {
+			List<Saml2X509Credential> signingCredentials =
+					filterCredentials(this.credentials, c -> c.isSigningCredential());
+			List<Saml2X509Credential> decryptionCredentials =
+					filterCredentials(this.credentials, c -> c.isDecryptionCredential());
+			List<Saml2X509Credential> verificationCredentials =
+					filterCredentials(this.credentials, c -> c.isSignatureVerficationCredential());
+			List<Saml2X509Credential> encryptionCredentials =
+					filterCredentials(this.credentials, c -> c.isEncryptionCredential());
+
+			signingX509Credentials(c -> c.addAll(signingCredentials));
+			decryptionX509Credentials(c -> c.addAll(decryptionCredentials));
+			this.providerDetails.verificationX509Credentials(c -> c.addAll(verificationCredentials));
+			this.providerDetails.encryptionX509Credentials(c -> c.addAll(encryptionCredentials));
+
+			this.credentials.addAll(this.signingX509Credentials);
+			this.credentials.addAll(this.decryptionX509Credentials);
+			this.credentials.addAll(this.providerDetails.verificationX509Credentials);
+			this.credentials.addAll(this.providerDetails.encryptionX509Credentials);
+
 			return new RelyingPartyRegistration(
 					this.registrationId,
 					this.entityId,
+					this.credentials,
+					this.signingX509Credentials,
+					this.decryptionX509Credentials,
 					this.assertionConsumerServiceLocation,
-					this.providerDetails.build(),
-					this.credentials
-			);
+					this.providerDetails.build());
 		}
 	}
 
+	private static List<Saml2X509Credential> filterCredentials(Collection<Saml2X509Credential> credentials,
+			Function<Saml2X509Credential, Boolean> filter) {
+
+		List<Saml2X509Credential> result = new LinkedList<>();
+		for (Saml2X509Credential c : credentials) {
+			if (filter.apply(c)) {
+				result.add(c);
+			}
+		}
+		return result;
+	}
 }
