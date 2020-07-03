@@ -161,7 +161,7 @@ public class Saml2WebSsoAuthenticationRequestFilterTests {
 				.providerDetails(c -> c.binding(POST))
 				.build();
 		Saml2PostAuthenticationRequest authenticationRequest = mock(Saml2PostAuthenticationRequest.class);
-		when(authenticationRequest.getAuthenticationRequestUri()).thenReturn("uri");
+		when(authenticationRequest.getLocation()).thenReturn("uri");
 		when(authenticationRequest.getRelayState()).thenReturn("relay");
 		when(authenticationRequest.getSamlRequest()).thenReturn("saml");
 		when(this.repository.findByRegistrationId("registration-id")).thenReturn(relyingParty);
@@ -185,7 +185,7 @@ public class Saml2WebSsoAuthenticationRequestFilterTests {
 				.providerDetails(c -> c.binding(POST))
 				.build();
 		Saml2PostAuthenticationRequest authenticationRequest = mock(Saml2PostAuthenticationRequest.class);
-		when(authenticationRequest.getAuthenticationRequestUri()).thenReturn("uri");
+		when(authenticationRequest.getLocation()).thenReturn("uri");
 		when(authenticationRequest.getRelayState()).thenReturn("relay");
 		when(authenticationRequest.getSamlRequest()).thenReturn("saml");
 		when(this.repository.findByRegistrationId("registration-id")).thenReturn(relyingParty);

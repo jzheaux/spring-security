@@ -38,8 +38,8 @@ public class Saml2RedirectAuthenticationRequest extends AbstractSaml2Authenticat
 			String sigAlg,
 			String signature,
 			String relayState,
-			String authenticationRequestUri) {
-		super(samlRequest, relayState, authenticationRequestUri);
+			String location) {
+		super(samlRequest, relayState, location);
 		this.sigAlg = sigAlg;
 		this.signature = signature;
 	}
@@ -70,14 +70,14 @@ public class Saml2RedirectAuthenticationRequest extends AbstractSaml2Authenticat
 
 	/**
 	 * Constructs a {@link Saml2RedirectAuthenticationRequest.Builder} from a {@link Saml2AuthenticationRequestContext} object.
-	 * By default the {@link Saml2RedirectAuthenticationRequest#getAuthenticationRequestUri()} will be set to the
+	 * By default the {@link Saml2RedirectAuthenticationRequest#getLocation()} will be set to the
 	 * {@link Saml2AuthenticationRequestContext#getDestination()} value.
 	 * @param context input providing {@code Destination}, {@code RelayState}, and {@code Issuer} objects.
 	 * @return a modifiable builder object
 	 */
 	public static Builder withAuthenticationRequestContext(Saml2AuthenticationRequestContext context) {
 		return new Builder()
-				.authenticationRequestUri(context.getDestination())
+				.location(context.getDestination())
 				.relayState(context.getRelayState())
 				;
 	}
@@ -123,7 +123,7 @@ public class Saml2RedirectAuthenticationRequest extends AbstractSaml2Authenticat
 					this.sigAlg,
 					this.signature,
 					this.relayState,
-					this.authenticationRequestUri
+					this.location
 			);
 		}
 

@@ -167,7 +167,7 @@ public class Saml2WebSsoAuthenticationRequestFilter extends OncePerRequestFilter
 		Saml2RedirectAuthenticationRequest authenticationRequest =
 				this.authenticationRequestFactory.createRedirectAuthenticationRequest(context);
 		UriComponentsBuilder uriBuilder = UriComponentsBuilder
-				.fromUriString(authenticationRequest.getAuthenticationRequestUri());
+				.fromUriString(authenticationRequest.getLocation());
 		addParameter("SAMLRequest", authenticationRequest.getSamlRequest(), uriBuilder);
 		addParameter("RelayState", authenticationRequest.getRelayState(), uriBuilder);
 		addParameter("SigAlg", authenticationRequest.getSigAlg(), uriBuilder);
@@ -198,7 +198,7 @@ public class Saml2WebSsoAuthenticationRequestFilter extends OncePerRequestFilter
 	}
 
 	private String createSamlPostRequestFormData(Saml2PostAuthenticationRequest authenticationRequest) {
-		String authenticationRequestUri = authenticationRequest.getAuthenticationRequestUri();
+		String authenticationRequestUri = authenticationRequest.getLocation();
 		String relayState = authenticationRequest.getRelayState();
 		String samlRequest = authenticationRequest.getSamlRequest();
 		StringBuilder postHtml = new StringBuilder()

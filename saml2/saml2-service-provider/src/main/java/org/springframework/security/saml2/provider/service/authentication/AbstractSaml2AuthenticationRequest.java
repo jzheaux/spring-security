@@ -16,10 +16,10 @@
 
 package org.springframework.security.saml2.provider.service.authentication;
 
+import java.nio.charset.Charset;
+
 import org.springframework.security.saml2.provider.service.registration.Saml2MessageBinding;
 import org.springframework.util.Assert;
-
-import java.nio.charset.Charset;
 
 /**
  * Data holder for {@code AuthNRequest} parameters to be sent using either the
@@ -37,21 +37,21 @@ abstract class AbstractSaml2AuthenticationRequest {
 
 	private final String samlRequest;
 	private final String relayState;
-	private final String authenticationRequestUri;
+	private final String location;
 
 	/**
 	 * Mandatory constructor for the {@link AbstractSaml2AuthenticationRequest}
 	 * @param samlRequest - the SAMLRequest XML data, SAML encoded, cannot be empty or null
 	 * @param relayState - RelayState value that accompanies the request, may be null
-	 * @param authenticationRequestUri - The authenticationRequestUri, a URL, where to send the XML message, cannot be empty or null
+	 * @param location - The location where this AuthNRequest shoud be senet to, cannot be empty or null
 	 */
 	AbstractSaml2AuthenticationRequest(
 			String samlRequest,
 			String relayState,
-			String authenticationRequestUri) {
+			String location) {
 		Assert.hasText(samlRequest, "samlRequest cannot be null or empty");
-		Assert.hasText(authenticationRequestUri, "authenticationRequestUri cannot be null or empty");
-		this.authenticationRequestUri = authenticationRequestUri;
+		Assert.hasText(location, "location cannot be null or empty");
+		this.location = location;
 		this.samlRequest = samlRequest;
 		this.relayState = relayState;
 	}
@@ -77,9 +77,21 @@ abstract class AbstractSaml2AuthenticationRequest {
 	/**
 	 * Returns the URI endpoint that this AuthNRequest should be sent to.
 	 * @return the URI endpoint for this message
+	 * @deprecated Use {@link #getLocation} instead
 	 */
+	@Deprecated
 	public String getAuthenticationRequestUri() {
-		return this.authenticationRequestUri;
+		return this.location;
+	}
+
+	/**
+	 * Get the location where this AuthnRequest should be sent to
+	 *
+	 * @return the location where this AuthnRequest should be sent to
+	 * @since 5.4
+	 */
+	public String getLocation() {
+		return this.location;
 	}
 
 	/**
@@ -93,7 +105,7 @@ abstract class AbstractSaml2AuthenticationRequest {
 	 * A builder for {@link AbstractSaml2AuthenticationRequest} and its subclasses.
 	 */
 	static class Builder<T extends Builder<T>> {
-		String authenticationRequestUri;
+		String location;
 		String samlRequest;
 		String relayState;
 
@@ -138,11 +150,25 @@ abstract class AbstractSaml2AuthenticationRequest {
 		 *
 		 * @param authenticationRequestUri the relay state value, unencoded.
 		 * @return this object
+		 *
 		 */
+		@Deprecated
 		public T authenticationRequestUri(String authenticationRequestUri) {
-			this.authenticationRequestUri = authenticationRequestUri;
+			this.location = authenticationRequestUri;
 			return _this();
 		}
+
+		/**
+		 * Sets the {@code location} where this AuthNRequest should be sent to
+		 *
+		 * @param location where this AuthNRequest should be sent to
+		 * @return this {@link Builder} for further configuration
+		 */
+		public T location(String location) {
+			this.location = location;
+			return _this();
+		}
+
 	}
 
 }

@@ -33,8 +33,8 @@ public class Saml2PostAuthenticationRequest extends AbstractSaml2AuthenticationR
 	private Saml2PostAuthenticationRequest(
 			String samlRequest,
 			String relayState,
-			String authenticationRequestUri) {
-		super(samlRequest, relayState, authenticationRequestUri);
+			String location) {
+		super(samlRequest, relayState, location);
 	}
 
 	/**
@@ -47,14 +47,14 @@ public class Saml2PostAuthenticationRequest extends AbstractSaml2AuthenticationR
 
 	/**
 	 * Constructs a {@link Builder} from a {@link Saml2AuthenticationRequestContext} object.
-	 * By default the {@link Saml2PostAuthenticationRequest#getAuthenticationRequestUri()} will be set to the
+	 * By default the {@link Saml2PostAuthenticationRequest#getLocation()} will be set to the
 	 * {@link Saml2AuthenticationRequestContext#getDestination()} value.
 	 * @param context input providing {@code Destination}, {@code RelayState}, and {@code Issuer} objects.
 	 * @return a modifiable builder object
 	 */
 	public static Builder withAuthenticationRequestContext(Saml2AuthenticationRequestContext context) {
 		return new Builder()
-				.authenticationRequestUri(context.getDestination())
+				.location(context.getDestination())
 				.relayState(context.getRelayState())
 				;
 	}
@@ -76,7 +76,7 @@ public class Saml2PostAuthenticationRequest extends AbstractSaml2AuthenticationR
 			return new Saml2PostAuthenticationRequest(
 					this.samlRequest,
 					this.relayState,
-					this.authenticationRequestUri
+					this.location
 			);
 		}
 	}
