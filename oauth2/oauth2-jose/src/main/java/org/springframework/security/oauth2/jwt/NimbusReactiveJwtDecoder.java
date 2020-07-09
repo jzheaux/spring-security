@@ -17,7 +17,6 @@ package org.springframework.security.oauth2.jwt;
 
 import java.security.interfaces.RSAPublicKey;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -45,6 +44,7 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.JWTParser;
 import com.nimbusds.jwt.PlainJWT;
 import com.nimbusds.jwt.SignedJWT;
+import com.nimbusds.jwt.proc.ConfigurableJWTProcessor;
 import com.nimbusds.jwt.proc.DefaultJWTProcessor;
 import com.nimbusds.jwt.proc.JWTProcessor;
 import reactor.core.publisher.Flux;
@@ -246,10 +246,12 @@ public final class NimbusReactiveJwtDecoder implements ReactiveJwtDecoder {
 		private final String jwkSetUri;
 		private Set<SignatureAlgorithm> signatureAlgorithms = new HashSet<>();
 		private WebClient webClient = WebClient.create();
+		private Consumer<ConfigurableJWTProcessor<JWKSecurityContext>> jwtProcessorCustomizer;
 
 		private JwkSetUriReactiveJwtDecoderBuilder(String jwkSetUri) {
 			Assert.hasText(jwkSetUri, "jwkSetUri cannot be empty");
 			this.jwkSetUri = jwkSetUri;
+			this.jwtProcessorCustomizer = (processor) -> {};
 		}
 
 		/**
@@ -296,6 +298,20 @@ public final class NimbusReactiveJwtDecoder implements ReactiveJwtDecoder {
 		}
 
 		/**
+		 * Use the given {@link Consumer} to customize the {@link JWTProcessor ConfigurableJWTProcessor} before
+		 * passing it to the build {@link NimbusReactiveJwtDecoder}.
+		 *
+		 * @param jwtProcessorCustomizer the callback used to alter the processor
+		 * @return a {@link JwkSetUriReactiveJwtDecoderBuilder} for further configurations
+		 * @since 5.4
+		 */
+		public JwkSetUriReactiveJwtDecoderBuilder jwtProcessorCustomizer(Consumer<ConfigurableJWTProcessor<JWKSecurityContext>> jwtProcessorCustomizer) {
+			Assert.notNull(jwtProcessorCustomizer, "jwtProcessorCustomizer cannot be null");
+			this.jwtProcessorCustomizer = jwtProcessorCustomizer;
+			return this;
+		}
+
+		/**
 		 * Build the configured {@link NimbusReactiveJwtDecoder}.
 		 *
 		 * @return the configured {@link NimbusReactiveJwtDecoder}
@@ -307,16 +323,13 @@ public final class NimbusReactiveJwtDecoder implements ReactiveJwtDecoder {
 		JWSKeySelector<JWKSecurityContext> jwsKeySelector(JWKSource<JWKSecurityContext> jwkSource) {
 			if (this.signatureAlgorithms.isEmpty()) {
 				return new JWSVerificationKeySelector<>(JWSAlgorithm.RS256, jwkSource);
-			} else if (this.signatureAlgorithms.size() == 1) {
-				JWSAlgorithm jwsAlgorithm = JWSAlgorithm.parse(this.signatureAlgorithms.iterator().next().getName());
-				return new JWSVerificationKeySelector<>(jwsAlgorithm, jwkSource);
 			} else {
-				Map<JWSAlgorithm, JWSKeySelector<JWKSecurityContext>> jwsKeySelectors = new HashMap<>();
+				Set<JWSAlgorithm> jwsAlgorithms = new HashSet<>();
 				for (SignatureAlgorithm signatureAlgorithm : this.signatureAlgorithms) {
-					JWSAlgorithm jwsAlg = JWSAlgorithm.parse(signatureAlgorithm.getName());
-					jwsKeySelectors.put(jwsAlg, new JWSVerificationKeySelector<>(jwsAlg, jwkSource));
+					JWSAlgorithm jwsAlgorithm = JWSAlgorithm.parse(signatureAlgorithm.getName());
+					jwsAlgorithms.add(jwsAlgorithm);
 				}
-				return new JWSAlgorithmMapJWSKeySelector<>(jwsKeySelectors);
+				return new JWSVerificationKeySelector<>(jwsAlgorithms, jwkSource);
 			}
 		}
 
@@ -327,10 +340,12 @@ public final class NimbusReactiveJwtDecoder implements ReactiveJwtDecoder {
 			jwtProcessor.setJWSKeySelector(jwsKeySelector);
 			jwtProcessor.setJWTClaimsSetVerifier((claims, context) -> {});
 
+			this.jwtProcessorCustomizer.accept(jwtProcessor);
+
 			ReactiveRemoteJWKSource source = new ReactiveRemoteJWKSource(this.jwkSetUri);
 			source.setWebClient(this.webClient);
 
-			Set<JWSAlgorithm> expectedJwsAlgorithms = getExpectedJwsAlgorithms(jwsKeySelector);
+			Function<JWSAlgorithm, Boolean> expectedJwsAlgorithms = getExpectedJwsAlgorithms(jwsKeySelector);
 			return jwt -> {
 				JWKSelector selector = createSelector(expectedJwsAlgorithms, jwt.getHeader());
 				return source.get(selector)
@@ -339,22 +354,20 @@ public final class NimbusReactiveJwtDecoder implements ReactiveJwtDecoder {
 			};
 		}
 
-		private Set<JWSAlgorithm> getExpectedJwsAlgorithms(JWSKeySelector<?> jwsKeySelector) {
+		private Function<JWSAlgorithm, Boolean> getExpectedJwsAlgorithms(JWSKeySelector<?> jwsKeySelector) {
 			if (jwsKeySelector instanceof JWSVerificationKeySelector) {
-				return Collections.singleton(((JWSVerificationKeySelector<?>) jwsKeySelector).getExpectedJWSAlgorithm());
-			}
-			if (jwsKeySelector instanceof JWSAlgorithmMapJWSKeySelector) {
-				return ((JWSAlgorithmMapJWSKeySelector<?>) jwsKeySelector).getExpectedJWSAlgorithms();
+				return ((JWSVerificationKeySelector<?>) jwsKeySelector)::isAllowed;
 			}
 			throw new IllegalArgumentException("Unsupported key selector type " + jwsKeySelector.getClass());
 		}
 
-		private JWKSelector createSelector(Set<JWSAlgorithm> expectedJwsAlgorithms, Header header) {
-			if (!expectedJwsAlgorithms.contains(header.getAlgorithm())) {
+		private JWKSelector createSelector(Function<JWSAlgorithm, Boolean> expectedJwsAlgorithms, Header header) {
+			JWSHeader jwsHeader = (JWSHeader) header;
+			if (!expectedJwsAlgorithms.apply(jwsHeader.getAlgorithm())) {
 				throw new BadJwtException("Unsupported algorithm of " + header.getAlgorithm());
 			}
 
-			return new JWKSelector(JWKMatcher.forJWSHeader((JWSHeader) header));
+			return new JWKSelector(JWKMatcher.forJWSHeader(jwsHeader));
 		}
 	}
 
@@ -366,11 +379,13 @@ public final class NimbusReactiveJwtDecoder implements ReactiveJwtDecoder {
 	public static final class PublicKeyReactiveJwtDecoderBuilder {
 		private final RSAPublicKey key;
 		private JWSAlgorithm jwsAlgorithm;
+		private Consumer<ConfigurableJWTProcessor<SecurityContext>> jwtProcessorCustomizer;
 
 		private PublicKeyReactiveJwtDecoderBuilder(RSAPublicKey key) {
 			Assert.notNull(key, "key cannot be null");
 			this.key = key;
 			this.jwsAlgorithm = JWSAlgorithm.RS256;
+			this.jwtProcessorCustomizer = (processor) -> {};
 		}
 
 		/**
@@ -385,6 +400,20 @@ public final class NimbusReactiveJwtDecoder implements ReactiveJwtDecoder {
 		public PublicKeyReactiveJwtDecoderBuilder signatureAlgorithm(SignatureAlgorithm signatureAlgorithm) {
 			Assert.notNull(signatureAlgorithm, "signatureAlgorithm cannot be null");
 			this.jwsAlgorithm = JWSAlgorithm.parse(signatureAlgorithm.getName());
+			return this;
+		}
+
+		/**
+		 * Use the given {@link Consumer} to customize the {@link JWTProcessor ConfigurableJWTProcessor} before
+		 * passing it to the build {@link NimbusReactiveJwtDecoder}.
+		 *
+		 * @param jwtProcessorCustomizer the callback used to alter the processor
+		 * @return a {@link PublicKeyReactiveJwtDecoderBuilder} for further configurations
+		 * @since 5.4
+		 */
+		public PublicKeyReactiveJwtDecoderBuilder jwtProcessorCustomizer(Consumer<ConfigurableJWTProcessor<SecurityContext>> jwtProcessorCustomizer) {
+			Assert.notNull(jwtProcessorCustomizer, "jwtProcessorCustomizer cannot be null");
+			this.jwtProcessorCustomizer = jwtProcessorCustomizer;
 			return this;
 		}
 
@@ -412,6 +441,8 @@ public final class NimbusReactiveJwtDecoder implements ReactiveJwtDecoder {
 			// Spring Security validates the claim set independent from Nimbus
 			jwtProcessor.setJWTClaimsSetVerifier((claims, context) -> { });
 
+			this.jwtProcessorCustomizer.accept(jwtProcessor);
+
 			return jwt -> Mono.just(createClaimsSet(jwtProcessor, jwt, null));
 		}
 	}
@@ -424,10 +455,12 @@ public final class NimbusReactiveJwtDecoder implements ReactiveJwtDecoder {
 	public static final class SecretKeyReactiveJwtDecoderBuilder {
 		private final SecretKey secretKey;
 		private JWSAlgorithm jwsAlgorithm = JWSAlgorithm.HS256;
+		private Consumer<ConfigurableJWTProcessor<SecurityContext>> jwtProcessorCustomizer;
 
 		private SecretKeyReactiveJwtDecoderBuilder(SecretKey secretKey) {
 			Assert.notNull(secretKey, "secretKey cannot be null");
 			this.secretKey = secretKey;
+			this.jwtProcessorCustomizer = (processor) -> {};
 		}
 
 		/**
@@ -444,6 +477,20 @@ public final class NimbusReactiveJwtDecoder implements ReactiveJwtDecoder {
 		public SecretKeyReactiveJwtDecoderBuilder macAlgorithm(MacAlgorithm macAlgorithm) {
 			Assert.notNull(macAlgorithm, "macAlgorithm cannot be null");
 			this.jwsAlgorithm = JWSAlgorithm.parse(macAlgorithm.getName());
+			return this;
+		}
+
+		/**
+		 * Use the given {@link Consumer} to customize the {@link JWTProcessor ConfigurableJWTProcessor} before
+		 * passing it to the build {@link NimbusReactiveJwtDecoder}.
+		 *
+		 * @param jwtProcessorCustomizer the callback used to alter the processor
+		 * @return a {@link SecretKeyReactiveJwtDecoderBuilder} for further configurations
+		 * @since 5.4
+		 */
+		public SecretKeyReactiveJwtDecoderBuilder jwtProcessorCustomizer(Consumer<ConfigurableJWTProcessor<SecurityContext>> jwtProcessorCustomizer) {
+			Assert.notNull(jwtProcessorCustomizer, "jwtProcessorCustomizer cannot be null");
+			this.jwtProcessorCustomizer = jwtProcessorCustomizer;
 			return this;
 		}
 
@@ -465,6 +512,8 @@ public final class NimbusReactiveJwtDecoder implements ReactiveJwtDecoder {
 			// Spring Security validates the claim set independent from Nimbus
 			jwtProcessor.setJWTClaimsSetVerifier((claims, context) -> { });
 
+			this.jwtProcessorCustomizer.accept(jwtProcessor);
+
 			return jwt -> Mono.just(createClaimsSet(jwtProcessor, jwt, null));
 		}
 	}
@@ -477,10 +526,12 @@ public final class NimbusReactiveJwtDecoder implements ReactiveJwtDecoder {
 	public static final class JwkSourceReactiveJwtDecoderBuilder {
 		private final Function<SignedJWT, Flux<JWK>> jwkSource;
 		private JWSAlgorithm jwsAlgorithm = JWSAlgorithm.RS256;
+		private Consumer<ConfigurableJWTProcessor<JWKSecurityContext>> jwtProcessorCustomizer;
 
 		private JwkSourceReactiveJwtDecoderBuilder(Function<SignedJWT, Flux<JWK>> jwkSource) {
 			Assert.notNull(jwkSource, "jwkSource cannot be null");
 			this.jwkSource = jwkSource;
+			this.jwtProcessorCustomizer = (processor) -> {};
 		}
 
 		/**
@@ -493,6 +544,20 @@ public final class NimbusReactiveJwtDecoder implements ReactiveJwtDecoder {
 		public JwkSourceReactiveJwtDecoderBuilder jwsAlgorithm(JwsAlgorithm jwsAlgorithm) {
 			Assert.notNull(jwsAlgorithm, "jwsAlgorithm cannot be null");
 			this.jwsAlgorithm = JWSAlgorithm.parse(jwsAlgorithm.getName());
+			return this;
+		}
+
+		/**
+		 * Use the given {@link Consumer} to customize the {@link JWTProcessor ConfigurableJWTProcessor} before
+		 * passing it to the build {@link NimbusReactiveJwtDecoder}.
+		 *
+		 * @param jwtProcessorCustomizer the callback used to alter the processor
+		 * @return a {@link JwkSourceReactiveJwtDecoderBuilder} for further configurations
+		 * @since 5.4
+		 */
+		public JwkSourceReactiveJwtDecoderBuilder jwtProcessorCustomizer(Consumer<ConfigurableJWTProcessor<JWKSecurityContext>> jwtProcessorCustomizer) {
+			Assert.notNull(jwtProcessorCustomizer, "jwtProcessorCustomizer cannot be null");
+			this.jwtProcessorCustomizer = jwtProcessorCustomizer;
 			return this;
 		}
 
@@ -512,6 +577,8 @@ public final class NimbusReactiveJwtDecoder implements ReactiveJwtDecoder {
 			DefaultJWTProcessor<JWKSecurityContext> jwtProcessor = new DefaultJWTProcessor<>();
 			jwtProcessor.setJWSKeySelector(jwsKeySelector);
 			jwtProcessor.setJWTClaimsSetVerifier((claims, context) -> {});
+
+			this.jwtProcessorCustomizer.accept(jwtProcessor);
 
 			return jwt -> {
 				if (jwt instanceof SignedJWT) {

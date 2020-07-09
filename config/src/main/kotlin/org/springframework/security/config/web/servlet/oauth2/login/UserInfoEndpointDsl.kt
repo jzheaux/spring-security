@@ -18,7 +18,6 @@ package org.springframework.security.config.web.servlet.oauth2.login
 
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configurers.oauth2.client.OAuth2LoginConfigurer
-import org.springframework.security.config.web.servlet.SecurityMarker
 import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest
 import org.springframework.security.oauth2.client.registration.ClientRegistration
@@ -39,7 +38,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User
  * End-User from the UserInfo Endpoint.
  * @property userAuthoritiesMapper the [GrantedAuthoritiesMapper] used for mapping [OAuth2User.getAuthorities]
  */
-@SecurityMarker
+@OAuth2LoginSecurityMarker
 class UserInfoEndpointDsl {
     var userService: OAuth2UserService<OAuth2UserRequest, OAuth2User>? = null
     var oidcUserService: OAuth2UserService<OidcUserRequest, OidcUser>? = null
@@ -56,6 +55,18 @@ class UserInfoEndpointDsl {
      */
     fun customUserType(customUserType: Class<out OAuth2User>, clientRegistrationId: String) {
         customUserTypePair = Pair(customUserType, clientRegistrationId)
+    }
+
+    /**
+     * Sets a custom [OAuth2User] type and associates it to the provided
+     * client [ClientRegistration.getRegistrationId] registration identifier.
+     * Variant that is leveraging Kotlin reified type parameters.
+     *
+     * @param T a custom [OAuth2User] type
+     * @param clientRegistrationId the client registration identifier
+     */
+    inline fun <reified T: OAuth2User> customUserType(clientRegistrationId: String) {
+        customUserType(T::class.java, clientRegistrationId)
     }
 
     internal fun get(): (OAuth2LoginConfigurer<HttpSecurity>.UserInfoEndpointConfig) -> Unit {

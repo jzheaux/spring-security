@@ -89,55 +89,11 @@ try {
 							 "GRADLE_ENTERPRISE_CACHE_USERNAME=${GRADLE_ENTERPRISE_CACHE_USERNAME}",
 							 "GRADLE_ENTERPRISE_CACHE_PASSWORD=${GRADLE_ENTERPRISE_CACHE_PASSWORD}",
 							 "GRADLE_ENTERPRISE_ACCESS_KEY=${GRADLE_ENTERPRISE_ACCESS_KEY}"]) {
-							sh "./gradlew test -PforceMavenRepositories=snapshot -PspringVersion='5.+' -PreactorVersion=Dysprosium-BUILD-SNAPSHOT -PspringDataVersion=Lovelace-BUILD-SNAPSHOT -PlocksDisabled --stacktrace"
+							sh "./gradlew test -PforceMavenRepositories=snapshot -PspringVersion='5.+' -PreactorVersion=20+ -PspringDataVersion=Lovelace-BUILD-SNAPSHOT -PlocksDisabled --stacktrace"
 						}
 					}
 				} catch(Exception e) {
 					currentBuild.result = 'FAILED: snapshots'
-					throw e
-				}
-			}
-		}
-	},
-	jdk9: {
-		stage('JDK 9') {
-			node {
-				checkout scm
-				sh "git clean -dfx"
-				try {
-					withCredentials([GRADLE_ENTERPRISE_CACHE_USER,
-						 GRADLE_ENTERPRISE_SECRET_ACCESS_KEY]) {
-						withEnv([jdkEnv("jdk9"),
-							 "GRADLE_ENTERPRISE_CACHE_USERNAME=${GRADLE_ENTERPRISE_CACHE_USERNAME}",
-							 "GRADLE_ENTERPRISE_CACHE_PASSWORD=${GRADLE_ENTERPRISE_CACHE_PASSWORD}",
-							 "GRADLE_ENTERPRISE_ACCESS_KEY=${GRADLE_ENTERPRISE_ACCESS_KEY}"]) {
-							sh "./gradlew test --stacktrace"
-						}
-					}
-				} catch(Exception e) {
-					currentBuild.result = 'FAILED: jdk9'
-					throw e
-				}
-			}
-		}
-	},
-	jdk10: {
-		stage('JDK 10') {
-			node {
-				checkout scm
-				sh "git clean -dfx"
-				try {
-					withCredentials([GRADLE_ENTERPRISE_CACHE_USER,
-						 GRADLE_ENTERPRISE_SECRET_ACCESS_KEY]) {
-						withEnv([jdkEnv("jdk10"),
-							 "GRADLE_ENTERPRISE_CACHE_USERNAME=${GRADLE_ENTERPRISE_CACHE_USERNAME}",
-							 "GRADLE_ENTERPRISE_CACHE_PASSWORD=${GRADLE_ENTERPRISE_CACHE_PASSWORD}",
-							 "GRADLE_ENTERPRISE_ACCESS_KEY=${GRADLE_ENTERPRISE_ACCESS_KEY}"]) {
-							sh "./gradlew test --stacktrace"
-						}
-					}
-				} catch(Exception e) {
-					currentBuild.result = 'FAILED: jdk10'
 					throw e
 				}
 			}

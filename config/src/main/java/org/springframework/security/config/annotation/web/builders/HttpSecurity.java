@@ -233,7 +233,9 @@ public final class HttpSecurity extends
 	 * </pre>
 	 *
 	 * @return the {@link OpenIDLoginConfigurer} for further customizations.
-	 *
+	 * @deprecated The OpenID 1.0 and 2.0 protocols have been deprecated and users are
+	 *  <a href="https://openid.net/specs/openid-connect-migration-1_0.html">encouraged to migrate</a>
+	 *  to <a href="https://openid.net/connect/">OpenID Connect</a>, which is supported by <code>spring-security-oauth2</code>.
 	 * @throws Exception
 	 * @see OpenIDLoginConfigurer
 	 */
@@ -355,6 +357,9 @@ public final class HttpSecurity extends
 	 *
 	 * @param openidLoginCustomizer the {@link Customizer} to provide more options for
 	 * the {@link OpenIDLoginConfigurer}
+	 * @deprecated The OpenID 1.0 and 2.0 protocols have been deprecated and users are
+	 *  <a href="https://openid.net/specs/openid-connect-migration-1_0.html">encouraged to migrate</a>
+	 *  to <a href="https://openid.net/connect/">OpenID Connect</a>, which is supported by <code>spring-security-oauth2</code>.
 	 * @return the {@link HttpSecurity} for further customizations
 	 * @throws Exception
 	 */
@@ -1105,6 +1110,7 @@ public final class HttpSecurity extends
 
 	/**
 	 * Allows restricting access based upon the {@link HttpServletRequest} using
+	 * {@link RequestMatcher} implementations (i.e. via URL patterns).
 	 *
 	 * <h2>Example Configurations</h2>
 	 *
@@ -1471,7 +1477,7 @@ public final class HttpSecurity extends
 	 * }
 	 * </pre>
 	 *
-	 * @return the {@link ServletApiConfigurer} for further customizations
+	 * @return the {@link CsrfConfigurer} for further customizations
 	 * @throws Exception
 	 */
 	public CsrfConfigurer<HttpSecurity> csrf() throws Exception {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,9 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2AuthorizationException;
 import reactor.core.publisher.Mono;
 import reactor.util.context.Context;
 
@@ -235,6 +238,7 @@ import static org.springframework.security.web.server.util.matcher.ServerWebExch
  * @author Rafiullah Hamedy
  * @author Eddú Meléndez
  * @author Joe Grandja
+ * @author Parikshit Dutta
  * @since 5.0
  */
 public class ServerHttpSecurity {
@@ -1056,8 +1060,11 @@ public class ServerHttpSecurity {
 
 		private ReactiveAuthenticationManager createDefault() {
 			ReactiveOAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> client = getAccessTokenResponseClient();
-			ReactiveAuthenticationManager result = new OAuth2LoginReactiveAuthenticationManager(client, getOauth2UserService());
-
+			OAuth2LoginReactiveAuthenticationManager oauth2Manager = new OAuth2LoginReactiveAuthenticationManager(client, getOauth2UserService());
+			GrantedAuthoritiesMapper authoritiesMapper = getBeanOrNull(GrantedAuthoritiesMapper.class);
+			if (authoritiesMapper != null) {
+				oauth2Manager.setAuthoritiesMapper(authoritiesMapper);
+			}
 			boolean oidcAuthenticationProviderEnabled = ClassUtils.isPresent(
 					"org.springframework.security.oauth2.jwt.JwtDecoder", this.getClass().getClassLoader());
 			if (oidcAuthenticationProviderEnabled) {
@@ -1069,9 +1076,12 @@ public class ServerHttpSecurity {
 				if (jwtDecoderFactory != null) {
 					oidc.setJwtDecoderFactory(jwtDecoderFactory);
 				}
-				result = new DelegatingReactiveAuthenticationManager(oidc, result);
+				if (authoritiesMapper != null) {
+					oidc.setAuthoritiesMapper(authoritiesMapper);
+				}
+				return new DelegatingReactiveAuthenticationManager(oidc, oauth2Manager);
 			}
-			return result;
+			return oauth2Manager;
 		}
 
 		/**
@@ -1086,9 +1096,14 @@ public class ServerHttpSecurity {
 
 		private ServerAuthenticationConverter getAuthenticationConverter(ReactiveClientRegistrationRepository clientRegistrationRepository) {
 			if (this.authenticationConverter == null) {
-				ServerOAuth2AuthorizationCodeAuthenticationTokenConverter authenticationConverter = new ServerOAuth2AuthorizationCodeAuthenticationTokenConverter(clientRegistrationRepository);
-				authenticationConverter.setAuthorizationRequestRepository(getAuthorizationRequestRepository());
+				ServerOAuth2AuthorizationCodeAuthenticationTokenConverter delegate =
+						new ServerOAuth2AuthorizationCodeAuthenticationTokenConverter(clientRegistrationRepository);
+				delegate.setAuthorizationRequestRepository(getAuthorizationRequestRepository());
+				ServerAuthenticationConverter authenticationConverter = exchange ->
+						delegate.convert(exchange).onErrorMap(OAuth2AuthorizationException.class,
+								e -> new OAuth2AuthenticationException(e.getError(), e.getError().toString()));
 				this.authenticationConverter = authenticationConverter;
+				return authenticationConverter;
 			}
 			return this.authenticationConverter;
 		}
@@ -1180,22 +1195,54 @@ public class ServerHttpSecurity {
 			authenticationFilter.setAuthenticationFailureHandler(getAuthenticationFailureHandler());
 			authenticationFilter.setSecurityContextRepository(this.securityContextRepository);
 
-			MediaTypeServerWebExchangeMatcher htmlMatcher = new MediaTypeServerWebExchangeMatcher(
-					MediaType.TEXT_HTML);
-			htmlMatcher.setIgnoredMediaTypes(Collections.singleton(MediaType.ALL));
-			Map<String, String> urlToText = http.oauth2Login.getLinks();
-			String authenticationEntryPointRedirectPath;
-			if (urlToText.size() == 1) {
-				authenticationEntryPointRedirectPath = urlToText.keySet().iterator().next();
-			} else {
-				authenticationEntryPointRedirectPath = "/login";
-			}
-			RedirectServerAuthenticationEntryPoint entryPoint = new RedirectServerAuthenticationEntryPoint(authenticationEntryPointRedirectPath);
-			entryPoint.setRequestCache(http.requestCache.requestCache);
-			http.defaultEntryPoints.add(new DelegateEntry(htmlMatcher, entryPoint));
+			setDefaultEntryPoints(http);
 
 			http.addFilterAt(oauthRedirectFilter, SecurityWebFiltersOrder.HTTP_BASIC);
 			http.addFilterAt(authenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION);
+		}
+
+		private void setDefaultEntryPoints(ServerHttpSecurity http) {
+			String defaultLoginPage = "/login";
+			Map<String, String> urlToText = http.oauth2Login.getLinks();
+			String providerLoginPage = null;
+			if (urlToText.size() == 1) {
+				providerLoginPage = urlToText.keySet().iterator().next();
+			}
+
+			MediaTypeServerWebExchangeMatcher htmlMatcher = new MediaTypeServerWebExchangeMatcher(
+					MediaType.APPLICATION_XHTML_XML, new MediaType("image", "*"),
+					MediaType.TEXT_HTML, MediaType.TEXT_PLAIN);
+			htmlMatcher.setIgnoredMediaTypes(Collections.singleton(MediaType.ALL));
+
+			ServerWebExchangeMatcher xhrMatcher = exchange -> {
+				if (exchange.getRequest().getHeaders().getOrEmpty("X-Requested-With").contains("XMLHttpRequest")) {
+					return ServerWebExchangeMatcher.MatchResult.match();
+				}
+				return ServerWebExchangeMatcher.MatchResult.notMatch();
+			};
+			ServerWebExchangeMatcher notXhrMatcher = new NegatedServerWebExchangeMatcher(xhrMatcher);
+
+			ServerWebExchangeMatcher defaultEntryPointMatcher = new AndServerWebExchangeMatcher(
+					notXhrMatcher, htmlMatcher);
+
+			if (providerLoginPage != null) {
+				ServerWebExchangeMatcher loginPageMatcher = new PathPatternParserServerWebExchangeMatcher(defaultLoginPage);
+				ServerWebExchangeMatcher faviconMatcher = new PathPatternParserServerWebExchangeMatcher("/favicon.ico");
+				ServerWebExchangeMatcher defaultLoginPageMatcher = new AndServerWebExchangeMatcher(
+						new OrServerWebExchangeMatcher(loginPageMatcher, faviconMatcher), defaultEntryPointMatcher);
+
+				ServerWebExchangeMatcher matcher = new AndServerWebExchangeMatcher(
+						notXhrMatcher, new NegatedServerWebExchangeMatcher(defaultLoginPageMatcher));
+				RedirectServerAuthenticationEntryPoint entryPoint =
+						new RedirectServerAuthenticationEntryPoint(providerLoginPage);
+				entryPoint.setRequestCache(http.requestCache.requestCache);
+				http.defaultEntryPoints.add(new DelegateEntry(matcher, entryPoint));
+			}
+
+			RedirectServerAuthenticationEntryPoint defaultEntryPoint =
+					new RedirectServerAuthenticationEntryPoint(defaultLoginPage);
+			defaultEntryPoint.setRequestCache(http.requestCache.requestCache);
+			http.defaultEntryPoints.add(new DelegateEntry(defaultEntryPointMatcher, defaultEntryPoint));
 		}
 
 		private ServerAuthenticationSuccessHandler getAuthenticationSuccessHandler(ServerHttpSecurity http) {
@@ -1472,10 +1519,17 @@ public class ServerHttpSecurity {
 			OAuth2AuthorizationCodeGrantWebFilter codeGrantWebFilter = new OAuth2AuthorizationCodeGrantWebFilter(
 					authenticationManager, authenticationConverter, authorizedClientRepository);
 			codeGrantWebFilter.setAuthorizationRequestRepository(getAuthorizationRequestRepository());
+			if (http.requestCache != null) {
+				codeGrantWebFilter.setRequestCache(http.requestCache.requestCache);
+			}
 
 			OAuth2AuthorizationRequestRedirectWebFilter oauthRedirectFilter = new OAuth2AuthorizationRequestRedirectWebFilter(
 					clientRegistrationRepository);
 			oauthRedirectFilter.setAuthorizationRequestRepository(getAuthorizationRequestRepository());
+			if (http.requestCache != null) {
+				oauthRedirectFilter.setRequestCache(http.requestCache.requestCache);
+			}
+
 			http.addFilterAt(codeGrantWebFilter, SecurityWebFiltersOrder.OAUTH2_AUTHORIZATION_CODE);
 			http.addFilterAt(oauthRedirectFilter, SecurityWebFiltersOrder.HTTP_BASIC);
 		}
@@ -2614,7 +2668,7 @@ public class ServerHttpSecurity {
 
 			/**
 			 * Require a specific authority.
-			 * @param authority the authority to require (i.e. "USER" woudl require authority of "USER").
+			 * @param authority the authority to require (i.e. "USER" would require authority of "USER").
 			 * @return the {@link AuthorizeExchangeSpec} to configure
 			 */
 			public AuthorizeExchangeSpec hasAuthority(String authority) {
@@ -3706,7 +3760,8 @@ public class ServerHttpSecurity {
 	 */
 	public final class LogoutSpec {
 		private LogoutWebFilter logoutWebFilter = new LogoutWebFilter();
-		private List<ServerLogoutHandler> logoutHandlers = new ArrayList<>(Arrays.asList(new SecurityContextServerLogoutHandler()));
+		private final SecurityContextServerLogoutHandler DEFAULT_LOGOUT_HANDLER = new SecurityContextServerLogoutHandler();
+		private List<ServerLogoutHandler> logoutHandlers = new ArrayList<>(Arrays.asList(this.DEFAULT_LOGOUT_HANDLER));
 
 		/**
 		 * Configures the logout handler. Default is {@code SecurityContextServerLogoutHandler}
@@ -3770,6 +3825,10 @@ public class ServerHttpSecurity {
 		}
 
 		private ServerLogoutHandler createLogoutHandler() {
+			ServerSecurityContextRepository securityContextRepository = ServerHttpSecurity.this.securityContextRepository;
+			if (securityContextRepository != null) {
+				this.DEFAULT_LOGOUT_HANDLER.setSecurityContextRepository(securityContextRepository);
+			}
 			if (this.logoutHandlers.isEmpty()) {
 				return null;
 			} else if (this.logoutHandlers.size() == 1) {

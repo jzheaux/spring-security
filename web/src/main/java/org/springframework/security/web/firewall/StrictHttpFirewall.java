@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2019 the original author or authors.
+ * Copyright 2012-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,13 @@ package org.springframework.security.web.firewall;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.regex.Pattern;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -64,12 +67,31 @@ import org.springframework.http.HttpMethod;
  * Rejects URLs that contain a backslash. See {@link #setAllowBackSlash(boolean)}
  * </li>
  * <li>
+ * Rejects URLs that contain a null character. See {@link #setAllowNull(boolean)}
+ * </li>
+ * <li>
  * Rejects URLs that contain a URL encoded percent. See
  * {@link #setAllowUrlEncodedPercent(boolean)}
  * </li>
  * <li>
  * Rejects hosts that are not allowed. See
  * {@link #setAllowedHostnames(Predicate)}
+ * </li>
+ * <li>
+ * Reject headers names that are not allowed. See
+ * {@link #setAllowedHeaderNames(Predicate)}
+ * </li>
+ * <li>
+ * Reject headers values that are not allowed. See
+ * {@link #setAllowedHeaderValues(Predicate)}
+ * </li>
+ * <li>
+ * Reject parameter names that are not allowed. See
+ * {@link #setAllowedParameterNames(Predicate)}
+ * </li>
+ * <li>
+ * Reject parameter values that are not allowed. See
+ * {@link #setAllowedParameterValues(Predicate)}
  * </li>
  * </ul>
  *
@@ -98,23 +120,38 @@ public class StrictHttpFirewall implements HttpFirewall {
 
 	private static final List<String> FORBIDDEN_BACKSLASH = Collections.unmodifiableList(Arrays.asList("\\", "%5c", "%5C"));
 
-	private Set<String> encodedUrlBlacklist = new HashSet<>();
+	private static final List<String> FORBIDDEN_NULL = Collections.unmodifiableList(Arrays.asList("\0", "%00"));
 
-	private Set<String> decodedUrlBlacklist = new HashSet<>();
+	private Set<String> encodedUrlBlocklist = new HashSet<>();
+
+	private Set<String> decodedUrlBlocklist = new HashSet<>();
 
 	private Set<String> allowedHttpMethods = createDefaultAllowedHttpMethods();
 
 	private Predicate<String> allowedHostnames = hostname -> true;
 
-	public StrictHttpFirewall() {
-		urlBlacklistsAddAll(FORBIDDEN_SEMICOLON);
-		urlBlacklistsAddAll(FORBIDDEN_FORWARDSLASH);
-		urlBlacklistsAddAll(FORBIDDEN_DOUBLE_FORWARDSLASH);
-		urlBlacklistsAddAll(FORBIDDEN_BACKSLASH);
+	private static final Pattern ASSIGNED_AND_NOT_ISO_CONTROL_PATTERN = Pattern.compile("[\\p{IsAssigned}&&[^\\p{IsControl}]]*");
 
-		this.encodedUrlBlacklist.add(ENCODED_PERCENT);
-		this.encodedUrlBlacklist.addAll(FORBIDDEN_ENCODED_PERIOD);
-		this.decodedUrlBlacklist.add(PERCENT);
+	private static final Predicate<String> ASSIGNED_AND_NOT_ISO_CONTROL_PREDICATE = s -> ASSIGNED_AND_NOT_ISO_CONTROL_PATTERN.matcher(s).matches();
+
+	private Predicate<String> allowedHeaderNames = ASSIGNED_AND_NOT_ISO_CONTROL_PREDICATE;
+
+	private Predicate<String> allowedHeaderValues = ASSIGNED_AND_NOT_ISO_CONTROL_PREDICATE;
+
+	private Predicate<String> allowedParameterNames = ASSIGNED_AND_NOT_ISO_CONTROL_PREDICATE;
+
+	private Predicate<String> allowedParameterValues = value -> true;
+
+	public StrictHttpFirewall() {
+		urlBlocklistsAddAll(FORBIDDEN_SEMICOLON);
+		urlBlocklistsAddAll(FORBIDDEN_FORWARDSLASH);
+		urlBlocklistsAddAll(FORBIDDEN_DOUBLE_FORWARDSLASH);
+		urlBlocklistsAddAll(FORBIDDEN_BACKSLASH);
+		urlBlocklistsAddAll(FORBIDDEN_NULL);
+
+		this.encodedUrlBlocklist.add(ENCODED_PERCENT);
+		this.encodedUrlBlocklist.addAll(FORBIDDEN_ENCODED_PERIOD);
+		this.decodedUrlBlocklist.add(PERCENT);
 	}
 
 	/**
@@ -185,9 +222,9 @@ public class StrictHttpFirewall implements HttpFirewall {
 	 */
 	public void setAllowSemicolon(boolean allowSemicolon) {
 		if (allowSemicolon) {
-			urlBlacklistsRemoveAll(FORBIDDEN_SEMICOLON);
+			urlBlocklistsRemoveAll(FORBIDDEN_SEMICOLON);
 		} else {
-			urlBlacklistsAddAll(FORBIDDEN_SEMICOLON);
+			urlBlocklistsAddAll(FORBIDDEN_SEMICOLON);
 		}
 	}
 
@@ -208,9 +245,9 @@ public class StrictHttpFirewall implements HttpFirewall {
 	 */
 	public void setAllowUrlEncodedSlash(boolean allowUrlEncodedSlash) {
 		if (allowUrlEncodedSlash) {
-			urlBlacklistsRemoveAll(FORBIDDEN_FORWARDSLASH);
+			urlBlocklistsRemoveAll(FORBIDDEN_FORWARDSLASH);
 		} else {
-			urlBlacklistsAddAll(FORBIDDEN_FORWARDSLASH);
+			urlBlocklistsAddAll(FORBIDDEN_FORWARDSLASH);
 		}
 	}
 
@@ -225,9 +262,9 @@ public class StrictHttpFirewall implements HttpFirewall {
 	 */
 	public void setAllowUrlEncodedDoubleSlash(boolean allowUrlEncodedDoubleSlash) {
 		if (allowUrlEncodedDoubleSlash) {
-			urlBlacklistsRemoveAll(FORBIDDEN_DOUBLE_FORWARDSLASH);
+			urlBlocklistsRemoveAll(FORBIDDEN_DOUBLE_FORWARDSLASH);
 		} else {
-			urlBlacklistsAddAll(FORBIDDEN_DOUBLE_FORWARDSLASH);
+			urlBlocklistsAddAll(FORBIDDEN_DOUBLE_FORWARDSLASH);
 		}
 	}
 
@@ -250,9 +287,9 @@ public class StrictHttpFirewall implements HttpFirewall {
 	 */
 	public void setAllowUrlEncodedPeriod(boolean allowUrlEncodedPeriod) {
 		if (allowUrlEncodedPeriod) {
-			this.encodedUrlBlacklist.removeAll(FORBIDDEN_ENCODED_PERIOD);
+			this.encodedUrlBlocklist.removeAll(FORBIDDEN_ENCODED_PERIOD);
 		} else {
-			this.encodedUrlBlacklist.addAll(FORBIDDEN_ENCODED_PERIOD);
+			this.encodedUrlBlocklist.addAll(FORBIDDEN_ENCODED_PERIOD);
 		}
 	}
 
@@ -275,9 +312,28 @@ public class StrictHttpFirewall implements HttpFirewall {
 	 */
 	public void setAllowBackSlash(boolean allowBackSlash) {
 		if (allowBackSlash) {
-			urlBlacklistsRemoveAll(FORBIDDEN_BACKSLASH);
+			urlBlocklistsRemoveAll(FORBIDDEN_BACKSLASH);
 		} else {
-			urlBlacklistsAddAll(FORBIDDEN_BACKSLASH);
+			urlBlocklistsAddAll(FORBIDDEN_BACKSLASH);
+		}
+	}
+
+	/**
+	 * <p>
+	 * Determines if a null "\0" or a URL encoded nul "%00" should be allowed in
+	 * the path or not. The default is not to allow this behavior because it is a frequent
+	 * source of security exploits.
+	 * </p>
+	 *
+	 * @param allowNull a null "\0" or a URL encoded null "%00" be allowed
+	 * in the path or not. Default is false
+	 * @since 5.4
+	 */
+	public void setAllowNull(boolean allowNull) {
+		if (allowNull) {
+			urlBlocklistsRemoveAll(FORBIDDEN_NULL);
+		} else {
+			urlBlocklistsAddAll(FORBIDDEN_NULL);
 		}
 	}
 
@@ -297,12 +353,83 @@ public class StrictHttpFirewall implements HttpFirewall {
 	 */
 	public void setAllowUrlEncodedPercent(boolean allowUrlEncodedPercent) {
 		if (allowUrlEncodedPercent) {
-			this.encodedUrlBlacklist.remove(ENCODED_PERCENT);
-			this.decodedUrlBlacklist.remove(PERCENT);
+			this.encodedUrlBlocklist.remove(ENCODED_PERCENT);
+			this.decodedUrlBlocklist.remove(PERCENT);
 		} else {
-			this.encodedUrlBlacklist.add(ENCODED_PERCENT);
-			this.decodedUrlBlacklist.add(PERCENT);
+			this.encodedUrlBlocklist.add(ENCODED_PERCENT);
+			this.decodedUrlBlocklist.add(PERCENT);
 		}
+	}
+
+	/**
+	 * <p>
+	 * Determines which header names should be allowed.
+	 * The default is to reject header names that contain ISO control characters
+	 * and characters that are not defined.
+	 * </p>
+	 *
+	 * @param allowedHeaderNames the predicate for testing header names
+	 * @see Character#isISOControl(int)
+	 * @see Character#isDefined(int)
+	 * @since 5.4
+	 */
+	public void setAllowedHeaderNames(Predicate<String> allowedHeaderNames) {
+		if (allowedHeaderNames == null) {
+			throw new IllegalArgumentException("allowedHeaderNames cannot be null");
+		}
+		this.allowedHeaderNames = allowedHeaderNames;
+	}
+
+	/**
+	 * <p>
+	 * Determines which header values should be allowed.
+	 * The default is to reject header values that contain ISO control characters
+	 * and characters that are not defined.
+	 * </p>
+	 *
+	 * @param allowedHeaderValues the predicate for testing hostnames
+	 * @see Character#isISOControl(int)
+	 * @see Character#isDefined(int)
+	 * @since 5.4
+	 */
+	public void setAllowedHeaderValues(Predicate<String> allowedHeaderValues) {
+		if (allowedHeaderValues == null) {
+			throw new IllegalArgumentException("allowedHeaderValues cannot be null");
+		}
+		this.allowedHeaderValues = allowedHeaderValues;
+	}
+	/*
+	 * Determines which parameter names should be allowed.
+	 * The default is to reject header names that contain ISO control characters
+	 * and characters that are not defined.
+	 * </p>
+	 *
+	 * @param allowedParameterNames the predicate for testing parameter names
+	 * @see Character#isISOControl(int)
+	 * @see Character#isDefined(int)
+	 * @since 5.4
+	 */
+	public void setAllowedParameterNames(Predicate<String> allowedParameterNames) {
+		if (allowedParameterNames == null) {
+			throw new IllegalArgumentException("allowedParameterNames cannot be null");
+		}
+		this.allowedParameterNames = allowedParameterNames;
+	}
+
+	/**
+	 * <p>
+	 * Determines which parameter values should be allowed.
+	 * The default is to allow any parameter value.
+	 * </p>
+	 *
+	 * @param allowedParameterValues the predicate for testing parameter values
+	 * @since 5.4
+	 */
+	public void setAllowedParameterValues(Predicate<String> allowedParameterValues) {
+		if (allowedParameterValues == null) {
+			throw new IllegalArgumentException("allowedParameterValues cannot be null");
+		}
+		this.allowedParameterValues = allowedParameterValues;
 	}
 
 	/**
@@ -320,20 +447,20 @@ public class StrictHttpFirewall implements HttpFirewall {
 		this.allowedHostnames = allowedHostnames;
 	}
 
-	private void urlBlacklistsAddAll(Collection<String> values) {
-		this.encodedUrlBlacklist.addAll(values);
-		this.decodedUrlBlacklist.addAll(values);
+	private void urlBlocklistsAddAll(Collection<String> values) {
+		this.encodedUrlBlocklist.addAll(values);
+		this.decodedUrlBlocklist.addAll(values);
 	}
 
-	private void urlBlacklistsRemoveAll(Collection<String> values) {
-		this.encodedUrlBlacklist.removeAll(values);
-		this.decodedUrlBlacklist.removeAll(values);
+	private void urlBlocklistsRemoveAll(Collection<String> values) {
+		this.encodedUrlBlocklist.removeAll(values);
+		this.decodedUrlBlocklist.removeAll(values);
 	}
 
 	@Override
 	public FirewalledRequest getFirewalledRequest(HttpServletRequest request) throws RequestRejectedException {
 		rejectForbiddenHttpMethod(request);
-		rejectedBlacklistedUrls(request);
+		rejectedBlocklistedUrls(request);
 		rejectedUntrustedHosts(request);
 
 		if (!isNormalized(request)) {
@@ -345,6 +472,144 @@ public class StrictHttpFirewall implements HttpFirewall {
 			throw new RequestRejectedException("The requestURI was rejected because it can only contain printable ASCII characters.");
 		}
 		return new FirewalledRequest(request) {
+			@Override
+			public long getDateHeader(String name) {
+				if (!allowedHeaderNames.test(name)) {
+					throw new RequestRejectedException("The request was rejected because the header name \"" + name + "\" is not allowed.");
+				}
+				return super.getDateHeader(name);
+			}
+
+			@Override
+			public int getIntHeader(String name) {
+				if (!allowedHeaderNames.test(name)) {
+					throw new RequestRejectedException("The request was rejected because the header name \"" + name + "\" is not allowed.");
+				}
+				return super.getIntHeader(name);
+			}
+
+			@Override
+			public String getHeader(String name) {
+				if (!allowedHeaderNames.test(name)) {
+					throw new RequestRejectedException("The request was rejected because the header name \"" + name + "\" is not allowed.");
+				}
+				String value = super.getHeader(name);
+				if (value != null && !allowedHeaderValues.test(value)) {
+					throw new RequestRejectedException("The request was rejected because the header value \"" + value + "\" is not allowed.");
+				}
+				return value;
+			}
+
+			@Override
+			public Enumeration<String> getHeaders(String name) {
+				if (!allowedHeaderNames.test(name)) {
+					throw new RequestRejectedException("The request was rejected because the header name \"" + name + "\" is not allowed.");
+				}
+
+				Enumeration<String> valuesEnumeration = super.getHeaders(name);
+				return new Enumeration<String>() {
+					@Override
+					public boolean hasMoreElements() {
+						return valuesEnumeration.hasMoreElements();
+					}
+
+					@Override
+					public String nextElement() {
+						String value = valuesEnumeration.nextElement();
+						if (!allowedHeaderValues.test(value)) {
+							throw new RequestRejectedException("The request was rejected because the header value \"" + value + "\" is not allowed.");
+						}
+						return value;
+					}
+				};
+			}
+
+			@Override
+			public Enumeration<String> getHeaderNames() {
+				Enumeration<String> namesEnumeration = super.getHeaderNames();
+				return new Enumeration<String>() {
+					@Override
+					public boolean hasMoreElements() {
+						return namesEnumeration.hasMoreElements();
+					}
+
+					@Override
+					public String nextElement() {
+						String name = namesEnumeration.nextElement();
+						if (!allowedHeaderNames.test(name)) {
+							throw new RequestRejectedException("The request was rejected because the header name \"" + name + "\" is not allowed.");
+						}
+						return name;
+					}
+				};
+			}
+
+			@Override
+			public String getParameter(String name) {
+				if (!allowedParameterNames.test(name)) {
+					throw new RequestRejectedException("The request was rejected because the parameter name \"" + name + "\" is not allowed.");
+				}
+				String value = super.getParameter(name);
+				if (value != null && !allowedParameterValues.test(value)) {
+					throw new RequestRejectedException("The request was rejected because the parameter value \"" + value + "\" is not allowed.");
+				}
+				return value;
+			}
+
+			@Override
+			public Map<String, String[]> getParameterMap() {
+				Map<String, String[]> parameterMap = super.getParameterMap();
+				for (Map.Entry<String, String[]> entry : parameterMap.entrySet()) {
+					String name = entry.getKey();
+					String[] values = entry.getValue();
+					if (!allowedParameterNames.test(name)) {
+						throw new RequestRejectedException("The request was rejected because the parameter name \"" + name + "\" is not allowed.");
+					}
+					for (String value: values) {
+						if (!allowedParameterValues.test(value)) {
+							throw new RequestRejectedException("The request was rejected because the parameter value \"" + value + "\" is not allowed.");
+						}
+					}
+				}
+				return parameterMap;
+			}
+
+			@Override
+			public Enumeration<String> getParameterNames() {
+				Enumeration<String> namesEnumeration = super.getParameterNames();
+				return new Enumeration<String>() {
+					@Override
+					public boolean hasMoreElements() {
+						return namesEnumeration.hasMoreElements();
+					}
+
+					@Override
+					public String nextElement() {
+						String name = namesEnumeration.nextElement();
+						if (!allowedParameterNames.test(name)) {
+							throw new RequestRejectedException("The request was rejected because the parameter name \"" + name + "\" is not allowed.");
+						}
+						return name;
+					}
+				};
+			}
+
+			@Override
+			public String[] getParameterValues(String name) {
+				if (!allowedParameterNames.test(name)) {
+					throw new RequestRejectedException("The request was rejected because the parameter name \"" + name + "\" is not allowed.");
+				}
+				String[] values = super.getParameterValues(name);
+				if (values != null) {
+					for (String value: values) {
+						if (!allowedParameterValues.test(value)) {
+							throw new RequestRejectedException("The request was rejected because the parameter value \"" + value + "\" is not allowed.");
+						}
+					}
+				}
+				return values;
+			}
+
 			@Override
 			public void reset() {
 			}
@@ -358,18 +623,18 @@ public class StrictHttpFirewall implements HttpFirewall {
 		if (!this.allowedHttpMethods.contains(request.getMethod())) {
 			throw new RequestRejectedException("The request was rejected because the HTTP method \"" +
 					request.getMethod() +
-					"\" was not included within the whitelist " +
+					"\" was not included within the list of allowed HTTP methods " +
 					this.allowedHttpMethods);
 		}
 	}
 
-	private void rejectedBlacklistedUrls(HttpServletRequest request) {
-		for (String forbidden : this.encodedUrlBlacklist) {
+	private void rejectedBlocklistedUrls(HttpServletRequest request) {
+		for (String forbidden : this.encodedUrlBlocklist) {
 			if (encodedUrlContains(request, forbidden)) {
 				throw new RequestRejectedException("The request was rejected because the URL contained a potentially malicious String \"" + forbidden + "\"");
 			}
 		}
-		for (String forbidden : this.decodedUrlBlacklist) {
+		for (String forbidden : this.decodedUrlBlocklist) {
 			if (decodedUrlContains(request, forbidden)) {
 				throw new RequestRejectedException("The request was rejected because the URL contained a potentially malicious String \"" + forbidden + "\"");
 			}
@@ -481,20 +746,41 @@ public class StrictHttpFirewall implements HttpFirewall {
 	}
 
 	/**
-	 * Provides the existing encoded url blacklist which can add/remove entries from
+	 * Provides the existing encoded url blocklist which can add/remove entries from
 	 *
-	 * @return the existing encoded url blacklist, never null
+	 * @return the existing encoded url blocklist, never null
 	 */
-	public Set<String> getEncodedUrlBlacklist() {
-		return encodedUrlBlacklist;
+	public Set<String> getEncodedUrlBlocklist() {
+		return this.encodedUrlBlocklist;
 	}
 
 	/**
-	 * Provides the existing decoded url blacklist which can add/remove entries from
+	 * Provides the existing decoded url blocklist which can add/remove entries from
 	 *
-	 * @return the existing decoded url blacklist, never null
+	 * @return the existing decoded url blocklist, never null
+	 */
+	public Set<String> getDecodedUrlBlocklist() {
+		return this.decodedUrlBlocklist;
+	}
+
+	/**
+	 * Provides the existing encoded url blocklist which can add/remove entries from
+	 *
+	 * @return the existing encoded url blocklist, never null
+	 * @deprecated Use {@link #getEncodedUrlBlocklist()} instead
+	 */
+	@Deprecated
+	public Set<String> getEncodedUrlBlacklist() {
+		return getEncodedUrlBlocklist();
+	}
+
+	/**
+	 * Provides the existing decoded url blocklist which can add/remove entries from
+	 *
+	 * @return the existing decoded url blocklist, never null
+	 *
 	 */
 	public Set<String> getDecodedUrlBlacklist() {
-		return decodedUrlBlacklist;
+		return getDecodedUrlBlocklist();
 	}
 }

@@ -19,7 +19,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.springframework.dao.DataRetrievalFailureException;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.ArgumentPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -47,12 +46,14 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
@@ -64,6 +65,7 @@ import static org.mockito.Mockito.when;
  * Tests for {@link JdbcOAuth2AuthorizedClientService}.
  *
  * @author Joe Grandja
+ * @author Stav Shamir
  */
 public class JdbcOAuth2AuthorizedClientServiceTests {
 	private static final String OAUTH2_CLIENT_SCHEMA_SQL_RESOURCE = "org/springframework/security/oauth2/client/oauth2-client-schema.sql";
@@ -154,11 +156,11 @@ public class JdbcOAuth2AuthorizedClientServiceTests {
 		assertThat(authorizedClient.getPrincipalName()).isEqualTo(expected.getPrincipalName());
 		assertThat(authorizedClient.getAccessToken().getTokenType()).isEqualTo(expected.getAccessToken().getTokenType());
 		assertThat(authorizedClient.getAccessToken().getTokenValue()).isEqualTo(expected.getAccessToken().getTokenValue());
-		assertThat(authorizedClient.getAccessToken().getIssuedAt()).isEqualTo(expected.getAccessToken().getIssuedAt());
-		assertThat(authorizedClient.getAccessToken().getExpiresAt()).isEqualTo(expected.getAccessToken().getExpiresAt());
+		assertThat(authorizedClient.getAccessToken().getIssuedAt()).isCloseTo(expected.getAccessToken().getIssuedAt(), within(1, ChronoUnit.MILLIS));
+		assertThat(authorizedClient.getAccessToken().getExpiresAt()).isCloseTo(expected.getAccessToken().getExpiresAt(), within(1, ChronoUnit.MILLIS));
 		assertThat(authorizedClient.getAccessToken().getScopes()).isEqualTo(expected.getAccessToken().getScopes());
 		assertThat(authorizedClient.getRefreshToken().getTokenValue()).isEqualTo(expected.getRefreshToken().getTokenValue());
-		assertThat(authorizedClient.getRefreshToken().getIssuedAt()).isEqualTo(expected.getRefreshToken().getIssuedAt());
+		assertThat(authorizedClient.getRefreshToken().getIssuedAt()).isCloseTo(expected.getRefreshToken().getIssuedAt(), within(1, ChronoUnit.MILLIS));
 	}
 
 	@Test
@@ -209,11 +211,11 @@ public class JdbcOAuth2AuthorizedClientServiceTests {
 		assertThat(authorizedClient.getPrincipalName()).isEqualTo(expected.getPrincipalName());
 		assertThat(authorizedClient.getAccessToken().getTokenType()).isEqualTo(expected.getAccessToken().getTokenType());
 		assertThat(authorizedClient.getAccessToken().getTokenValue()).isEqualTo(expected.getAccessToken().getTokenValue());
-		assertThat(authorizedClient.getAccessToken().getIssuedAt()).isEqualTo(expected.getAccessToken().getIssuedAt());
-		assertThat(authorizedClient.getAccessToken().getExpiresAt()).isEqualTo(expected.getAccessToken().getExpiresAt());
+		assertThat(authorizedClient.getAccessToken().getIssuedAt()).isCloseTo(expected.getAccessToken().getIssuedAt(), within(1, ChronoUnit.MILLIS));
+		assertThat(authorizedClient.getAccessToken().getExpiresAt()).isCloseTo(expected.getAccessToken().getExpiresAt(), within(1, ChronoUnit.MILLIS));
 		assertThat(authorizedClient.getAccessToken().getScopes()).isEqualTo(expected.getAccessToken().getScopes());
 		assertThat(authorizedClient.getRefreshToken().getTokenValue()).isEqualTo(expected.getRefreshToken().getTokenValue());
-		assertThat(authorizedClient.getRefreshToken().getIssuedAt()).isEqualTo(expected.getRefreshToken().getIssuedAt());
+		assertThat(authorizedClient.getRefreshToken().getIssuedAt()).isCloseTo(expected.getRefreshToken().getIssuedAt(), within(1, ChronoUnit.MILLIS));
 
 		// Test save/load of NOT NULL attributes only
 		principal = createPrincipal();
@@ -229,21 +231,37 @@ public class JdbcOAuth2AuthorizedClientServiceTests {
 		assertThat(authorizedClient.getPrincipalName()).isEqualTo(expected.getPrincipalName());
 		assertThat(authorizedClient.getAccessToken().getTokenType()).isEqualTo(expected.getAccessToken().getTokenType());
 		assertThat(authorizedClient.getAccessToken().getTokenValue()).isEqualTo(expected.getAccessToken().getTokenValue());
-		assertThat(authorizedClient.getAccessToken().getIssuedAt()).isEqualTo(expected.getAccessToken().getIssuedAt());
-		assertThat(authorizedClient.getAccessToken().getExpiresAt()).isEqualTo(expected.getAccessToken().getExpiresAt());
+		assertThat(authorizedClient.getAccessToken().getIssuedAt()).isCloseTo(expected.getAccessToken().getIssuedAt(), within(1, ChronoUnit.MILLIS));
+		assertThat(authorizedClient.getAccessToken().getExpiresAt()).isCloseTo(expected.getAccessToken().getExpiresAt(), within(1, ChronoUnit.MILLIS));
 		assertThat(authorizedClient.getAccessToken().getScopes()).isEmpty();
 		assertThat(authorizedClient.getRefreshToken()).isNull();
 	}
 
 	@Test
-	public void saveAuthorizedClientWhenSaveDuplicateThenThrowDuplicateKeyException() {
+	public void saveAuthorizedClientWhenSaveClientWithExistingPrimaryKeyThenUpdate() {
+		// Given a saved authorized client
 		Authentication principal = createPrincipal();
 		OAuth2AuthorizedClient authorizedClient = createAuthorizedClient(principal, this.clientRegistration);
-
 		this.authorizedClientService.saveAuthorizedClient(authorizedClient, principal);
 
-		assertThatThrownBy(() -> this.authorizedClientService.saveAuthorizedClient(authorizedClient, principal))
-				.isInstanceOf(DuplicateKeyException.class);
+		// When a client with the same principal and registration id is saved
+		OAuth2AuthorizedClient updatedClient = createAuthorizedClient(principal, this.clientRegistration);
+		this.authorizedClientService.saveAuthorizedClient(updatedClient, principal);
+
+		// Then the saved client is updated
+		OAuth2AuthorizedClient savedClient = this.authorizedClientService.loadAuthorizedClient(
+				this.clientRegistration.getRegistrationId(), principal.getName());
+
+		assertThat(savedClient).isNotNull();
+		assertThat(savedClient.getClientRegistration()).isEqualTo(updatedClient.getClientRegistration());
+		assertThat(savedClient.getPrincipalName()).isEqualTo(updatedClient.getPrincipalName());
+		assertThat(savedClient.getAccessToken().getTokenType()).isEqualTo(updatedClient.getAccessToken().getTokenType());
+		assertThat(savedClient.getAccessToken().getTokenValue()).isEqualTo(updatedClient.getAccessToken().getTokenValue());
+		assertThat(savedClient.getAccessToken().getIssuedAt()).isCloseTo(updatedClient.getAccessToken().getIssuedAt(), within(1, ChronoUnit.MILLIS));
+		assertThat(savedClient.getAccessToken().getExpiresAt()).isCloseTo(updatedClient.getAccessToken().getExpiresAt(), within(1, ChronoUnit.MILLIS));
+		assertThat(savedClient.getAccessToken().getScopes()).isEqualTo(updatedClient.getAccessToken().getScopes());
+		assertThat(savedClient.getRefreshToken().getTokenValue()).isEqualTo(updatedClient.getRefreshToken().getTokenValue());
+		assertThat(savedClient.getRefreshToken().getIssuedAt()).isCloseTo(updatedClient.getRefreshToken().getIssuedAt(), within(1, ChronoUnit.MILLIS));
 	}
 
 	@Test

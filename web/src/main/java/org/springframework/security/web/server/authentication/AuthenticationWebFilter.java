@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@ package org.springframework.security.web.server.authentication;
 
 import java.util.function.Function;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import reactor.core.publisher.Mono;
 
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
@@ -65,9 +67,11 @@ import org.springframework.web.server.WebFilterChain;
  *
  * @author Rob Winch
  * @author Rafiullah Hamedy
+ * @author Mathieu Ouellet
  * @since 5.0
  */
 public class AuthenticationWebFilter implements WebFilter {
+	private static final Log logger = LogFactory.getLog(AuthenticationWebFilter.class);
 	private final ReactiveAuthenticationManagerResolver<ServerWebExchange> authenticationManagerResolver;
 
 	private ServerAuthenticationSuccessHandler authenticationSuccessHandler = new WebFilterChainServerAuthenticationSuccessHandler();
@@ -105,19 +109,21 @@ public class AuthenticationWebFilter implements WebFilter {
 			.filter( matchResult -> matchResult.isMatch())
 			.flatMap( matchResult -> this.authenticationConverter.convert(exchange))
 			.switchIfEmpty(chain.filter(exchange).then(Mono.empty()))
-			.flatMap( token -> authenticate(exchange, chain, token));
+			.flatMap( token -> authenticate(exchange, chain, token))
+			.onErrorResume(AuthenticationException.class, e -> this.authenticationFailureHandler
+					.onAuthenticationFailure(new WebFilterExchange(exchange, chain), e));
 	}
 
-	private Mono<Void> authenticate(ServerWebExchange exchange,
-		WebFilterChain chain, Authentication token) {
-		WebFilterExchange webFilterExchange = new WebFilterExchange(exchange, chain);
-
+	private Mono<Void> authenticate(ServerWebExchange exchange, WebFilterChain chain, Authentication token) {
 		return this.authenticationManagerResolver.resolve(exchange)
 			.flatMap(authenticationManager -> authenticationManager.authenticate(token))
 			.switchIfEmpty(Mono.defer(() -> Mono.error(new IllegalStateException("No provider found for " + token.getClass()))))
-			.flatMap(authentication -> onAuthenticationSuccess(authentication, webFilterExchange))
-			.onErrorResume(AuthenticationException.class, e -> this.authenticationFailureHandler
-				.onAuthenticationFailure(webFilterExchange, e));
+			.flatMap(authentication -> onAuthenticationSuccess(authentication, new WebFilterExchange(exchange, chain)))
+			.doOnError(AuthenticationException.class, e -> {
+				if (logger.isDebugEnabled()) {
+					logger.debug("Authentication failed: " + e.getMessage());
+				}
+			});
 	}
 
 	protected Mono<Void> onAuthenticationSuccess(Authentication authentication, WebFilterExchange webFilterExchange) {
