@@ -161,6 +161,12 @@ public class Saml2AuthenticationRequestContext {
 		 * @throws {@link IllegalArgumentException} if a required property is not set
 		 */
 		public Saml2AuthenticationRequestContext build() {
+			if (this.issuer == null) {
+				this.issuer = this.relyingPartyRegistration.getEntityId();
+			}
+			if (this.assertionConsumerServiceUrl == null) {
+				this.assertionConsumerServiceUrl = this.relyingPartyRegistration.getAssertionConsumerServiceLocation();
+			}
 			return new Saml2AuthenticationRequestContext(
 					this.relyingPartyRegistration,
 					this.issuer,

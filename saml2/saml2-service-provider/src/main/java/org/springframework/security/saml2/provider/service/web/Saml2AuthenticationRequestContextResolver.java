@@ -16,10 +16,9 @@
 
 package org.springframework.security.saml2.provider.service.web;
 
-import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticationRequestContext;
-import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
-
 import javax.servlet.http.HttpServletRequest;
+
+import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticationRequestContext;
 
 /**
  * This {@code Saml2AuthenticationRequestContextResolver} formulates a
@@ -33,11 +32,8 @@ public interface Saml2AuthenticationRequestContextResolver {
 	/**
 	 * This {@code resolve} method is defined to create a {@link Saml2AuthenticationRequestContext}
 	 *
-	 *
 	 * @param request the current request
-	 * @param relyingParty the relying party responsible for saml2 sso authentication
 	 * @return the created {@link Saml2AuthenticationRequestContext} for request/relying party combination
 	 */
-	Saml2AuthenticationRequestContext resolve(HttpServletRequest request,
-			RelyingPartyRegistration relyingParty);
+	Saml2AuthenticationRequestContext resolve(HttpServletRequest request);
 }
