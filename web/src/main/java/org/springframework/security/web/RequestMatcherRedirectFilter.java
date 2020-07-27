@@ -31,7 +31,7 @@ import java.io.IOException;
  * @author Evgeniy Cheban
  * @since 5.4
  */
-public class RequestMatcherRedirectFilter extends OncePerRequestFilter {
+public final class RequestMatcherRedirectFilter extends OncePerRequestFilter {
 	private final RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
 
 	private final RequestMatcher requestMatcher;

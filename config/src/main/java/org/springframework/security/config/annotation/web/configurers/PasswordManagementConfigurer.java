@@ -27,7 +27,7 @@ import org.springframework.util.Assert;
  * @author Evgeniy Cheban
  * @since 5.4
  */
-public class PasswordManagementConfigurer<B extends HttpSecurityBuilder<B>> extends
+public final class PasswordManagementConfigurer<B extends HttpSecurityBuilder<B>> extends
 		AbstractHttpConfigurer<PasswordManagementConfigurer<B>, B> {
 
 	private static final String WELL_KNOWN_CHANGE_PASSWORD_PATTERN = "/.well-known/change-password";

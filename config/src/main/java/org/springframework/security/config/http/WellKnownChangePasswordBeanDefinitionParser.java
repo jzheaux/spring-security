@@ -30,7 +30,7 @@ import org.w3c.dom.Element;
  * @author Evgeniy Cheban
  * @since 5.4
  */
-public class WellKnownChangePasswordBeanDefinitionParser implements BeanDefinitionParser {
+final class WellKnownChangePasswordBeanDefinitionParser implements BeanDefinitionParser {
 	private static final String WELL_KNOWN_CHANGE_PASSWORD_PATTERN = "/.well-known/change-password";
 	private static final String DEFAULT_CHANGE_PASSWORD_PAGE = "/change-password";
 	private static final String ATT_CHANGE_PASSWORD_PAGE = "change-password-page";

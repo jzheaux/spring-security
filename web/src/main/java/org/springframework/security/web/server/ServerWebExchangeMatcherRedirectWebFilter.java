@@ -31,7 +31,7 @@ import java.net.URI;
  * @author Evgeniy Cheban
  * @since 5.4
  */
-public class ExchangeMatcherRedirectWebFilter implements WebFilter {
+public final class ServerWebExchangeMatcherRedirectWebFilter implements WebFilter {
 	private final ServerRedirectStrategy redirectStrategy = new DefaultServerRedirectStrategy();
 
 	private final ServerWebExchangeMatcher exchangeMatcher;
@@ -43,7 +43,7 @@ public class ExchangeMatcherRedirectWebFilter implements WebFilter {
 	 * @param exchangeMatcher the exchange matcher
 	 * @param redirectUrl     the redirect URL
 	 */
-	public ExchangeMatcherRedirectWebFilter(ServerWebExchangeMatcher exchangeMatcher, String redirectUrl) {
+	public ServerWebExchangeMatcherRedirectWebFilter(ServerWebExchangeMatcher exchangeMatcher, String redirectUrl) {
 		Assert.notNull(exchangeMatcher, "exchangeMatcher cannot be null");
 		Assert.hasText(redirectUrl, "redirectUrl cannot be empty");
 		this.exchangeMatcher = exchangeMatcher;

@@ -17,12 +17,14 @@ package org.springframework.security.config.web.server;
 
 import org.apache.http.HttpHeaders;
 import org.junit.Test;
+
 import org.springframework.security.config.annotation.web.reactive.ServerHttpSecurityConfigurationBuilder;
 import org.springframework.security.config.web.server.ServerHttpSecurity.PasswordManagementSpec;
 import org.springframework.security.test.web.reactive.server.WebTestClientBuilder;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.springframework.security.config.Customizer.withDefaults;
 
 /**
  * Tests for {@link PasswordManagementSpec}.
@@ -35,7 +37,7 @@ public class PasswordManagementSpecTests {
 	@Test
 	public void whenChangePasswordPageNotSetThenDefaultChangePasswordPageUsed() {
 		this.http
-				.passwordManagement();
+				.passwordManagement(withDefaults());
 
 		WebTestClient client = buildClient();
 		client.get()
@@ -67,21 +69,24 @@ public class PasswordManagementSpecTests {
 	@Test
 	public void whenSettingNullChangePasswordPage() {
 		assertThatIllegalArgumentException()
-				.isThrownBy(() -> this.http.passwordManagement().changePasswordPage(null))
+				.isThrownBy(() -> this.http.passwordManagement(passwordManagement ->
+						passwordManagement.changePasswordPage(null)))
 				.withMessage("changePasswordPage cannot be empty");
 	}
 
 	@Test
 	public void whenSettingEmptyChangePasswordPage() {
 		assertThatIllegalArgumentException()
-				.isThrownBy(() -> this.http.passwordManagement().changePasswordPage(""))
+				.isThrownBy(() -> this.http.passwordManagement(passwordManagement ->
+						passwordManagement.changePasswordPage("")))
 				.withMessage("changePasswordPage cannot be empty");
 	}
 
 	@Test
 	public void whenSettingBlankChangePasswordPage() {
 		assertThatIllegalArgumentException()
-				.isThrownBy(() -> this.http.passwordManagement().changePasswordPage(" "))
+				.isThrownBy(() -> this.http.passwordManagement(passwordManagement ->
+						passwordManagement.changePasswordPage(" ")))
 				.withMessage("changePasswordPage cannot be empty");
 	}
 }

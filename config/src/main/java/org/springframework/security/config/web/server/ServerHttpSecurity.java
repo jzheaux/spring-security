@@ -153,7 +153,7 @@ import org.springframework.security.web.server.header.ServerHttpHeadersWriter;
 import org.springframework.security.web.server.header.StrictTransportSecurityServerHttpHeadersWriter;
 import org.springframework.security.web.server.header.XFrameOptionsServerHttpHeadersWriter;
 import org.springframework.security.web.server.header.XXssProtectionServerHttpHeadersWriter;
-import org.springframework.security.web.server.ExchangeMatcherRedirectWebFilter;
+import org.springframework.security.web.server.ServerWebExchangeMatcherRedirectWebFilter;
 import org.springframework.security.web.server.savedrequest.NoOpServerRequestCache;
 import org.springframework.security.web.server.savedrequest.ServerRequestCache;
 import org.springframework.security.web.server.savedrequest.ServerRequestCacheWebFilter;
@@ -735,29 +735,6 @@ public class ServerHttpSecurity {
 		}
 		httpBasicCustomizer.customize(this.httpBasic);
 		return this;
-	}
-
-	/**
-	 * Configures password management. An example configuration is provided below:
-	 *
-	 * <pre class="code">
-	 *  &#064;Bean
-	 *  public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
-	 *      http
-	 *          // ...
-	 *          .passwordManagement();
-	 *      return http.build();
-	 *  }
-	 * </pre>
-	 *
-	 * @return the {@link PasswordManagementSpec} to customize
-	 * @since 5.4
-	 */
-	public PasswordManagementSpec passwordManagement() {
-		if (this.passwordManagement == null) {
-			this.passwordManagement = new PasswordManagementSpec();
-		}
-		return this.passwordManagement;
 	}
 
 	/**
@@ -3116,7 +3093,7 @@ public class ServerHttpSecurity {
 	 * Configures password management.
 	 *
 	 * @author Evgeniy Cheban
-	 * @see #passwordManagement()
+	 * @see #passwordManagement(Customizer)
 	 * @since 5.4
 	 */
 	public class PasswordManagementSpec {
@@ -3138,17 +3115,8 @@ public class ServerHttpSecurity {
 			return this;
 		}
 
-		/**
-		 * Allows method chaining to continue configuring the {@link ServerHttpSecurity}.
-		 *
-		 * @return the {@link ServerHttpSecurity} to continue configuring
-		 */
-		public ServerHttpSecurity and() {
-			return ServerHttpSecurity.this;
-		}
-
 		protected void configure(ServerHttpSecurity http) {
-			ExchangeMatcherRedirectWebFilter changePasswordWebFilter = new ExchangeMatcherRedirectWebFilter(
+			ServerWebExchangeMatcherRedirectWebFilter changePasswordWebFilter = new ServerWebExchangeMatcherRedirectWebFilter(
 					new PathPatternParserServerWebExchangeMatcher(WELL_KNOWN_CHANGE_PASSWORD_PATTERN), this.changePasswordPage);
 			http.addFilterBefore(changePasswordWebFilter, SecurityWebFiltersOrder.AUTHENTICATION);
 		}
