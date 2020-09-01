@@ -154,6 +154,9 @@ public class BasicAuthenticationFilter extends OncePerRequestFilter {
 				Authentication authResult = this.authenticationManager.authenticate(authRequest);
 				this.logger.debug(LogMessage.format("Authentication success: %s", authResult));
 				SecurityContextHolder.getContext().setAuthentication(authResult);
+				if (this.logger.isDebugEnabled()) {
+					this.logger.debug(LogMessage.format("Set SecurityContextHolder to %s", authResult));
+				}
 				this.rememberMeServices.loginSuccess(request, response, authResult);
 				onSuccessfulAuthentication(request, response, authResult);
 			}
