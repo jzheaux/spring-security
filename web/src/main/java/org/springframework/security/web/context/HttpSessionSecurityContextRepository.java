@@ -120,9 +120,8 @@ public class HttpSessionSecurityContextRepository implements SecurityContextRepo
 		if (context == null) {
 			context = generateNewContext();
 			if (this.logger.isTraceEnabled()) {
-				this.logger.trace(
-						LogMessage.format("Created %s since no SecurityContext was available from HttpSession %s",
-								context, httpSession.getId()));
+				this.logger.trace(LogMessage.format(
+						"Created %s since no SecurityContext was available from HttpSession %s", context, httpSession));
 			}
 		}
 		SaveToSessionResponseWrapper wrappedResponse = new SaveToSessionResponseWrapper(response, request,
