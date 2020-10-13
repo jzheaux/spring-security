@@ -21,18 +21,19 @@ import java.net.URL;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import net.minidev.json.JSONArray;
-import net.minidev.json.JSONObject;
+import com.nimbusds.jose.util.JSONObjectUtils;
 import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.Test;
 
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -55,6 +56,9 @@ import static org.mockito.Mockito.verify;
  * Tests for {@link NimbusOpaqueTokenIntrospector}
  */
 public class NimbusOpaqueTokenIntrospectorTests {
+
+	private static final ParameterizedTypeReference<Map<String, Object>> STRING_OBJECT_MAP = new ParameterizedTypeReference<Map<String, Object>>() {
+	};
 
 	private static final String INTROSPECTION_URL = "https://server.example.com";
 
@@ -119,15 +123,15 @@ public class NimbusOpaqueTokenIntrospectorTests {
 			+ "     }";
 	// @formatter:on
 
-	private static final ResponseEntity<String> ACTIVE = response(ACTIVE_RESPONSE);
+	private static final ResponseEntity<Map<String, Object>> ACTIVE = response(ACTIVE_RESPONSE);
 
-	private static final ResponseEntity<String> INACTIVE = response(INACTIVE_RESPONSE);
+	private static final ResponseEntity<Map<String, Object>> INACTIVE = response(INACTIVE_RESPONSE);
 
-	private static final ResponseEntity<String> INVALID = response(INVALID_RESPONSE);
+	private static final ResponseEntity<Map<String, Object>> INVALID = response(INVALID_RESPONSE);
 
-	private static final ResponseEntity<String> MALFORMED_ISSUER = response(MALFORMED_ISSUER_RESPONSE);
+	private static final ResponseEntity<Map<String, Object>> MALFORMED_ISSUER = response(MALFORMED_ISSUER_RESPONSE);
 
-	private static final ResponseEntity<String> MALFORMED_SCOPE = response(MALFORMED_SCOPE_RESPONSE);
+	private static final ResponseEntity<Map<String, Object>> MALFORMED_SCOPE = response(MALFORMED_SCOPE_RESPONSE);
 
 	@Test
 	public void introspectWhenActiveTokenThenOk() throws Exception {
@@ -171,7 +175,7 @@ public class NimbusOpaqueTokenIntrospectorTests {
 		RestOperations restOperations = mock(RestOperations.class);
 		OpaqueTokenIntrospector introspectionClient = new NimbusOpaqueTokenIntrospector(INTROSPECTION_URL,
 				restOperations);
-		given(restOperations.exchange(any(RequestEntity.class), eq(String.class))).willReturn(INACTIVE);
+		given(restOperations.exchange(any(RequestEntity.class), eq(STRING_OBJECT_MAP))).willReturn(INACTIVE);
 		// @formatter:off
 		assertThatExceptionOfType(OAuth2IntrospectionException.class)
 				.isThrownBy(() -> introspectionClient.introspect("token"))
@@ -188,8 +192,8 @@ public class NimbusOpaqueTokenIntrospectorTests {
 		RestOperations restOperations = mock(RestOperations.class);
 		OpaqueTokenIntrospector introspectionClient = new NimbusOpaqueTokenIntrospector(INTROSPECTION_URL,
 				restOperations);
-		given(restOperations.exchange(any(RequestEntity.class), eq(String.class)))
-				.willReturn(response(new JSONObject(introspectedValues).toJSONString()));
+		given(restOperations.exchange(any(RequestEntity.class), eq(STRING_OBJECT_MAP)))
+				.willReturn(response(introspectedValues));
 		OAuth2AuthenticatedPrincipal authority = introspectionClient.introspect("token");
 		// @formatter:off
 		assertThat(authority.getAttributes())
@@ -207,7 +211,7 @@ public class NimbusOpaqueTokenIntrospectorTests {
 		RestOperations restOperations = mock(RestOperations.class);
 		OpaqueTokenIntrospector introspectionClient = new NimbusOpaqueTokenIntrospector(INTROSPECTION_URL,
 				restOperations);
-		given(restOperations.exchange(any(RequestEntity.class), eq(String.class)))
+		given(restOperations.exchange(any(RequestEntity.class), eq(STRING_OBJECT_MAP)))
 				.willThrow(new IllegalStateException("server was unresponsive"));
 		// @formatter:off
 		assertThatExceptionOfType(OAuth2IntrospectionException.class)
@@ -221,7 +225,7 @@ public class NimbusOpaqueTokenIntrospectorTests {
 		RestOperations restOperations = mock(RestOperations.class);
 		OpaqueTokenIntrospector introspectionClient = new NimbusOpaqueTokenIntrospector(INTROSPECTION_URL,
 				restOperations);
-		given(restOperations.exchange(any(RequestEntity.class), eq(String.class))).willReturn(response("malformed"));
+		given(restOperations.exchange(any(RequestEntity.class), eq(STRING_OBJECT_MAP))).willReturn(response("{}"));
 		assertThatExceptionOfType(OAuth2IntrospectionException.class)
 				.isThrownBy(() -> introspectionClient.introspect("token"));
 	}
@@ -231,7 +235,7 @@ public class NimbusOpaqueTokenIntrospectorTests {
 		RestOperations restOperations = mock(RestOperations.class);
 		OpaqueTokenIntrospector introspectionClient = new NimbusOpaqueTokenIntrospector(INTROSPECTION_URL,
 				restOperations);
-		given(restOperations.exchange(any(RequestEntity.class), eq(String.class))).willReturn(INVALID);
+		given(restOperations.exchange(any(RequestEntity.class), eq(STRING_OBJECT_MAP))).willReturn(INVALID);
 		assertThatExceptionOfType(OAuth2IntrospectionException.class)
 				.isThrownBy(() -> introspectionClient.introspect("token"));
 	}
@@ -241,7 +245,7 @@ public class NimbusOpaqueTokenIntrospectorTests {
 		RestOperations restOperations = mock(RestOperations.class);
 		OpaqueTokenIntrospector introspectionClient = new NimbusOpaqueTokenIntrospector(INTROSPECTION_URL,
 				restOperations);
-		given(restOperations.exchange(any(RequestEntity.class), eq(String.class))).willReturn(MALFORMED_ISSUER);
+		given(restOperations.exchange(any(RequestEntity.class), eq(STRING_OBJECT_MAP))).willReturn(MALFORMED_ISSUER);
 		assertThatExceptionOfType(OAuth2IntrospectionException.class)
 				.isThrownBy(() -> introspectionClient.introspect("token"));
 	}
@@ -252,10 +256,10 @@ public class NimbusOpaqueTokenIntrospectorTests {
 		RestOperations restOperations = mock(RestOperations.class);
 		OpaqueTokenIntrospector introspectionClient = new NimbusOpaqueTokenIntrospector(INTROSPECTION_URL,
 				restOperations);
-		given(restOperations.exchange(any(RequestEntity.class), eq(String.class))).willReturn(MALFORMED_SCOPE);
+		given(restOperations.exchange(any(RequestEntity.class), eq(STRING_OBJECT_MAP))).willReturn(MALFORMED_SCOPE);
 		OAuth2AuthenticatedPrincipal principal = introspectionClient.introspect("token");
 		assertThat(principal.getAuthorities()).isEmpty();
-		JSONArray scope = principal.getAttribute("scope");
+		Collection<String> scope = principal.getAttribute("scope");
 		assertThat(scope).containsExactly("read", "write", "dolphin");
 	}
 
@@ -300,7 +304,7 @@ public class NimbusOpaqueTokenIntrospectorTests {
 		RequestEntity requestEntity = mock(RequestEntity.class);
 		String tokenToIntrospect = "some token";
 		given(requestEntityConverter.convert(tokenToIntrospect)).willReturn(requestEntity);
-		given(restOperations.exchange(requestEntity, String.class)).willReturn(ACTIVE);
+		given(restOperations.exchange(requestEntity, STRING_OBJECT_MAP)).willReturn(ACTIVE);
 		NimbusOpaqueTokenIntrospector introspectionClient = new NimbusOpaqueTokenIntrospector(INTROSPECTION_URL,
 				restOperations);
 		introspectionClient.setRequestEntityConverter(requestEntityConverter);
@@ -308,10 +312,24 @@ public class NimbusOpaqueTokenIntrospectorTests {
 		verify(requestEntityConverter).convert(tokenToIntrospect);
 	}
 
-	private static ResponseEntity<String> response(String content) {
+	private static ResponseEntity<Map<String, Object>> response(String content) {
 		HttpHeaders headers = new HttpHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
-		return new ResponseEntity<>(content, headers, HttpStatus.OK);
+		try {
+			return new ResponseEntity<>(JSONObjectUtils.parse(content), headers, HttpStatus.OK);
+		} catch (Exception ex) {
+			throw new IllegalArgumentException(ex);
+		}
+	}
+
+	private static ResponseEntity<Map<String, Object>> response(Map<String, Object> content) {
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		try {
+			return new ResponseEntity<>(content, headers, HttpStatus.OK);
+		} catch (Exception ex) {
+			throw new IllegalArgumentException(ex);
+		}
 	}
 
 	private static Dispatcher requiresAuth(String username, String password, String response) {

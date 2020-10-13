@@ -20,21 +20,19 @@ import java.net.URI;
 import java.net.URL;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 
-import com.nimbusds.oauth2.sdk.TokenIntrospectionResponse;
-import com.nimbusds.oauth2.sdk.TokenIntrospectionSuccessResponse;
-import com.nimbusds.oauth2.sdk.http.HTTPResponse;
-import com.nimbusds.oauth2.sdk.id.Audience;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
@@ -61,6 +59,9 @@ import org.springframework.web.client.RestTemplate;
 public class NimbusOpaqueTokenIntrospector implements OpaqueTokenIntrospector {
 
 	private final Log logger = LogFactory.getLog(getClass());
+
+	private static final ParameterizedTypeReference<Map<String, Object>> STRING_OBJECT_MAP = new ParameterizedTypeReference<Map<String, Object>>() {
+	};
 
 	private Converter<String, RequestEntity<?>> requestEntityConverter;
 
@@ -125,17 +126,9 @@ public class NimbusOpaqueTokenIntrospector implements OpaqueTokenIntrospector {
 		if (requestEntity == null) {
 			throw new OAuth2IntrospectionException("requestEntityConverter returned a null entity");
 		}
-		ResponseEntity<String> responseEntity = makeRequest(requestEntity);
-		HTTPResponse httpResponse = adaptToNimbusResponse(responseEntity);
-		TokenIntrospectionResponse introspectionResponse = parseNimbusResponse(httpResponse);
-		TokenIntrospectionSuccessResponse introspectionSuccessResponse = castToNimbusSuccess(introspectionResponse);
-		// relying solely on the authorization server to validate this token (not checking
-		// 'exp', for example)
-		if (!introspectionSuccessResponse.isActive()) {
-			this.logger.trace("Did not validate token since it is inactive");
-			throw new BadOpaqueTokenException("Provided token isn't active");
-		}
-		return convertClaimsSet(introspectionSuccessResponse);
+		ResponseEntity<Map<String, Object>> responseEntity = makeRequest(requestEntity);
+		Map<String, Object> claims = adaptToNimbusResponse(responseEntity);
+		return convertClaimsSet(claims);
 	}
 
 	/**
@@ -149,75 +142,61 @@ public class NimbusOpaqueTokenIntrospector implements OpaqueTokenIntrospector {
 		this.requestEntityConverter = requestEntityConverter;
 	}
 
-	private ResponseEntity<String> makeRequest(RequestEntity<?> requestEntity) {
+	private ResponseEntity<Map<String, Object>> makeRequest(RequestEntity<?> requestEntity) {
 		try {
-			return this.restOperations.exchange(requestEntity, String.class);
+			return this.restOperations.exchange(requestEntity, STRING_OBJECT_MAP);
 		}
 		catch (Exception ex) {
 			throw new OAuth2IntrospectionException(ex.getMessage(), ex);
 		}
 	}
 
-	private HTTPResponse adaptToNimbusResponse(ResponseEntity<String> responseEntity) {
-		HTTPResponse response = new HTTPResponse(responseEntity.getStatusCodeValue());
-		response.setHeader(HttpHeaders.CONTENT_TYPE, responseEntity.getHeaders().getContentType().toString());
-		response.setContent(responseEntity.getBody());
-		if (response.getStatusCode() != HTTPResponse.SC_OK) {
-			throw new OAuth2IntrospectionException("Introspection endpoint responded with " + response.getStatusCode());
+	private Map<String, Object> adaptToNimbusResponse(ResponseEntity<Map<String, Object>> responseEntity) {
+		if (responseEntity.getStatusCode() != HttpStatus.OK) {
+			throw new OAuth2IntrospectionException("Introspection endpoint responded with " + responseEntity.getStatusCode());
 		}
-		return response;
+		Map<String, Object> claims = responseEntity.getBody();
+		// relying solely on the authorization server to validate this token (not checking
+		// 'exp', for example)
+		boolean active = (boolean) claims.compute(OAuth2IntrospectionClaimNames.ACTIVE, (k, v) -> {
+			if (v instanceof String) {
+				return Boolean.parseBoolean((String) v);
+			}
+			if (v instanceof Boolean) {
+				return v;
+			}
+			return false;
+		});
+		if (!active) {
+			this.logger.trace("Did not validate token since it is inactive");
+			throw new BadOpaqueTokenException("Provided token isn't active");
+		}
+		return claims;
 	}
 
-	private TokenIntrospectionResponse parseNimbusResponse(HTTPResponse response) {
-		try {
-			return TokenIntrospectionResponse.parse(response);
-		}
-		catch (Exception ex) {
-			throw new OAuth2IntrospectionException(ex.getMessage(), ex);
-		}
-	}
-
-	private TokenIntrospectionSuccessResponse castToNimbusSuccess(TokenIntrospectionResponse introspectionResponse) {
-		if (!introspectionResponse.indicatesSuccess()) {
-			throw new OAuth2IntrospectionException("Token introspection failed");
-		}
-		return (TokenIntrospectionSuccessResponse) introspectionResponse;
-	}
-
-	private OAuth2AuthenticatedPrincipal convertClaimsSet(TokenIntrospectionSuccessResponse response) {
+	private OAuth2AuthenticatedPrincipal convertClaimsSet(Map<String, Object> claims) {
+		claims.computeIfPresent(OAuth2IntrospectionClaimNames.AUDIENCE, (k, v) -> {
+			if (v instanceof String) {
+				return Collections.singletonList(v);
+			}
+			return v;
+		});
+		claims.computeIfPresent(OAuth2IntrospectionClaimNames.CLIENT_ID, (k, v) -> v.toString());
+		claims.computeIfPresent(OAuth2IntrospectionClaimNames.EXPIRES_AT, (k, v) -> Instant.ofEpochSecond(((Number) v).longValue()));
+		claims.computeIfPresent(OAuth2IntrospectionClaimNames.ISSUED_AT, (k, v) -> Instant.ofEpochSecond((long) v));
+		claims.computeIfPresent(OAuth2IntrospectionClaimNames.ISSUER, (k, v) -> issuer(v.toString()));
+		claims.computeIfPresent(OAuth2IntrospectionClaimNames.NOT_BEFORE, (k, v) -> Instant.ofEpochSecond((long) v));
 		Collection<GrantedAuthority> authorities = new ArrayList<>();
-		Map<String, Object> claims = response.toJSONObject();
-		if (response.getAudience() != null) {
-			List<String> audiences = new ArrayList<>();
-			for (Audience audience : response.getAudience()) {
-				audiences.add(audience.getValue());
+		claims.computeIfPresent(OAuth2IntrospectionClaimNames.SCOPE, (k, v) -> {
+			if (v instanceof String) {
+				Collection<String> scopes = Arrays.asList(((String) v).split(" "));
+				for (String scope : scopes) {
+					authorities.add(new SimpleGrantedAuthority(this.authorityPrefix + scope));
+				}
+				return scopes;
 			}
-			claims.put(OAuth2IntrospectionClaimNames.AUDIENCE, Collections.unmodifiableList(audiences));
-		}
-		if (response.getClientID() != null) {
-			claims.put(OAuth2IntrospectionClaimNames.CLIENT_ID, response.getClientID().getValue());
-		}
-		if (response.getExpirationTime() != null) {
-			Instant exp = response.getExpirationTime().toInstant();
-			claims.put(OAuth2IntrospectionClaimNames.EXPIRES_AT, exp);
-		}
-		if (response.getIssueTime() != null) {
-			Instant iat = response.getIssueTime().toInstant();
-			claims.put(OAuth2IntrospectionClaimNames.ISSUED_AT, iat);
-		}
-		if (response.getIssuer() != null) {
-			claims.put(OAuth2IntrospectionClaimNames.ISSUER, issuer(response.getIssuer().getValue()));
-		}
-		if (response.getNotBeforeTime() != null) {
-			claims.put(OAuth2IntrospectionClaimNames.NOT_BEFORE, response.getNotBeforeTime().toInstant());
-		}
-		if (response.getScope() != null) {
-			List<String> scopes = Collections.unmodifiableList(response.getScope().toStringList());
-			claims.put(OAuth2IntrospectionClaimNames.SCOPE, scopes);
-			for (String scope : scopes) {
-				authorities.add(new SimpleGrantedAuthority(this.authorityPrefix + scope));
-			}
-		}
+			return v;
+		});
 		return new OAuth2IntrospectionAuthenticatedPrincipal(claims, authorities);
 	}
 
