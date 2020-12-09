@@ -42,6 +42,7 @@ import org.springframework.security.saml2.provider.service.web.DefaultRelyingPar
 import org.springframework.security.saml2.provider.service.web.DefaultSaml2AuthenticationRequestContextResolver;
 import org.springframework.security.saml2.provider.service.web.RelyingPartyRegistrationResolver;
 import org.springframework.security.saml2.provider.service.web.Saml2AuthenticationRequestContextResolver;
+import org.springframework.security.saml2.provider.service.web.authentication.Saml2AuthenticationRequestResolver;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher.MatchResult;
@@ -78,9 +79,7 @@ import org.springframework.web.util.UriUtils;
  */
 public class Saml2WebSsoAuthenticationRequestFilter extends OncePerRequestFilter {
 
-	private final Saml2AuthenticationRequestContextResolver authenticationRequestContextResolver;
-
-	private Saml2AuthenticationRequestFactory authenticationRequestFactory;
+	private final Saml2AuthenticationRequestResolver authenticationRequestResolver;
 
 	private RequestMatcher redirectMatcher = new AntPathRequestMatcher("/saml2/authenticate/{registrationId}");
 
@@ -129,11 +128,20 @@ public class Saml2WebSsoAuthenticationRequestFilter extends OncePerRequestFilter
 	public Saml2WebSsoAuthenticationRequestFilter(
 			Saml2AuthenticationRequestContextResolver authenticationRequestContextResolver,
 			Saml2AuthenticationRequestFactory authenticationRequestFactory) {
+		this(new FactorySaml2AuthenticationRequestResolver(authenticationRequestContextResolver,
+				authenticationRequestFactory));
+	}
 
-		Assert.notNull(authenticationRequestContextResolver, "authenticationRequestContextResolver cannot be null");
-		Assert.notNull(authenticationRequestFactory, "authenticationRequestFactory cannot be null");
-		this.authenticationRequestContextResolver = authenticationRequestContextResolver;
-		this.authenticationRequestFactory = authenticationRequestFactory;
+	/**
+	 * Construct a {@link Saml2WebSsoAuthenticationRequestFilter} with the strategy for
+	 * resolving the {@code AuthnRequest}
+	 * @param authenticationRequestResolver the strategy for resolving the
+	 * {@code AuthnRequest}
+	 * @since 5.6
+	 */
+	public Saml2WebSsoAuthenticationRequestFilter(Saml2AuthenticationRequestResolver authenticationRequestResolver) {
+		Assert.notNull(authenticationRequestResolver, "authenticationRequestResolver cannot be null");
+		this.authenticationRequestResolver = authenticationRequestResolver;
 	}
 
 	/**
@@ -146,7 +154,9 @@ public class Saml2WebSsoAuthenticationRequestFilter extends OncePerRequestFilter
 	@Deprecated
 	public void setAuthenticationRequestFactory(Saml2AuthenticationRequestFactory authenticationRequestFactory) {
 		Assert.notNull(authenticationRequestFactory, "authenticationRequestFactory cannot be null");
-		this.authenticationRequestFactory = authenticationRequestFactory;
+		Assert.isInstanceOf(FactorySaml2AuthenticationRequestResolver.class, this.authenticationRequestResolver,
+				"You cannot supply both a Saml2AuthenticationRequestResolver and a Saml2AuthenticationRequestFactory");
+		((FactorySaml2AuthenticationRequestResolver) this.authenticationRequestResolver).authenticationRequestFactory = authenticationRequestFactory;
 	}
 
 	/**
@@ -179,25 +189,23 @@ public class Saml2WebSsoAuthenticationRequestFilter extends OncePerRequestFilter
 			filterChain.doFilter(request, response);
 			return;
 		}
-
-		Saml2AuthenticationRequestContext context = this.authenticationRequestContextResolver.resolve(request);
-		if (context == null) {
+		String registrationId = matcher.getVariables().get("registrationId");
+		AbstractSaml2AuthenticationRequest authenticationRequest = this.authenticationRequestResolver.resolve(request,
+				registrationId);
+		if (authenticationRequest == null) {
 			response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
 			return;
 		}
-		RelyingPartyRegistration relyingParty = context.getRelyingPartyRegistration();
-		if (relyingParty.getAssertingPartyDetails().getSingleSignOnServiceBinding() == Saml2MessageBinding.REDIRECT) {
-			sendRedirect(request, response, context);
+		if (authenticationRequest instanceof Saml2RedirectAuthenticationRequest) {
+			sendRedirect(request, response, (Saml2RedirectAuthenticationRequest) authenticationRequest);
 		}
 		else {
-			sendPost(request, response, context);
+			sendPost(request, response, (Saml2PostAuthenticationRequest) authenticationRequest);
 		}
 	}
 
 	private void sendRedirect(HttpServletRequest request, HttpServletResponse response,
-			Saml2AuthenticationRequestContext context) throws IOException {
-		Saml2RedirectAuthenticationRequest authenticationRequest = this.authenticationRequestFactory
-				.createRedirectAuthenticationRequest(context);
+			Saml2RedirectAuthenticationRequest authenticationRequest) throws IOException {
 		this.authenticationRequestRepository.saveAuthenticationRequest(authenticationRequest, request, response);
 		UriComponentsBuilder uriBuilder = UriComponentsBuilder
 				.fromUriString(authenticationRequest.getAuthenticationRequestUri());
@@ -218,9 +226,7 @@ public class Saml2WebSsoAuthenticationRequestFilter extends OncePerRequestFilter
 	}
 
 	private void sendPost(HttpServletRequest request, HttpServletResponse response,
-			Saml2AuthenticationRequestContext context) throws IOException {
-		Saml2PostAuthenticationRequest authenticationRequest = this.authenticationRequestFactory
-				.createPostAuthenticationRequest(context);
+			Saml2PostAuthenticationRequest authenticationRequest) throws IOException {
 		this.authenticationRequestRepository.saveAuthenticationRequest(authenticationRequest, request, response);
 		String html = createSamlPostRequestFormData(authenticationRequest);
 		response.setContentType(MediaType.TEXT_HTML_VALUE);
@@ -267,6 +273,37 @@ public class Saml2WebSsoAuthenticationRequestFilter extends OncePerRequestFilter
 		html.append("    </body>\n");
 		html.append("</html>");
 		return html.toString();
+	}
+
+	private static class FactorySaml2AuthenticationRequestResolver implements Saml2AuthenticationRequestResolver {
+
+		private final Saml2AuthenticationRequestContextResolver authenticationRequestContextResolver;
+
+		private Saml2AuthenticationRequestFactory authenticationRequestFactory;
+
+		FactorySaml2AuthenticationRequestResolver(
+				Saml2AuthenticationRequestContextResolver authenticationRequestContextResolver,
+				Saml2AuthenticationRequestFactory authenticationRequestFactory) {
+			Assert.notNull(authenticationRequestContextResolver, "authenticationRequestContextResolver cannot be null");
+			Assert.notNull(authenticationRequestFactory, "authenticationRequestFactory cannot be null");
+			this.authenticationRequestContextResolver = authenticationRequestContextResolver;
+			this.authenticationRequestFactory = authenticationRequestFactory;
+		}
+
+		@Override
+		public AbstractSaml2AuthenticationRequest resolve(HttpServletRequest request, String registrationId) {
+			Saml2AuthenticationRequestContext context = this.authenticationRequestContextResolver.resolve(request);
+			if (context == null) {
+				return null;
+			}
+			Saml2MessageBinding binding = context.getRelyingPartyRegistration().getAssertingPartyDetails()
+					.getSingleSignOnServiceBinding();
+			if (binding == Saml2MessageBinding.REDIRECT) {
+				return this.authenticationRequestFactory.createRedirectAuthenticationRequest(context);
+			}
+			return this.authenticationRequestFactory.createPostAuthenticationRequest(context);
+		}
+
 	}
 
 }

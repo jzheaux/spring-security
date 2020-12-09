@@ -43,6 +43,7 @@ import org.springframework.security.saml2.provider.service.web.DefaultRelyingPar
 import org.springframework.security.saml2.provider.service.web.DefaultSaml2AuthenticationRequestContextResolver;
 import org.springframework.security.saml2.provider.service.web.RelyingPartyRegistrationResolver;
 import org.springframework.security.saml2.provider.service.web.Saml2AuthenticationRequestContextResolver;
+import org.springframework.security.saml2.provider.service.web.authentication.Saml2AuthenticationRequestResolver;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.util.HtmlUtils;
@@ -51,6 +52,7 @@ import org.springframework.web.util.UriUtils;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -68,6 +70,9 @@ public class Saml2WebSsoAuthenticationRequestFilterTests {
 	private Saml2AuthenticationRequestFactory factory = mock(Saml2AuthenticationRequestFactory.class);
 
 	private Saml2AuthenticationRequestContextResolver resolver = mock(Saml2AuthenticationRequestContextResolver.class);
+
+	private Saml2AuthenticationRequestResolver authenticationRequestResolver =
+			mock(Saml2AuthenticationRequestResolver.class);
 
 	private Saml2AuthenticationRequestRepository<AbstractSaml2AuthenticationRequest> authenticationRequestRepository = mock(
 			Saml2AuthenticationRequestRepository.class);
@@ -111,6 +116,12 @@ public class Saml2WebSsoAuthenticationRequestFilterTests {
 	private static Saml2RedirectAuthenticationRequest.Builder redirectAuthenticationRequest(
 			Saml2AuthenticationRequestContext context) {
 		return Saml2RedirectAuthenticationRequest.withAuthenticationRequestContext(context).samlRequest("request")
+				.authenticationRequestUri(IDP_SSO_URL);
+	}
+
+	private static Saml2RedirectAuthenticationRequest.Builder redirectAuthenticationRequest(
+			RelyingPartyRegistration registration) {
+		return Saml2RedirectAuthenticationRequest.withRelyingPartyRegistration(registration).samlRequest("request")
 				.authenticationRequestUri(IDP_SSO_URL);
 	}
 
@@ -287,4 +298,14 @@ public class Saml2WebSsoAuthenticationRequestFilterTests {
 		verify(this.repository).findByRegistrationId("registration-id");
 	}
 
+	@Test
+	public void doFilterWhenCustomAuthenticationRequestResolverThenUses() throws Exception {
+		RelyingPartyRegistration registration = TestRelyingPartyRegistrations.relyingPartyRegistration().build();
+		Saml2RedirectAuthenticationRequest authenticationRequest = redirectAuthenticationRequest(registration).build();
+		Saml2WebSsoAuthenticationRequestFilter filter = new Saml2WebSsoAuthenticationRequestFilter(
+				this.authenticationRequestResolver);
+		given(this.authenticationRequestResolver.resolve(any(), anyString())).willReturn(authenticationRequest);
+		filter.doFilterInternal(this.request, this.response, this.filterChain);
+		verify(this.authenticationRequestResolver).resolve(any(), anyString());
+	}
 }

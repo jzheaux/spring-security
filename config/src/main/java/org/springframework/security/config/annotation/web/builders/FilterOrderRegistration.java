@@ -81,6 +81,9 @@ final class FilterOrderRegistration {
 		this.filterToOrder.put(
 				"org.springframework.security.saml2.provider.service.servlet.filter.Saml2WebSsoAuthenticationRequestFilter",
 				order.next());
+		this.filterToOrder.put(
+				"org.springframework.security.saml2.provider.service.web.authentication.Saml2AuthenticationRequestRedirectFilter",
+				order.next());
 		put(X509AuthenticationFilter.class, order.next());
 		put(AbstractPreAuthenticatedProcessingFilter.class, order.next());
 		this.filterToOrder.put("org.springframework.security.cas.web.CasAuthenticationFilter", order.next());
