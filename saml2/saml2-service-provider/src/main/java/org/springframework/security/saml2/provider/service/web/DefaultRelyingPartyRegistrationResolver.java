@@ -42,7 +42,7 @@ import org.springframework.web.util.UriComponentsBuilder;
  * @since 5.4
  */
 public final class DefaultRelyingPartyRegistrationResolver
-		implements Converter<HttpServletRequest, RelyingPartyRegistration> {
+		implements Converter<HttpServletRequest, RelyingPartyRegistration>, RelyingPartyRegistrationResolver {
 
 	private static final char PATH_DELIMITER = '/';
 
@@ -57,8 +57,10 @@ public final class DefaultRelyingPartyRegistrationResolver
 	}
 
 	@Override
-	public RelyingPartyRegistration convert(HttpServletRequest request) {
-		String registrationId = this.registrationIdResolver.convert(request);
+	public RelyingPartyRegistration resolve(HttpServletRequest request, String registrationId) {
+		if (registrationId == null) {
+			registrationId = this.registrationIdResolver.convert(request);
+		}
 		if (registrationId == null) {
 			return null;
 		}
@@ -75,6 +77,11 @@ public final class DefaultRelyingPartyRegistrationResolver
 		return RelyingPartyRegistration.withRelyingPartyRegistration(relyingPartyRegistration)
 				.entityId(relyingPartyEntityId).assertionConsumerServiceLocation(assertionConsumerServiceLocation)
 				.build();
+	}
+
+	@Override
+	public RelyingPartyRegistration convert(HttpServletRequest request) {
+		return resolve(request, null);
 	}
 
 	private Function<String, String> templateResolver(String applicationUri, RelyingPartyRegistration relyingParty) {

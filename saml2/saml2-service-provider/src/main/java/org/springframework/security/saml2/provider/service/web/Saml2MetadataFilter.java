@@ -42,7 +42,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  */
 public final class Saml2MetadataFilter extends OncePerRequestFilter {
 
-	private final Converter<HttpServletRequest, RelyingPartyRegistration> relyingPartyRegistrationConverter;
+	private final RelyingPartyRegistrationResolver relyingPartyRegistrationResolver;
 
 	private final Saml2MetadataResolver saml2MetadataResolver;
 
@@ -50,10 +50,18 @@ public final class Saml2MetadataFilter extends OncePerRequestFilter {
 			"/saml2/service-provider-metadata/{registrationId}");
 
 	public Saml2MetadataFilter(
-			Converter<HttpServletRequest, RelyingPartyRegistration> relyingPartyRegistrationConverter,
-			Saml2MetadataResolver saml2MetadataResolver) {
+			String metadataUri,
+			RelyingPartyRegistrationResolver relyingPartyRegistrationResolver,
+			Saml2MetadataResolver metadataResolver) {
+		this.requestMatcher = new AntPathRequestMatcher(metadataUri);
+		this.relyingPartyRegistrationResolver = relyingPartyRegistrationResolver;
+		this.saml2MetadataResolver = metadataResolver;
+	}
 
-		this.relyingPartyRegistrationConverter = relyingPartyRegistrationConverter;
+	public Saml2MetadataFilter(
+			Converter<HttpServletRequest, RelyingPartyRegistration> relyingPartyRegistrationResolver,
+			Saml2MetadataResolver saml2MetadataResolver) {
+		this.relyingPartyRegistrationResolver = (request, id) -> relyingPartyRegistrationResolver.convert(request);
 		this.saml2MetadataResolver = saml2MetadataResolver;
 	}
 
@@ -65,13 +73,15 @@ public final class Saml2MetadataFilter extends OncePerRequestFilter {
 			chain.doFilter(request, response);
 			return;
 		}
-		RelyingPartyRegistration relyingPartyRegistration = this.relyingPartyRegistrationConverter.convert(request);
+		String registrationId = matcher.getVariables().get("registrationId");
+		RelyingPartyRegistration relyingPartyRegistration =
+				this.relyingPartyRegistrationResolver.resolve(request, registrationId);
 		if (relyingPartyRegistration == null) {
 			response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 			return;
 		}
 		String metadata = this.saml2MetadataResolver.resolve(relyingPartyRegistration);
-		String registrationId = relyingPartyRegistration.getRegistrationId();
+		registrationId = relyingPartyRegistration.getRegistrationId();
 		writeMetadataToResponse(response, registrationId, metadata);
 	}
 
