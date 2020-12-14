@@ -20,7 +20,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.security.core.Authentication;
-import org.springframework.security.saml2.provider.service.authentication.logout.Saml2LogoutRequestVerifier;
+import org.springframework.security.saml2.provider.service.authentication.logout.Saml2LogoutRequestDecoder;
 import org.springframework.security.web.DefaultRedirectStrategy;
 import org.springframework.security.web.RedirectStrategy;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
@@ -28,11 +28,11 @@ import org.springframework.security.web.authentication.logout.LogoutHandler;
 
 // received LogoutRequest from asserting party; process, throw exception if fail
 public class Saml2LogoutRequestHandler implements LogoutHandler {
-	private final Saml2LogoutRequestVerifier logoutRequestVerifier;
+	private final Saml2LogoutRequestDecoder logoutRequestVerifier;
 	private final Saml2LogoutResponseResolver logoutResponseResolver;
 	private final RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
 
-	public Saml2LogoutRequestHandler(Saml2LogoutRequestVerifier logoutRequestVerifier, Saml2LogoutResponseResolver logoutResponseResolver) {
+	public Saml2LogoutRequestHandler(Saml2LogoutRequestDecoder logoutRequestVerifier, Saml2LogoutResponseResolver logoutResponseResolver) {
 		this.logoutRequestVerifier = logoutRequestVerifier;
 		this.logoutResponseResolver = logoutResponseResolver;
 	}

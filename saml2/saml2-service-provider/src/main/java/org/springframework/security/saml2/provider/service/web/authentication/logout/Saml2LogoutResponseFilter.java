@@ -16,18 +16,18 @@
 
 package org.springframework.security.saml2.provider.service.web.authentication.logout;
 
-import org.springframework.security.saml2.provider.service.authentication.logout.Saml2LogoutResponseVerifier;
+import org.springframework.security.saml2.provider.service.authentication.logout.Saml2LogoutResponseDecoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 
 // receiving SLO response means logout is done, redirect to entry point
 public class Saml2LogoutResponseFilter {
-	private final Saml2LogoutResponseVerifier logoutResponseVerifier;
+	private final Saml2LogoutResponseDecoder logoutResponseVerifier;
 	private final AuthenticationEntryPoint entryPoint;
 
 	// verify logout response, do any cleanup
 	// redirect to entry point
 
-	public Saml2LogoutResponseFilter(Saml2LogoutResponseVerifier logoutResponseVerifier, AuthenticationEntryPoint entryPoint) {
+	public Saml2LogoutResponseFilter(Saml2LogoutResponseDecoder logoutResponseVerifier, AuthenticationEntryPoint entryPoint) {
 		this.logoutResponseVerifier = logoutResponseVerifier;
 		this.entryPoint = entryPoint;
 	}

@@ -16,5 +16,6 @@
 
 package org.springframework.security.saml2.provider.service.authentication.logout;
 
-public class OpenSamlLogoutResponseVerifier {
+public interface Saml2LogoutResponseDecoder {
+	Saml2LogoutResponse decode(String logoutResponse);
 }
