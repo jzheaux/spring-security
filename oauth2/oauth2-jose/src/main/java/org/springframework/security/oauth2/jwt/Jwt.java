@@ -16,7 +16,6 @@
 
 package org.springframework.security.oauth2.jwt;
 
-import java.net.URL;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
@@ -26,7 +25,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import org.springframework.security.oauth2.core.AbstractOAuth2Token;
-import org.springframework.security.oauth2.jose.jws.JwsAlgorithm;
 import org.springframework.util.Assert;
 
 /**
@@ -208,37 +206,6 @@ public class Jwt extends AbstractOAuth2Token implements JwtClaimAccessor {
 		default B subject(String subject) {
 			return claim(JwtClaimNames.SUB, subject);
 		}
-
-	}
-
-	/**
-	 * A JWS Specification, useful for JWS builders
-	 *
-	 * @param <B>
-	 */
-	public interface JwsSpec<B extends JwsSpec<B>> extends JwtSpec<B> {
-
-		default B algorithm(JwsAlgorithm jwsAlgorithm) {
-			return header(JoseHeaderNames.ALG, jwsAlgorithm.getName());
-		}
-
-		default B jwkSetUrl(URL url) {
-			return header(JoseHeaderNames.JKU, url);
-		}
-
-		default B kid(String kid) {
-			return header(JoseHeaderNames.KID, kid);
-		}
-
-		default B x509Url(URL url) {
-			return header(JoseHeaderNames.X5U, url);
-		}
-
-		default B x509Certificate(Collection<String> certificateChain) {
-			return header(JoseHeaderNames.X5C, certificateChain);
-		}
-
-		Jwt sign();
 
 	}
 

@@ -17,12 +17,15 @@
 package org.springframework.security.oauth2.jwt;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.function.Consumer;
 
-import com.nimbusds.jose.jwk.KeyUse;
+import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
+import com.nimbusds.jwt.mint.ConfigurableJWSMinter;
+import com.nimbusds.jwt.mint.DefaultJWSMinter;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -51,19 +54,21 @@ public class NimbusJwsSignerFactoryTests {
 	@Before
 	public void setUp() {
 		this.jwkSelector = mock(JWKSource.class);
-		this.jwsSigner = new NimbusJwsSignerFactory(this.jwkSelector);
+		ConfigurableJWSMinter<SecurityContext> jwsMinter = new DefaultJWSMinter<>();
+		jwsMinter.setJWKSource(this.jwkSelector);
+		this.jwsSigner = new NimbusJwsSignerFactory(jwsMinter);
 	}
 
 	@Test
 	public void constructorWhenJwkSelectorNullThenThrowIllegalArgumentException() {
 		assertThatIllegalArgumentException().isThrownBy(() -> new NimbusJwsSignerFactory(null))
-				.withMessage("jwkSelector cannot be null");
+				.withMessage("minter cannot be null");
 	}
 
 	@Test
 	public void encodeWhenJwkNotSelectedThenThrowJwtEncodingException() {
 		assertThatExceptionOfType(JwtEncodingException.class).isThrownBy(() -> this.jwsSigner.signer().sign())
-				.withMessageContaining("Failed to select a JWK signing key");
+				.withMessageContaining("Failed to sign JWT");
 	}
 
 	@Test
@@ -76,25 +81,21 @@ public class NimbusJwsSignerFactoryTests {
 
 		given(this.jwkSelector.get(any(), any())).willReturn(Arrays.asList(rsaJwk));
 
-		assertThatExceptionOfType(JwtEncodingException.class).isThrownBy(() -> this.jwsSigner.signer().sign())
-				.withMessageContaining("The \"kid\" (key ID) from the selected JWK cannot be empty");
-	}
-
-	@Test
-	public void encodeWhenJwkUseEncryptionThenThrowJwtEncodingException() throws Exception {
-		// @formatter:off
-		RSAKey rsaJwk = new RSAKey.Builder(TestKeys.DEFAULT_PUBLIC_KEY)
-				.privateKey(TestKeys.DEFAULT_PRIVATE_KEY)
-				.keyID("keyId")
-				.keyUse(KeyUse.ENCRYPTION)
-				.build();
-		// @formatter:on
-
-		given(this.jwkSelector.get(any(), any())).willReturn(Arrays.asList(rsaJwk));
-
-		assertThatExceptionOfType(JwtEncodingException.class).isThrownBy(() -> this.jwsSigner.signer().sign())
-				.withMessageContaining(
-						"Failed to create a JWS Signer -> The JWK use must be sig (signature) or unspecified");
+		JWKSource<SecurityContext> source = (selector, context) -> {
+			List<JWK> jwks = this.jwkSelector.get(selector, context);
+			if (jwks.size() > 1) {
+				throw new JwtEncodingException("Found multiple JWK signing keys");
+			}
+			if (jwks.get(0).getKeyID() == null) {
+				throw new JwtEncodingException("JWK is missing kid");
+			}
+			return jwks;
+		};
+		ConfigurableJWSMinter<SecurityContext> minter = new DefaultJWSMinter<>();
+		minter.setJWKSource(source);
+		JwsSignerFactory jwsSigner = new NimbusJwsSignerFactory(minter);
+		assertThatExceptionOfType(JwtEncodingException.class).isThrownBy(() -> jwsSigner.signer().sign())
+				.withMessageContaining("Failed to sign JWT");
 	}
 
 	@Test
@@ -130,12 +131,12 @@ public class NimbusJwsSignerFactoryTests {
 
 		given(this.jwkSelector.get(any(), any())).willReturn(Arrays.asList(rsaJwk));
 
-		Consumer<Jwt.JwsSpec<?>> jwtCustomizer = mock(Consumer.class);
+		Consumer<JwsSignerFactory.SigningSpec<?>> jwtCustomizer = mock(Consumer.class);
 		this.jwsSigner.setJwtCustomizer(jwtCustomizer);
 
 		this.jwsSigner.signer().sign();
 
-		verify(jwtCustomizer).accept(any(Jwt.JwsSpec.class));
+		verify(jwtCustomizer).accept(any(JwsSignerFactory.SigningSpec.class));
 	}
 
 	@Test
@@ -147,10 +148,20 @@ public class NimbusJwsSignerFactoryTests {
 				.build();
 		// @formatter:on
 
-		given(this.jwkSelector.get(any(), any())).willReturn(Arrays.asList(rsaJwk));
+		given(this.jwkSelector.get(any(), any())).willReturn(Arrays.asList(rsaJwk, rsaJwk));
 
-		assertThatExceptionOfType(JwtEncodingException.class).isThrownBy(() -> this.jwsSigner.signer().sign())
-				.withMessageContaining("Found multiple JWK signing keys for algorithm 'RS256'");
+		JWKSource<SecurityContext> source = (selector, context) -> {
+			List<JWK> jwks = this.jwkSelector.get(selector, context);
+			if (jwks.size() > 1) {
+				throw new JwtEncodingException("Found multiple JWK signing keys");
+			}
+			return jwks;
+		};
+		ConfigurableJWSMinter<SecurityContext> minter = new DefaultJWSMinter<>();
+		minter.setJWKSource(source);
+		JwsSignerFactory jwsSigner = new NimbusJwsSignerFactory(minter);
+		assertThatExceptionOfType(JwtEncodingException.class).isThrownBy(() -> jwsSigner.signer().sign())
+				.withMessageContaining("Failed to sign JWT");
 	}
 
 	@Test

@@ -24,45 +24,39 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 import com.nimbusds.jose.JWSHeader;
-import com.nimbusds.jose.JWSSigner;
-import com.nimbusds.jose.crypto.factories.DefaultJWSSignerFactory;
-import com.nimbusds.jose.jwk.JWK;
-import com.nimbusds.jose.jwk.JWKMatcher;
-import com.nimbusds.jose.jwk.JWKSelector;
-import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+import com.nimbusds.jwt.mint.JWSMinter;
 
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.util.Assert;
-import org.springframework.util.CollectionUtils;
-import org.springframework.util.StringUtils;
 
 /**
  * A factory for signing JWS payloads
  */
 public class NimbusJwsSignerFactory implements JwsSignerFactory {
 
-	private final JWKSource<SecurityContext> jwks;
+	private final JWSMinter<SecurityContext> minter;
 
 	private Clock clock = Clock.systemUTC();
 
-	private Consumer<Jwt.JwsSpec<?>> jwtCustomizer = (spec) -> {
+	private Consumer<SigningSpec<?>> jwtCustomizer = (spec) -> {
 	};
 
 	/**
 	 * Construct a {@link NimbusJwsSignerFactory} using the provided parameters
-	 * @param jwks the source for looking up the appropriate signing JWK
+	 * @param minter the source for looking up the appropriate signing JWK
 	 */
-	public NimbusJwsSignerFactory(JWKSource<SecurityContext> jwks) {
-		this.jwks = jwks;
+	public NimbusJwsSignerFactory(JWSMinter<SecurityContext> minter) {
+		Assert.notNull(minter, "minter cannot be null");
+		this.minter = minter;
 	}
 
 	@Override
-	public Jwt.JwsSpec<?> signer() {
+	public SigningSpec<?> signer() {
 		Instant now = Instant.now(this.clock);
-		return new NimbusEncoderSpec(this.jwks).algorithm(SignatureAlgorithm.RS256).type("JWT")
+		return new NimbusEncoderSpec(this.minter).algorithm(SignatureAlgorithm.RS256).type("JWT")
 				.jti(UUID.randomUUID().toString()).issuedAt(now).expiresAt(now.plusSeconds(3600))
 				.apply(this.jwtCustomizer);
 	}
@@ -72,7 +66,7 @@ public class NimbusJwsSignerFactory implements JwsSignerFactory {
 	 * signing.
 	 * @param jwtCustomizer
 	 */
-	public void setJwtCustomizer(Consumer<Jwt.JwsSpec<?>> jwtCustomizer) {
+	public void setJwtCustomizer(Consumer<SigningSpec<?>> jwtCustomizer) {
 		this.jwtCustomizer = jwtCustomizer;
 	}
 
@@ -85,15 +79,15 @@ public class NimbusJwsSignerFactory implements JwsSignerFactory {
 	}
 
 	private static final class NimbusEncoderSpec extends Jwt.JwtSpecSupport<NimbusEncoderSpec>
-			implements Jwt.JwsSpec<NimbusEncoderSpec> {
+			implements SigningSpec<NimbusEncoderSpec> {
 
-		private final JWKSource<SecurityContext> jwks;
+		private final JWSMinter<SecurityContext> minter;
 
-		private NimbusEncoderSpec(JWKSource<SecurityContext> jwks) {
-			this.jwks = jwks;
+		private NimbusEncoderSpec(JWSMinter<SecurityContext> minter) {
+			this.minter = minter;
 		}
 
-		NimbusEncoderSpec apply(Consumer<Jwt.JwsSpec<?>> specConsumer) {
+		NimbusEncoderSpec apply(Consumer<SigningSpec<?>> specConsumer) {
 			specConsumer.accept(this);
 			return this;
 		}
@@ -101,31 +95,19 @@ public class NimbusJwsSignerFactory implements JwsSignerFactory {
 		@Override
 		public Jwt sign() {
 			// consider using ConfigurableJWTMinter in Nimbus
-			JWK jwk = jwk(this.headers);
-			if (StringUtils.hasText(jwk.getKeyID())) {
-				this.headers.put(JoseHeaderNames.KID, jwk.getKeyID());
-			}
-			if (jwk.getAlgorithm() != null) {
-				this.headers.put(JoseHeaderNames.ALG, jwk.getAlgorithm().getName());
-			}
-			JWSHeader header = jwsHeader(this.headers);
-			JWTClaimsSet claims = jwtClaimSet(this.claims);
-			SignedJWT jwt = new SignedJWT(header, claims);
-			sign(jwt, signer(jwk));
-			Instant iat = toInstant(this.claims.get(JwtClaimNames.IAT));
-			Instant exp = toInstant(this.claims.get(JwtClaimNames.EXP));
-			String tokenValue = jwt.serialize();
-			return new Jwt(tokenValue, iat, exp, this.headers, this.claims);
+			SignedJWT jwt = signedJwt();
+			JWSHeader header = jwt.getHeader();
+			return Jwt.withTokenValue(jwt.serialize())
+					.headers((headers) -> headers.putAll(header.toJSONObject()))
+					.claims((claims) -> claims.putAll(this.claims))
+					.build();
 		}
 
-		private JWK jwk(Map<String, Object> header) {
+		private SignedJWT signedJwt() {
 			try {
-				JWSHeader jwsHeader = JWSHeader.parse(header);
-				JWKSelector selector = new JWKSelector(JWKMatcher.forJWSHeader(jwsHeader));
-				return CollectionUtils.firstElement(this.jwks.get(selector, null));
-			}
-			catch (Exception e) {
-				throw new JwtException("Failed to lookup JWK", e);
+				return this.minter.mint(jwsHeader(this.headers), jwtClaimSet(this.claims), null);
+			} catch (Exception e) {
+				throw new JwtEncodingException("Failed to sign JWT", e);
 			}
 		}
 
@@ -134,7 +116,7 @@ public class NimbusJwsSignerFactory implements JwsSignerFactory {
 				return JWSHeader.parse(headers);
 			}
 			catch (Exception e) {
-				throw new JwtException("Failed to read JWS header", e);
+				throw new JwtEncodingException("Failed to read JWS header", e);
 			}
 		}
 
@@ -150,33 +132,8 @@ public class NimbusJwsSignerFactory implements JwsSignerFactory {
 				return JWTClaimsSet.parse(datesConverted);
 			}
 			catch (Exception e) {
-				throw new JwtException("Failed to read claims", e);
+				throw new JwtEncodingException("Failed to read claims", e);
 			}
-		}
-
-		private JWSSigner signer(JWK jwk) {
-			try {
-				return new DefaultJWSSignerFactory().createJWSSigner(jwk);
-			}
-			catch (Exception ex) {
-				throw new JwtEncodingException("Failed to constructor signer", ex);
-			}
-		}
-
-		private void sign(SignedJWT jwt, JWSSigner signer) {
-			try {
-				jwt.sign(signer);
-			}
-			catch (Exception e) {
-				throw new JwtException("Failed to sign JWT", e);
-			}
-		}
-
-		private Instant toInstant(Object timestamp) {
-			if (timestamp != null) {
-				Assert.isInstanceOf(Instant.class, timestamp, "timestamps must be of type Instant");
-			}
-			return (Instant) timestamp;
 		}
 
 	}

@@ -16,6 +16,8 @@
 
 package org.springframework.security.oauth2.jwt;
 
+import org.springframework.security.oauth2.jose.jws.JwsAlgorithm;
+
 /**
  * A factory for signing JWS payloads
  */
@@ -25,6 +27,16 @@ public interface JwsSignerFactory {
 	 * Return a signer that can be configured for signing payloads
 	 * @return a configurable signer
 	 */
-	Jwt.JwsSpec<?> signer();
+	SigningSpec<?> signer();
+
+	interface SigningSpec<B extends SigningSpec<B>> extends Jwt.JwtSpec<B> {
+
+		default B algorithm(JwsAlgorithm jwsAlgorithm) {
+			return header(JoseHeaderNames.ALG, jwsAlgorithm.getName());
+		}
+
+		Jwt sign();
+
+	}
 
 }

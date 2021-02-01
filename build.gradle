@@ -28,6 +28,7 @@ ext.milestoneBuild = !(snapshotBuild || releaseBuild)
 dependencyManagementExport.projects = subprojects.findAll { !it.name.contains('-boot') }
 
 repositories {
+	mavenLocal()
 	mavenCentral()
 }
 
@@ -41,6 +42,10 @@ subprojects {
 }
 
 allprojects {
+	repositories {
+		mavenLocal()
+	}
+
 	if (!['spring-security-bom', 'spring-security-docs'].contains(project.name)) {
 		apply plugin: 'io.spring.javaformat'
 		apply plugin: 'checkstyle'
