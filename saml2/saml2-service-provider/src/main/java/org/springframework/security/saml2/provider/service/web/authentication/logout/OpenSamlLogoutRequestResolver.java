@@ -20,6 +20,7 @@ import javax.servlet.http.HttpServletRequest;
 
 import org.springframework.security.saml2.core.OpenSamlInitializationService;
 import org.springframework.security.saml2.provider.service.authentication.logout.Saml2LogoutRequest;
+import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 
 public class OpenSamlLogoutRequestResolver implements Saml2LogoutRequestResolver {
 	static {
@@ -29,7 +30,7 @@ public class OpenSamlLogoutRequestResolver implements Saml2LogoutRequestResolver
 	// redirect to asserting party
 
 	@Override
-	public Saml2LogoutRequest resolveLogoutRequest(HttpServletRequest request) {
+	public Saml2LogoutRequest resolveLogoutRequest(HttpServletRequest request, RelyingPartyRegistration registration) {
 		return null;
 	}
 }

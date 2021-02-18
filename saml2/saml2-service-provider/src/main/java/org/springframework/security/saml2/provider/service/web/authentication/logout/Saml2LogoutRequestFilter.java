@@ -16,23 +16,35 @@
 
 package org.springframework.security.saml2.provider.service.web.authentication.logout;
 
-import org.springframework.security.saml2.provider.service.authentication.logout.Saml2LogoutResponseDecoder;
+import java.io.IOException;
+
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 // receiving SLO response means logout is done, redirect to entry point
-public class Saml2LogoutResponseFilter {
-	private final Saml2LogoutResponseDecoder logoutResponseVerifier;
+public class Saml2LogoutRequestFilter extends OncePerRequestFilter {
+	private final Saml2LogoutRequestHandler logoutRequestHandler;
 	private final AuthenticationEntryPoint entryPoint;
 
-	private RequestMatcher requestMatcher = new AntPathRequestMatcher("/saml2/logout-response/{registrationId}");
+	private RequestMatcher requestMatcher = new AntPathRequestMatcher("/saml2/logout-request/{registrationId}");
 
 	// verify logout response, do any cleanup
 	// redirect to entry point
 
-	public Saml2LogoutResponseFilter(Saml2LogoutResponseDecoder logoutResponseVerifier, AuthenticationEntryPoint entryPoint) {
-		this.logoutResponseVerifier = logoutResponseVerifier;
+	public Saml2LogoutRequestFilter(Saml2LogoutRequestHandler logoutRequestHandler, AuthenticationEntryPoint entryPoint) {
+		this.logoutRequestHandler = logoutRequestHandler;
 		this.entryPoint = entryPoint;
+	}
+
+	@Override
+	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
+
 	}
 }

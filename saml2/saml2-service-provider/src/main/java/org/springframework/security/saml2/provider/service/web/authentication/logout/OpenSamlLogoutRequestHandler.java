@@ -18,10 +18,24 @@ package org.springframework.security.saml2.provider.service.web.authentication.l
 
 import javax.servlet.http.HttpServletRequest;
 
-import org.springframework.security.saml2.provider.service.authentication.logout.Saml2LogoutResponse;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
+import org.springframework.security.web.DefaultRedirectStrategy;
+import org.springframework.security.web.RedirectStrategy;
 
-// create a SAML 2.0 Logout Response
-public interface Saml2LogoutResponseResolver {
-	Saml2LogoutResponse resolveLogoutResponse(HttpServletRequest request, RelyingPartyRegistration registration);
+
+// received LogoutRequest from asserting party; process, throw exception if fail
+public class OpenSamlLogoutRequestHandler implements Saml2LogoutRequestHandler {
+	private final Saml2LogoutResponseResolver logoutResponseResolver;
+	private final RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
+
+	public OpenSamlLogoutRequestHandler(Saml2LogoutResponseResolver logoutResponseResolver) {
+		this.logoutResponseResolver = logoutResponseResolver;
+	}
+
+	@Override
+	public void handleLogoutRequest(HttpServletRequest request, RelyingPartyRegistration registration) {
+		// verify logout request
+		// generate logout response
+		// redirect to asserting party
+	}
 }

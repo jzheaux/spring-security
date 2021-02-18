@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,8 @@ package org.springframework.security.saml2.provider.service.web.authentication.l
 
 import javax.servlet.http.HttpServletRequest;
 
-import org.springframework.security.saml2.provider.service.authentication.logout.Saml2LogoutResponse;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 
-// create a SAML 2.0 Logout Response
-public interface Saml2LogoutResponseResolver {
-	Saml2LogoutResponse resolveLogoutResponse(HttpServletRequest request, RelyingPartyRegistration registration);
+public interface Saml2LogoutResponseHandler {
+	void handleLogoutResponse(HttpServletRequest request, RelyingPartyRegistration registration);
 }

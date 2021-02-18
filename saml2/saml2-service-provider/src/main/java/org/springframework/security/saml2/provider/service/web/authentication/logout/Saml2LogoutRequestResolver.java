@@ -19,8 +19,9 @@ package org.springframework.security.saml2.provider.service.web.authentication.l
 import javax.servlet.http.HttpServletRequest;
 
 import org.springframework.security.saml2.provider.service.authentication.logout.Saml2LogoutRequest;
+import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 
 // create a SAML 2.0 LogoutRequest
 public interface Saml2LogoutRequestResolver {
-	Saml2LogoutRequest resolveLogoutRequest(HttpServletRequest request);
+	Saml2LogoutRequest resolveLogoutRequest(HttpServletRequest request, RelyingPartyRegistration registration);
 }

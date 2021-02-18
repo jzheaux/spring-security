@@ -23,12 +23,18 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.security.saml2.provider.service.authentication.Saml2Authentication;
+import org.springframework.security.saml2.provider.service.authentication.logout.Saml2LogoutRequest;
+import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
+import org.springframework.security.saml2.provider.service.registration.Saml2MessageBinding;
 import org.springframework.security.web.DefaultRedirectStrategy;
 import org.springframework.security.web.RedirectStrategy;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
+import org.springframework.web.util.UriComponentsBuilder;
 
 // generate LogoutRequest and send to Asserting Party
 public class Saml2RelyingPartyInitiatedLogoutSuccessHandler implements LogoutSuccessHandler {
+	private final RelyingPartyRegistrationResolver relyingPartyRegistrationResolver;
 	private final Saml2LogoutRequestResolver logoutRequestResolver;
 	private final RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
 
@@ -38,7 +44,25 @@ public class Saml2RelyingPartyInitiatedLogoutSuccessHandler implements LogoutSuc
 
 	@Override
 	public void onLogoutSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
+		RelyingPartyRegistration registration;
+		if (authentication instanceof Saml2Authentication) {
+			registration = this.relyingPartyRegistrationResolver.resolve(request, ((Saml2Authentication) authentication).getAuthorizedRelyingPartyRegistrationId()));
+		} else {
+			registration = this.relyingPartyRegistrationResolver.resolve(request);
+		}
 		// generate logout request
+		Saml2LogoutRequest logoutRequest = this.logoutRequestResolver.resolveLogoutR
+		Saml2MessageBinding binding = registration.getAssertingPartyDetails().getSingleLogoutServiceBinding();
+		if (binding == Saml2MessageBinding.REDIRECT) {
+			String location = registration.getAssertingPartyDetails().getSingleLogoutServiceLocation();
+			UriComponentsBuilder uriBuilder = UriComponentsBuilder
+					.fromUriString(authenticationRequest.getAuthenticationRequestUri());
+			addParameter("SAMLRequest", authenticationRequest.getSamlRequest(), uriBuilder);
+			addParameter("SigAlg", authenticationRequest.getSigAlg(), uriBuilder);
+			addParameter("Signature", authenticationRequest.getSignature(), uriBuilder);
+			String redirectUrl = uriBuilder.build(true).toUriString();
+			this.redirectStrategy.sendRedirect(request, response, redirectUrl);
+		}
 		// redirect to asserting party
 	}
 }
