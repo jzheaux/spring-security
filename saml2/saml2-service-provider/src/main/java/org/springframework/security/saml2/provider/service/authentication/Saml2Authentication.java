@@ -22,6 +22,7 @@ import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.AuthenticatedPrincipal;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 import org.springframework.util.Assert;
 
 /**
@@ -41,14 +42,40 @@ public class Saml2Authentication extends AbstractAuthenticationToken {
 
 	private final String saml2Response;
 
+	private final RelyingPartyRegistration registration;
+
+	/**
+	 * Construct a {@link Saml2Authentication} using the provided parameters
+	 *
+	 * @param principal the logged in user
+	 * @param saml2Response the SAML 2.0 response used to authenticate the user
+	 * @param authorities the authorities for the logged in user
+	 * @deprecated Use {@link Saml2Authentication(AuthenticatedPrincipal, String, Collection, RelyingPartyRegistration) instead}
+	 */
+	@Deprecated
 	public Saml2Authentication(AuthenticatedPrincipal principal, String saml2Response,
 			Collection<? extends GrantedAuthority> authorities) {
+		this(principal, saml2Response, authorities, null);
+	}
+
+	/**
+	 * Construct a {@link Saml2Authentication} using the provided parameters
+	 *
+	 * @param principal the logged in user
+	 * @param saml2Response the SAML 2.0 response used to authenticate the user
+	 * @param authorities the authorities for the logged in user
+	 * @param registration the {@link RelyingPartyRegistration} associated with this user
+	 */
+	public Saml2Authentication(AuthenticatedPrincipal principal, String saml2Response,
+			Collection<? extends GrantedAuthority> authorities,
+			RelyingPartyRegistration registration) {
 		super(authorities);
 		Assert.notNull(principal, "principal cannot be null");
 		Assert.hasText(saml2Response, "saml2Response cannot be null");
 		this.principal = principal;
 		this.saml2Response = saml2Response;
 		setAuthenticated(true);
+		this.registration = registration;
 	}
 
 	@Override
@@ -69,4 +96,7 @@ public class Saml2Authentication extends AbstractAuthenticationToken {
 		return getSaml2Response();
 	}
 
+	public RelyingPartyRegistration getRegistration() {
+		return this.registration;
+	}
 }

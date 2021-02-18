@@ -16,5 +16,49 @@
 
 package org.springframework.security.saml2.provider.service.authentication.logout;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Consumer;
+
 public class Saml2LogoutRequest {
+	private final Map<String, String> parameters;
+
+	private Saml2LogoutRequest(Map<String, String> parameters) {
+		this.parameters = Collections.unmodifiableMap(new HashMap<>(parameters));
+	}
+
+	public String getSamlRequest() {
+		return this.parameters.get("SAMLRequest");
+	}
+
+	public String getParameter(String name) {
+		return this.parameters.get(name);
+	}
+
+	public Map<String, String> getParameters() {
+		return this.parameters;
+	}
+
+	public static Builder builder() {
+		return new Builder();
+	}
+
+	public static class Builder {
+		private Map<String, String> parameters = new HashMap<>();
+
+		public Builder samlRequest(String samlRequest) {
+			this.parameters.put("SAMLRequest", samlRequest);
+			return this;
+		}
+
+		public Builder parameters(Consumer<Map<String, String>> parametersConsumer) {
+			parametersConsumer.accept(this.parameters);
+			return this;
+		}
+
+		public Saml2LogoutRequest build() {
+			return new Saml2LogoutRequest(this.parameters);
+		}
+	}
 }

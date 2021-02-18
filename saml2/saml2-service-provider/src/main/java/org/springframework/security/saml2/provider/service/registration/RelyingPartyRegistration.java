@@ -81,6 +81,12 @@ public final class RelyingPartyRegistration {
 
 	private final Saml2MessageBinding assertionConsumerServiceBinding;
 
+	private final String singleLogoutServiceLocation;
+
+	private final String singleLogoutServiceResponseLocation;
+
+	private final Saml2MessageBinding singleLogoutServiceBinding;
+
 	private final ProviderDetails providerDetails;
 
 	private final List<org.springframework.security.saml2.credentials.Saml2X509Credential> credentials;
@@ -90,7 +96,9 @@ public final class RelyingPartyRegistration {
 	private final Collection<Saml2X509Credential> signingX509Credentials;
 
 	private RelyingPartyRegistration(String registrationId, String entityId, String assertionConsumerServiceLocation,
-			Saml2MessageBinding assertionConsumerServiceBinding, ProviderDetails providerDetails,
+			Saml2MessageBinding assertionConsumerServiceBinding,
+			String singleLogoutServiceLocation, String singleLogoutServiceResponseLocation,
+			Saml2MessageBinding singleLogoutServiceBinding, ProviderDetails providerDetails,
 			Collection<org.springframework.security.saml2.credentials.Saml2X509Credential> credentials,
 			Collection<Saml2X509Credential> decryptionX509Credentials,
 			Collection<Saml2X509Credential> signingX509Credentials) {
@@ -118,6 +126,9 @@ public final class RelyingPartyRegistration {
 		this.entityId = entityId;
 		this.assertionConsumerServiceLocation = assertionConsumerServiceLocation;
 		this.assertionConsumerServiceBinding = assertionConsumerServiceBinding;
+		this.singleLogoutServiceLocation = singleLogoutServiceLocation;
+		this.singleLogoutServiceResponseLocation = singleLogoutServiceResponseLocation;
+		this.singleLogoutServiceBinding = singleLogoutServiceBinding;
 		this.providerDetails = providerDetails;
 		this.credentials = Collections.unmodifiableList(new LinkedList<>(credentials));
 		this.decryptionX509Credentials = Collections.unmodifiableList(new LinkedList<>(decryptionX509Credentials));
@@ -175,6 +186,18 @@ public final class RelyingPartyRegistration {
 	 */
 	public Saml2MessageBinding getAssertionConsumerServiceBinding() {
 		return this.assertionConsumerServiceBinding;
+	}
+
+	public Saml2MessageBinding getSingleLogoutServiceBinding() {
+		return this.singleLogoutServiceBinding;
+	}
+
+	public String getSingleLogoutServiceLocation() {
+		return this.singleLogoutServiceLocation;
+	}
+
+	public String getSingleLogoutServiceResponseLocation() {
+		return this.singleLogoutServiceResponseLocation;
 	}
 
 	/**
@@ -445,10 +468,16 @@ public final class RelyingPartyRegistration {
 
 		private final Saml2MessageBinding singleSignOnServiceBinding;
 
+		private final String singleLogoutServiceLocation;
+		private final String singleLogoutServiceResponseLocation;
+
+		private final Saml2MessageBinding singleLogoutServiceBinding;
+
 		private AssertingPartyDetails(String entityId, boolean wantAuthnRequestsSigned, List<String> signingAlgorithms,
 				Collection<Saml2X509Credential> verificationX509Credentials,
 				Collection<Saml2X509Credential> encryptionX509Credentials, String singleSignOnServiceLocation,
-				Saml2MessageBinding singleSignOnServiceBinding) {
+				Saml2MessageBinding singleSignOnServiceBinding,
+				String singleLogoutServiceLocation, String singleLogoutServiceResponseLocation, Saml2MessageBinding singleLogoutServiceBinding) {
 			Assert.hasText(entityId, "entityId cannot be null or empty");
 			Assert.notEmpty(signingAlgorithms, "signingAlgorithms cannot be empty");
 			Assert.notNull(verificationX509Credentials, "verificationX509Credentials cannot be null");
@@ -472,6 +501,9 @@ public final class RelyingPartyRegistration {
 			this.encryptionX509Credentials = encryptionX509Credentials;
 			this.singleSignOnServiceLocation = singleSignOnServiceLocation;
 			this.singleSignOnServiceBinding = singleSignOnServiceBinding;
+			this.singleLogoutServiceLocation = singleLogoutServiceLocation;
+			this.singleLogoutServiceResponseLocation = singleLogoutServiceResponseLocation;
+			this.singleLogoutServiceBinding = singleLogoutServiceBinding;
 		}
 
 		/**
@@ -565,6 +597,48 @@ public final class RelyingPartyRegistration {
 			return this.singleSignOnServiceBinding;
 		}
 
+		/**
+		 * Get the <a href=
+		 * "https://wiki.shibboleth.net/confluence/display/CONCEPT/MetadataForIdP#MetadataForIdP-Logout">SingleLogoutService</a>
+		 * Location.
+		 *
+		 * <p>
+		 * Equivalent to the value found in &lt;SingleLogoutService Location="..."/&gt; in
+		 * the asserting party's &lt;IDPSSODescriptor&gt;.
+		 * @return the SingleLogoutService Location
+		 */
+		public String getSingleLogoutServiceLocation() {
+			return this.singleLogoutServiceLocation;
+		}
+
+		/**
+		 * Get the <a href=
+		 * "https://wiki.shibboleth.net/confluence/display/CONCEPT/MetadataForIdP#MetadataForIdP-Logout">SingleLogoutService</a>
+		 * ResponseLocation.
+		 *
+		 * <p>
+		 * Equivalent to the value found in &lt;SingleLogoutService Location="..."/&gt; in
+		 * the asserting party's &lt;IDPSSODescriptor&gt;.
+		 * @return the SingleLogoutService Response Location
+		 */
+		public String getSingleLogoutServiceResponseLocation() {
+			return this.singleLogoutServiceResponseLocation;
+		}
+
+		/**
+		 * Get the <a href=
+		 * "https://wiki.shibboleth.net/confluence/display/CONCEPT/MetadataForIdP#MetadataForIdP-Logout">SingleLogoutService</a>
+		 * Binding.
+		 *
+		 * <p>
+		 * Equivalent to the value found in &lt;SingleLogoutService Binding="..."/&gt; in
+		 * the asserting party's &lt;IDPSSODescriptor&gt;.
+		 * @return the SingleLogoutService Binding
+		 */
+		public Saml2MessageBinding getSingleLogoutServiceBinding() {
+			return this.singleLogoutServiceBinding;
+		}
+
 		public static final class Builder {
 
 			private String entityId;
@@ -580,6 +654,11 @@ public final class RelyingPartyRegistration {
 			private String singleSignOnServiceLocation;
 
 			private Saml2MessageBinding singleSignOnServiceBinding = Saml2MessageBinding.REDIRECT;
+
+			private String singleLogoutServiceLocation;
+			private String singleLogoutServiceResponseLocation;
+
+			private Saml2MessageBinding singleLogoutServiceBinding = Saml2MessageBinding.REDIRECT;
 
 			/**
 			 * Set the asserting party's <a href=
@@ -677,6 +756,21 @@ public final class RelyingPartyRegistration {
 				return this;
 			}
 
+			public Builder singleLogoutServiceLocation(String singleLogoutServiceLocation) {
+				this.singleLogoutServiceLocation = singleLogoutServiceLocation;
+				return this;
+			}
+
+			public Builder singleLogoutServiceResponseLocation(String singleLogoutServiceResponseLocation) {
+				this.singleLogoutServiceResponseLocation = singleLogoutServiceResponseLocation;
+				return this;
+			}
+
+			public Builder singleLogoutServiceBinding(Saml2MessageBinding singleLogoutServiceBinding) {
+				this.singleLogoutServiceBinding = singleLogoutServiceBinding;
+				return this;
+			}
+
 			/**
 			 * Creates an immutable ProviderDetails object representing the configuration
 			 * for an Identity Provider, IDP
@@ -689,7 +783,8 @@ public final class RelyingPartyRegistration {
 
 				return new AssertingPartyDetails(this.entityId, this.wantAuthnRequestsSigned, signingAlgorithms,
 						this.verificationX509Credentials, this.encryptionX509Credentials,
-						this.singleSignOnServiceLocation, this.singleSignOnServiceBinding);
+						this.singleSignOnServiceLocation, this.singleSignOnServiceBinding,
+						this.singleLogoutServiceLocation, this.singleLogoutServiceResponseLocation, this.singleLogoutServiceBinding);
 			}
 
 		}
@@ -830,6 +925,10 @@ public final class RelyingPartyRegistration {
 
 		private Saml2MessageBinding assertionConsumerServiceBinding = Saml2MessageBinding.POST;
 
+		private String singleLogoutServiceLocation = "{baseUrl}/saml2/logout/request";
+		private String singleLogoutServiceResponseLocation = "{baseUrl}/saml2/logout/response";
+		private Saml2MessageBinding singleLogoutServiceBinding = Saml2MessageBinding.REDIRECT;
+
 		private ProviderDetails.Builder providerDetails = new ProviderDetails.Builder();
 
 		private Collection<org.springframework.security.saml2.credentials.Saml2X509Credential> credentials = new HashSet<>();
@@ -929,6 +1028,21 @@ public final class RelyingPartyRegistration {
 		 */
 		public Builder assertionConsumerServiceBinding(Saml2MessageBinding assertionConsumerServiceBinding) {
 			this.assertionConsumerServiceBinding = assertionConsumerServiceBinding;
+			return this;
+		}
+
+		public Builder singleLogoutServiceBinding(Saml2MessageBinding singleLogoutServiceBinding) {
+			this.singleLogoutServiceBinding = singleLogoutServiceBinding;
+			return this;
+		}
+
+		public Builder singleLogoutServiceLocation(String singleLogoutServiceLocation) {
+			this.singleLogoutServiceLocation = singleLogoutServiceLocation;
+			return this;
+		}
+
+		public Builder singleLogoutServiceResponseLocation(String singleLogoutServiceResponseLocation) {
+			this.singleLogoutServiceResponseLocation = singleLogoutServiceResponseLocation;
 			return this;
 		}
 
@@ -1075,6 +1189,7 @@ public final class RelyingPartyRegistration {
 			}
 			return new RelyingPartyRegistration(this.registrationId, this.entityId,
 					this.assertionConsumerServiceLocation, this.assertionConsumerServiceBinding,
+					this.singleLogoutServiceLocation, this.singleLogoutServiceResponseLocation, this.singleLogoutServiceBinding,
 					this.providerDetails.build(), this.credentials, this.decryptionX509Credentials,
 					this.signingX509Credentials);
 		}
