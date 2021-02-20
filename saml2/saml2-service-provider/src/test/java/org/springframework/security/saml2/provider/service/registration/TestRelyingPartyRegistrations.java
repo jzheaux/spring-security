@@ -46,6 +46,8 @@ public final class TestRelyingPartyRegistrations {
 
 	public static RelyingPartyRegistration.Builder noCredentials() {
 		return RelyingPartyRegistration.withRegistrationId("registration-id").entityId("rp-entity-id")
+				.singleLogoutServiceLocation("https://rp.example.org/logout/saml2/request")
+				.singleLogoutServiceResponseLocation("https://rp.example.org/logout/saml2/response")
 				.assertionConsumerServiceLocation("https://rp.example.org/acs").assertingPartyDetails((party) -> party
 						.entityId("ap-entity-id").singleSignOnServiceLocation("https://ap.example.org/sso"));
 	}

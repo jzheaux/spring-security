@@ -67,14 +67,21 @@ import org.springframework.util.Assert;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.web.util.UriUtils;
 
-public class OpenSamlLogoutRequestResolver implements Saml2LogoutRequestResolver {
+/**
+ * We want to generate a logout request
+ */
+public final class OpenSamlLogoutRequestResolver implements Saml2LogoutRequestResolver {
+
 	static {
 		OpenSamlInitializationService.initialize();
 	}
 
 	private final LogoutRequestMarshaller marshaller;
+
 	private final LogoutRequestBuilder logoutRequestBuilder;
+
 	private final IssuerBuilder issuerBuilder;
+
 	private final NameIDBuilder nameIdBuilder;
 
 	/**
@@ -91,15 +98,17 @@ public class OpenSamlLogoutRequestResolver implements Saml2LogoutRequestResolver
 	}
 
 	@Override
-	public OpenSamlLogoutRequestSpec resolveLogoutRequest(HttpServletRequest request, RelyingPartyRegistration registration, Authentication authentication) {
+	public OpenSamlLogoutRequestSpec resolveLogoutRequest(HttpServletRequest request,
+			RelyingPartyRegistration registration, Authentication authentication) {
 		return new OpenSamlLogoutRequestSpec(registration)
 				.destination(registration.getAssertingPartyDetails().getSingleLogoutServiceLocation())
-				.issuer(registration.getEntityId())
-				.name(authentication.getName());
+				.issuer(registration.getEntityId()).name(authentication.getName());
 	}
 
 	public class OpenSamlLogoutRequestSpec implements Saml2LogoutRequestSpec<OpenSamlLogoutRequestSpec> {
+
 		LogoutRequest logoutRequest;
+
 		RelyingPartyRegistration registration;
 
 		public OpenSamlLogoutRequestSpec(RelyingPartyRegistration registration) {
@@ -135,11 +144,13 @@ public class OpenSamlLogoutRequestResolver implements Saml2LogoutRequestResolver
 
 		@Override
 		public Saml2LogoutRequest resolve() {
-			if (this.registration.getAssertingPartyDetails().getSingleLogoutServiceBinding() == Saml2MessageBinding.POST) {
+			if (this.registration.getAssertingPartyDetails()
+					.getSingleLogoutServiceBinding() == Saml2MessageBinding.POST) {
 				String xml = serialize(sign(this.logoutRequest, this.registration));
 				return Saml2LogoutRequest.builder()
 						.samlRequest(Saml2Utils.samlEncode(xml.getBytes(StandardCharsets.UTF_8))).build();
-			} else {
+			}
+			else {
 				String xml = serialize(this.logoutRequest);
 				Saml2LogoutRequest.Builder result = Saml2LogoutRequest.builder();
 				String deflatedAndEncoded = Saml2Utils.samlEncode(Saml2Utils.samlDeflate(xml));
@@ -150,6 +161,7 @@ public class OpenSamlLogoutRequestResolver implements Saml2LogoutRequestResolver
 				return result.parameters((params) -> params.putAll(parameters)).build();
 			}
 		}
+
 	}
 
 	private LogoutRequest sign(LogoutRequest logoutRequest, RelyingPartyRegistration relyingPartyRegistration) {
@@ -237,4 +249,5 @@ public class OpenSamlLogoutRequestResolver implements Saml2LogoutRequestResolver
 		}
 		return credentials;
 	}
+
 }

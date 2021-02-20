@@ -68,15 +68,23 @@ import org.springframework.util.Assert;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.web.util.UriUtils;
 
-public class OpenSamlLogoutResponseResolver implements Saml2LogoutResponseResolver {
+/**
+ * We want to generate a logout response
+ */
+public final class OpenSamlLogoutResponseResolver implements Saml2LogoutResponseResolver {
+
 	static {
 		OpenSamlInitializationService.initialize();
 	}
 
 	private final LogoutResponseMarshaller marshaller;
+
 	private final LogoutResponseBuilder logoutResponseBuilder;
+
 	private final IssuerBuilder issuerBuilder;
+
 	private final StatusBuilder statusBuilder;
+
 	private final StatusCodeBuilder statusCodeBuilder;
 
 	/**
@@ -90,19 +98,22 @@ public class OpenSamlLogoutResponseResolver implements Saml2LogoutResponseResolv
 				.getBuilder(LogoutResponse.DEFAULT_ELEMENT_NAME);
 		this.issuerBuilder = (IssuerBuilder) registry.getBuilderFactory().getBuilder(Issuer.DEFAULT_ELEMENT_NAME);
 		this.statusBuilder = (StatusBuilder) registry.getBuilderFactory().getBuilder(Status.DEFAULT_ELEMENT_NAME);
-		this.statusCodeBuilder = (StatusCodeBuilder) registry.getBuilderFactory().getBuilder(StatusCode.DEFAULT_ELEMENT_NAME);
+		this.statusCodeBuilder = (StatusCodeBuilder) registry.getBuilderFactory()
+				.getBuilder(StatusCode.DEFAULT_ELEMENT_NAME);
 	}
 
 	@Override
-	public OpenSamlLogoutResponseSpec resolveLogoutResponse(HttpServletRequest request, RelyingPartyRegistration registration) {
+	public OpenSamlLogoutResponseSpec resolveLogoutResponse(HttpServletRequest request,
+			RelyingPartyRegistration registration) {
 		return new OpenSamlLogoutResponseSpec(registration)
 				.destination(registration.getAssertingPartyDetails().getSingleLogoutServiceResponseLocation())
-				.issuer(registration.getEntityId())
-				.status(StatusCode.SUCCESS);
+				.issuer(registration.getEntityId()).status(StatusCode.SUCCESS);
 	}
 
 	public class OpenSamlLogoutResponseSpec implements Saml2LogoutResponseSpec<OpenSamlLogoutResponseSpec> {
+
 		LogoutResponse logoutResponse;
+
 		RelyingPartyRegistration registration;
 
 		public OpenSamlLogoutResponseSpec(RelyingPartyRegistration registration) {
@@ -148,11 +159,13 @@ public class OpenSamlLogoutResponseResolver implements Saml2LogoutResponseResolv
 
 		@Override
 		public Saml2LogoutResponse resolve() {
-			if (this.registration.getAssertingPartyDetails().getSingleLogoutServiceBinding() == Saml2MessageBinding.POST) {
+			if (this.registration.getAssertingPartyDetails()
+					.getSingleLogoutServiceBinding() == Saml2MessageBinding.POST) {
 				String xml = serialize(sign(this.logoutResponse, this.registration));
 				return Saml2LogoutResponse.builder()
 						.samlRequest(Saml2Utils.samlEncode(xml.getBytes(StandardCharsets.UTF_8))).build();
-			} else {
+			}
+			else {
 				String xml = serialize(this.logoutResponse);
 				Saml2LogoutResponse.Builder result = Saml2LogoutResponse.builder();
 				String deflatedAndEncoded = Saml2Utils.samlEncode(Saml2Utils.samlDeflate(xml));
@@ -163,6 +176,7 @@ public class OpenSamlLogoutResponseResolver implements Saml2LogoutResponseResolv
 				return result.parameters((params) -> params.putAll(parameters)).build();
 			}
 		}
+
 	}
 
 	private LogoutResponse sign(LogoutResponse logoutResponse, RelyingPartyRegistration relyingPartyRegistration) {
@@ -250,4 +264,5 @@ public class OpenSamlLogoutResponseResolver implements Saml2LogoutResponseResolv
 		}
 		return credentials;
 	}
+
 }

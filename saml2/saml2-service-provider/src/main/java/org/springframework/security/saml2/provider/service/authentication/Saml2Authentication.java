@@ -46,11 +46,11 @@ public class Saml2Authentication extends AbstractAuthenticationToken {
 
 	/**
 	 * Construct a {@link Saml2Authentication} using the provided parameters
-	 *
 	 * @param principal the logged in user
 	 * @param saml2Response the SAML 2.0 response used to authenticate the user
 	 * @param authorities the authorities for the logged in user
-	 * @deprecated Use {@link Saml2Authentication(AuthenticatedPrincipal, String, Collection, RelyingPartyRegistration) instead}
+	 * @deprecated Use {@link Saml2Authentication(AuthenticatedPrincipal, String,
+	 * Collection, RelyingPartyRegistration) instead}
 	 */
 	@Deprecated
 	public Saml2Authentication(AuthenticatedPrincipal principal, String saml2Response,
@@ -60,15 +60,13 @@ public class Saml2Authentication extends AbstractAuthenticationToken {
 
 	/**
 	 * Construct a {@link Saml2Authentication} using the provided parameters
-	 *
 	 * @param principal the logged in user
 	 * @param saml2Response the SAML 2.0 response used to authenticate the user
 	 * @param authorities the authorities for the logged in user
 	 * @param registration the {@link RelyingPartyRegistration} associated with this user
 	 */
 	public Saml2Authentication(AuthenticatedPrincipal principal, String saml2Response,
-			Collection<? extends GrantedAuthority> authorities,
-			RelyingPartyRegistration registration) {
+			Collection<? extends GrantedAuthority> authorities, RelyingPartyRegistration registration) {
 		super(authorities);
 		Assert.notNull(principal, "principal cannot be null");
 		Assert.hasText(saml2Response, "saml2Response cannot be null");
@@ -99,4 +97,5 @@ public class Saml2Authentication extends AbstractAuthenticationToken {
 	public RelyingPartyRegistration getRegistration() {
 		return this.registration;
 	}
+
 }

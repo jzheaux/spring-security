@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 public class Saml2LogoutRequest {
+
 	private final Map<String, String> parameters;
 
 	private Saml2LogoutRequest(Map<String, String> parameters) {
@@ -45,6 +46,7 @@ public class Saml2LogoutRequest {
 	}
 
 	public static class Builder {
+
 		private Map<String, String> parameters = new HashMap<>();
 
 		public Builder samlRequest(String samlRequest) {
@@ -60,5 +62,7 @@ public class Saml2LogoutRequest {
 		public Saml2LogoutRequest build() {
 			return new Saml2LogoutRequest(this.parameters);
 		}
+
 	}
+
 }

@@ -55,6 +55,7 @@ import org.w3c.dom.Element;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.saml2.Saml2Exception;
+import org.springframework.security.saml2.core.OpenSamlInitializationService;
 import org.springframework.security.saml2.core.Saml2Error;
 import org.springframework.security.saml2.core.Saml2ErrorCodes;
 import org.springframework.security.saml2.core.Saml2ResponseValidatorResult;
@@ -63,8 +64,17 @@ import org.springframework.security.saml2.provider.service.authentication.Saml2A
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 
-public class OpenSamlLogoutResponseHandler implements LogoutHandler {
+/**
+ * We initiated logout, and now its complete
+ */
+public final class OpenSamlLogoutResponseHandler implements LogoutHandler {
+
+	static {
+		OpenSamlInitializationService.initialize();
+	}
+
 	private final ParserPool parserPool;
+
 	private final LogoutResponseUnmarshaller unmarshaller;
 
 	public OpenSamlLogoutResponseHandler() {
@@ -81,14 +91,15 @@ public class OpenSamlLogoutResponseHandler implements LogoutHandler {
 			registration = ((Saml2Authentication) authentication).getRegistration();
 		}
 		if (registration == null) {
-			throw new Saml2Exception("A RelyingPartyRegistration is required in order to validate the LogoutRequest signature, but none was found");
+			throw new Saml2Exception(
+					"A RelyingPartyRegistration is required in order to validate the LogoutResponse signature, but none was found");
 		}
 		String serialized = request.getParameter("SAMLRequest");
 		LogoutResponse logoutResponse = parse(serialized);
 		Saml2ResponseValidatorResult result = verifySignature(logoutResponse, registration);
 		result.concat(validateRequest(logoutResponse, registration, authentication));
 		if (result.hasErrors()) {
-			throw new Saml2Exception("Failed to validate LogoutRequest: " + result.getErrors().iterator().next());
+			throw new Saml2Exception("Failed to validate LogoutResponse: " + result.getErrors().iterator().next());
 		}
 	}
 
@@ -100,11 +111,12 @@ public class OpenSamlLogoutResponseHandler implements LogoutHandler {
 			return (LogoutResponse) this.unmarshaller.unmarshall(element);
 		}
 		catch (Exception ex) {
-			throw new Saml2Exception("Failed to deserialize LogoutRequest", ex);
+			throw new Saml2Exception("Failed to deserialize LogoutResponse", ex);
 		}
 	}
 
-	private Saml2ResponseValidatorResult verifySignature(LogoutResponse request, RelyingPartyRegistration registration) {
+	private Saml2ResponseValidatorResult verifySignature(LogoutResponse request,
+			RelyingPartyRegistration registration) {
 		Collection<Saml2Error> errors = new ArrayList<>();
 		String issuer = request.getIssuer().getValue();
 		if (request.isSigned()) {
@@ -120,8 +132,8 @@ public class OpenSamlLogoutResponseHandler implements LogoutHandler {
 			try {
 				CriteriaSet criteriaSet = new CriteriaSet();
 				criteriaSet.add(new EvaluableEntityIDCredentialCriterion(new EntityIdCriterion(issuer)));
-				criteriaSet.add(new EvaluableProtocolRoleDescriptorCriterion(
-						new ProtocolCriterion(SAMLConstants.SAML20P_NS)));
+				criteriaSet.add(
+						new EvaluableProtocolRoleDescriptorCriterion(new ProtocolCriterion(SAMLConstants.SAML20P_NS)));
 				criteriaSet.add(new EvaluableUsageCredentialCriterion(new UsageCriterion(UsageType.SIGNING)));
 				if (!trustEngine(registration).validate(request.getSignature(), criteriaSet)) {
 					errors.add(new Saml2Error(Saml2ErrorCodes.INVALID_SIGNATURE,
@@ -137,31 +149,38 @@ public class OpenSamlLogoutResponseHandler implements LogoutHandler {
 		return Saml2ResponseValidatorResult.failure(errors);
 	}
 
-	private Saml2ResponseValidatorResult validateRequest(LogoutResponse response, RelyingPartyRegistration registration, Authentication authentication) {
+	private Saml2ResponseValidatorResult validateRequest(LogoutResponse response, RelyingPartyRegistration registration,
+			Authentication authentication) {
 		Saml2ResponseValidatorResult result = Saml2ResponseValidatorResult.success();
 		result.concat(validateIssuer(response, registration));
 		result.concat(validateDestination(response, registration));
 		return result.concat(validateStatus(response));
 	}
 
-	private Saml2ResponseValidatorResult validateIssuer(LogoutResponse response, RelyingPartyRegistration registration) {
+	private Saml2ResponseValidatorResult validateIssuer(LogoutResponse response,
+			RelyingPartyRegistration registration) {
 		if (response.getIssuer() == null) {
-			return Saml2ResponseValidatorResult.failure(new Saml2Error(Saml2ErrorCodes.INVALID_ISSUER, "Failed to find issuer in LogoutResponse"));
+			return Saml2ResponseValidatorResult
+					.failure(new Saml2Error(Saml2ErrorCodes.INVALID_ISSUER, "Failed to find issuer in LogoutResponse"));
 		}
 		String issuer = response.getIssuer().getValue();
 		if (!issuer.equals(registration.getAssertingPartyDetails().getEntityId())) {
-			return Saml2ResponseValidatorResult.failure(new Saml2Error(Saml2ErrorCodes.INVALID_ISSUER, "Failed to match issuer to configured issuer"));
+			return Saml2ResponseValidatorResult.failure(
+					new Saml2Error(Saml2ErrorCodes.INVALID_ISSUER, "Failed to match issuer to configured issuer"));
 		}
 		return Saml2ResponseValidatorResult.success();
 	}
 
-	private Saml2ResponseValidatorResult validateDestination(LogoutResponse response, RelyingPartyRegistration registration) {
+	private Saml2ResponseValidatorResult validateDestination(LogoutResponse response,
+			RelyingPartyRegistration registration) {
 		if (response.getDestination() == null) {
-			return Saml2ResponseValidatorResult.failure(new Saml2Error(Saml2ErrorCodes.INVALID_DESTINATION, "Failed to find destination in LogoutResponse"));
+			return Saml2ResponseValidatorResult.failure(new Saml2Error(Saml2ErrorCodes.INVALID_DESTINATION,
+					"Failed to find destination in LogoutResponse"));
 		}
 		String destination = response.getDestination();
 		if (!destination.equals(registration.getSingleLogoutServiceResponseLocation())) {
-			return Saml2ResponseValidatorResult.failure(new Saml2Error(Saml2ErrorCodes.INVALID_DESTINATION, "Failed to match destination to configured destination"));
+			return Saml2ResponseValidatorResult.failure(new Saml2Error(Saml2ErrorCodes.INVALID_DESTINATION,
+					"Failed to match destination to configured destination"));
 		}
 		return Saml2ResponseValidatorResult.success();
 	}
@@ -174,15 +193,15 @@ public class OpenSamlLogoutResponseHandler implements LogoutHandler {
 			return Saml2ResponseValidatorResult.success();
 		}
 		if (!StatusCode.SUCCESS.equals(response.getStatus().getStatusCode().getValue())) {
-			return Saml2ResponseValidatorResult.failure(new Saml2Error(Saml2ErrorCodes.INVALID_RESPONSE, "Response indicated logout failed"));
+			return Saml2ResponseValidatorResult
+					.failure(new Saml2Error(Saml2ErrorCodes.INVALID_RESPONSE, "Response indicated logout failed"));
 		}
 		return Saml2ResponseValidatorResult.success();
 	}
 
 	private SignatureTrustEngine trustEngine(RelyingPartyRegistration registration) {
 		Set<Credential> credentials = new HashSet<>();
-		Collection<Saml2X509Credential> keys = registration.getAssertingPartyDetails()
-				.getVerificationX509Credentials();
+		Collection<Saml2X509Credential> keys = registration.getAssertingPartyDetails().getVerificationX509Credentials();
 		for (Saml2X509Credential key : keys) {
 			BasicX509Credential cred = new BasicX509Credential(key.getCertificate());
 			cred.setUsageType(UsageType.SIGNING);
@@ -193,4 +212,5 @@ public class OpenSamlLogoutResponseHandler implements LogoutHandler {
 		return new ExplicitKeySignatureTrustEngine(credentialsResolver,
 				DefaultSecurityConfigurationBootstrap.buildBasicInlineKeyInfoCredentialResolver());
 	}
+
 }

@@ -24,13 +24,20 @@ import org.springframework.security.saml2.provider.service.registration.RelyingP
 
 // create a SAML 2.0 LogoutRequest
 public interface Saml2LogoutRequestResolver {
-	Saml2LogoutRequestSpec<?> resolveLogoutRequest(HttpServletRequest request, RelyingPartyRegistration registration, Authentication authentication);
+
+	Saml2LogoutRequestSpec<?> resolveLogoutRequest(HttpServletRequest request, RelyingPartyRegistration registration,
+			Authentication authentication);
 
 	interface Saml2LogoutRequestSpec<T extends Saml2LogoutRequestSpec<T>> {
+
 		T issuer(String issuer);
+
 		T destination(String destination);
+
 		T name(String name);
 
 		Saml2LogoutRequest resolve();
+
 	}
+
 }

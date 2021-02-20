@@ -96,9 +96,9 @@ public final class RelyingPartyRegistration {
 	private final Collection<Saml2X509Credential> signingX509Credentials;
 
 	private RelyingPartyRegistration(String registrationId, String entityId, String assertionConsumerServiceLocation,
-			Saml2MessageBinding assertionConsumerServiceBinding,
-			String singleLogoutServiceLocation, String singleLogoutServiceResponseLocation,
-			Saml2MessageBinding singleLogoutServiceBinding, ProviderDetails providerDetails,
+			Saml2MessageBinding assertionConsumerServiceBinding, String singleLogoutServiceLocation,
+			String singleLogoutServiceResponseLocation, Saml2MessageBinding singleLogoutServiceBinding,
+			ProviderDetails providerDetails,
 			Collection<org.springframework.security.saml2.credentials.Saml2X509Credential> credentials,
 			Collection<Saml2X509Credential> decryptionX509Credentials,
 			Collection<Saml2X509Credential> signingX509Credentials) {
@@ -469,6 +469,7 @@ public final class RelyingPartyRegistration {
 		private final Saml2MessageBinding singleSignOnServiceBinding;
 
 		private final String singleLogoutServiceLocation;
+
 		private final String singleLogoutServiceResponseLocation;
 
 		private final Saml2MessageBinding singleLogoutServiceBinding;
@@ -476,8 +477,8 @@ public final class RelyingPartyRegistration {
 		private AssertingPartyDetails(String entityId, boolean wantAuthnRequestsSigned, List<String> signingAlgorithms,
 				Collection<Saml2X509Credential> verificationX509Credentials,
 				Collection<Saml2X509Credential> encryptionX509Credentials, String singleSignOnServiceLocation,
-				Saml2MessageBinding singleSignOnServiceBinding,
-				String singleLogoutServiceLocation, String singleLogoutServiceResponseLocation, Saml2MessageBinding singleLogoutServiceBinding) {
+				Saml2MessageBinding singleSignOnServiceBinding, String singleLogoutServiceLocation,
+				String singleLogoutServiceResponseLocation, Saml2MessageBinding singleLogoutServiceBinding) {
 			Assert.hasText(entityId, "entityId cannot be null or empty");
 			Assert.notEmpty(signingAlgorithms, "signingAlgorithms cannot be empty");
 			Assert.notNull(verificationX509Credentials, "verificationX509Credentials cannot be null");
@@ -656,6 +657,7 @@ public final class RelyingPartyRegistration {
 			private Saml2MessageBinding singleSignOnServiceBinding = Saml2MessageBinding.REDIRECT;
 
 			private String singleLogoutServiceLocation;
+
 			private String singleLogoutServiceResponseLocation;
 
 			private Saml2MessageBinding singleLogoutServiceBinding = Saml2MessageBinding.REDIRECT;
@@ -784,7 +786,8 @@ public final class RelyingPartyRegistration {
 				return new AssertingPartyDetails(this.entityId, this.wantAuthnRequestsSigned, signingAlgorithms,
 						this.verificationX509Credentials, this.encryptionX509Credentials,
 						this.singleSignOnServiceLocation, this.singleSignOnServiceBinding,
-						this.singleLogoutServiceLocation, this.singleLogoutServiceResponseLocation, this.singleLogoutServiceBinding);
+						this.singleLogoutServiceLocation, this.singleLogoutServiceResponseLocation,
+						this.singleLogoutServiceBinding);
 			}
 
 		}
@@ -926,7 +929,9 @@ public final class RelyingPartyRegistration {
 		private Saml2MessageBinding assertionConsumerServiceBinding = Saml2MessageBinding.POST;
 
 		private String singleLogoutServiceLocation = "{baseUrl}/saml2/logout/request";
+
 		private String singleLogoutServiceResponseLocation = "{baseUrl}/saml2/logout/response";
+
 		private Saml2MessageBinding singleLogoutServiceBinding = Saml2MessageBinding.REDIRECT;
 
 		private ProviderDetails.Builder providerDetails = new ProviderDetails.Builder();
@@ -1189,9 +1194,9 @@ public final class RelyingPartyRegistration {
 			}
 			return new RelyingPartyRegistration(this.registrationId, this.entityId,
 					this.assertionConsumerServiceLocation, this.assertionConsumerServiceBinding,
-					this.singleLogoutServiceLocation, this.singleLogoutServiceResponseLocation, this.singleLogoutServiceBinding,
-					this.providerDetails.build(), this.credentials, this.decryptionX509Credentials,
-					this.signingX509Credentials);
+					this.singleLogoutServiceLocation, this.singleLogoutServiceResponseLocation,
+					this.singleLogoutServiceBinding, this.providerDetails.build(), this.credentials,
+					this.decryptionX509Credentials, this.signingX509Credentials);
 		}
 
 	}
