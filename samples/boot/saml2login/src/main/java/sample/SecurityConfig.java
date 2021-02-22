@@ -95,6 +95,7 @@ public class SecurityConfig {
 		OpenSamlLogoutRequestResolver delegate = new OpenSamlLogoutRequestResolver();
 		return (request, registration, authentication) ->
 				delegate.resolveLogoutRequest(request, registration, authentication)
+						// consider this pattern for a post-processor
 						.request((logoutRequest) -> logoutRequest.setIssueInstant(DateTime.now()));
 	}
 
@@ -102,6 +103,7 @@ public class SecurityConfig {
 	Saml2LogoutResponseResolver responseResolver() {
 		OpenSamlLogoutResponseResolver delegate = new OpenSamlLogoutResponseResolver();
 		return (request, registration) -> delegate.resolveLogoutResponse(request, registration)
+				// consider this pattern for a post-processor
 				.response((logoutResponse) -> logoutResponse.setIssueInstant(DateTime.now()));
 	}
 
