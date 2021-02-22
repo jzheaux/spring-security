@@ -27,7 +27,7 @@
 </head>
 <body>
 	<div>
-        <form th:action="@{/logout}" method="post">
+        <form th:action="@{/saml2/logout/request}" method="post">
             <input type="submit" value="Logout" />
         </form>
         <a href="https://simplesaml-for-spring-saml.apps.pcfone.io/module.php/core/authenticate.php?as=example-userpass&logout">

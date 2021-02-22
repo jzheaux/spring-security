@@ -86,6 +86,12 @@ public final class OpenSamlLogoutRequestHandler implements LogoutHandler {
 
 	@Override
 	public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
+		String serialized = request.getParameter("SAMLRequest");
+		if (serialized == null) {
+			return;
+		}
+		byte[] b = Saml2Utils.samlDecode(serialized);
+		serialized = Saml2Utils.samlInflate(b);
 		RelyingPartyRegistration registration = null;
 		if (authentication instanceof Saml2Authentication) {
 			registration = ((Saml2Authentication) authentication).getRegistration();
@@ -94,7 +100,6 @@ public final class OpenSamlLogoutRequestHandler implements LogoutHandler {
 			throw new Saml2Exception(
 					"A RelyingPartyRegistration is required in order to validate the LogoutRequest signature, but none was found");
 		}
-		String serialized = request.getParameter("SAMLRequest");
 		LogoutRequest logoutRequest = parse(serialized);
 		Saml2ResponseValidatorResult result = verifySignature(logoutRequest, registration);
 		result.concat(validateRequest(logoutRequest, registration, authentication));

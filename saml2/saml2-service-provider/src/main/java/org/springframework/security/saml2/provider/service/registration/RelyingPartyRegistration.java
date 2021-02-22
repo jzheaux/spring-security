@@ -387,6 +387,9 @@ public final class RelyingPartyRegistration {
 				.decryptionX509Credentials((c) -> c.addAll(registration.getDecryptionX509Credentials()))
 				.assertionConsumerServiceLocation(registration.getAssertionConsumerServiceLocation())
 				.assertionConsumerServiceBinding(registration.getAssertionConsumerServiceBinding())
+				.singleLogoutServiceLocation(registration.getSingleLogoutServiceLocation())
+				.singleLogoutServiceResponseLocation(registration.getSingleLogoutServiceResponseLocation())
+				.singleLogoutServiceBinding(registration.getSingleLogoutServiceBinding())
 				.assertingPartyDetails((assertingParty) -> assertingParty
 						.entityId(registration.getAssertingPartyDetails().getEntityId())
 						.wantAuthnRequestsSigned(registration.getAssertingPartyDetails().getWantAuthnRequestsSigned())
@@ -399,7 +402,13 @@ public final class RelyingPartyRegistration {
 						.singleSignOnServiceLocation(
 								registration.getAssertingPartyDetails().getSingleSignOnServiceLocation())
 						.singleSignOnServiceBinding(
-								registration.getAssertingPartyDetails().getSingleSignOnServiceBinding()));
+								registration.getAssertingPartyDetails().getSingleSignOnServiceBinding())
+						.singleLogoutServiceLocation(
+								registration.getAssertingPartyDetails().getSingleLogoutServiceLocation())
+						.singleLogoutServiceResponseLocation(
+								registration.getAssertingPartyDetails().getSingleLogoutServiceResponseLocation())
+						.singleLogoutServiceBinding(
+								registration.getAssertingPartyDetails().getSingleLogoutServiceBinding()));
 	}
 
 	private static Saml2X509Credential fromDeprecated(
@@ -928,9 +937,9 @@ public final class RelyingPartyRegistration {
 
 		private Saml2MessageBinding assertionConsumerServiceBinding = Saml2MessageBinding.POST;
 
-		private String singleLogoutServiceLocation = "{baseUrl}/saml2/logout/request";
+		private String singleLogoutServiceLocation = "{baseUrl}/logout";
 
-		private String singleLogoutServiceResponseLocation = "{baseUrl}/saml2/logout/response";
+		private String singleLogoutServiceResponseLocation = "{baseUrl}/logout";
 
 		private Saml2MessageBinding singleLogoutServiceBinding = Saml2MessageBinding.REDIRECT;
 
