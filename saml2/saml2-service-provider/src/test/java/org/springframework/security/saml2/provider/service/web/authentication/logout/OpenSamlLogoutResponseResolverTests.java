@@ -50,16 +50,16 @@ public class OpenSamlLogoutResponseResolverTests {
 		assertThat(logoutResponse.getStatus().getStatusCode().getValue()).isEqualTo(StatusCode.SUCCESS);
 	}
 
-	private LogoutResponse getLogoutResponse(String samlRequest, Saml2MessageBinding binding) {
+	private LogoutResponse getLogoutResponse(String saml2Response, Saml2MessageBinding binding) {
 		if (binding == Saml2MessageBinding.REDIRECT) {
-			samlRequest = Saml2Utils.samlInflate(Saml2Utils.samlDecode(samlRequest));
+			saml2Response = Saml2Utils.samlInflate(Saml2Utils.samlDecode(saml2Response));
 		}
 		else {
-			samlRequest = new String(Saml2Utils.samlDecode(samlRequest), StandardCharsets.UTF_8);
+			saml2Response = new String(Saml2Utils.samlDecode(saml2Response), StandardCharsets.UTF_8);
 		}
 		try {
 			Document document = XMLObjectProviderRegistrySupport.getParserPool()
-					.parse(new ByteArrayInputStream(samlRequest.getBytes(StandardCharsets.UTF_8)));
+					.parse(new ByteArrayInputStream(saml2Response.getBytes(StandardCharsets.UTF_8)));
 			Element element = document.getDocumentElement();
 			return (LogoutResponse) XMLObjectProviderRegistrySupport.getUnmarshallerFactory().getUnmarshaller(element)
 					.unmarshall(element);

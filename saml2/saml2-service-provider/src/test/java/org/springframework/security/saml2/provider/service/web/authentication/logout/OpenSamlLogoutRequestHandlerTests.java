@@ -51,7 +51,7 @@ public class OpenSamlLogoutRequestHandlerTests {
 				new DefaultSaml2AuthenticatedPrincipal(logoutRequest.getNameID().getValue(), new HashMap<>()),
 				"response", new ArrayList<>(), registration);
 		MockHttpServletRequest request = new MockHttpServletRequest();
-		request.setParameter("SAMLRequest", serialize(logoutRequest));
+		request.setParameter("SAMLRequest", Saml2Utils.samlEncode(Saml2Utils.samlDeflate(serialize(logoutRequest))));
 		OpenSamlLogoutRequestHandler handler = new OpenSamlLogoutRequestHandler();
 		handler.logout(request, null, authentication);
 		String id = (String) request.getAttribute(Saml2RequestAttributeNames.LOGOUT_REQUEST_ID);
