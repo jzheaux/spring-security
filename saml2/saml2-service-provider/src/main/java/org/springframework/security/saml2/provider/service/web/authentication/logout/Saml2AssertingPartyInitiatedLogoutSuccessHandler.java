@@ -96,7 +96,7 @@ public class Saml2AssertingPartyInitiatedLogoutSuccessHandler implements LogoutS
 	private String createSamlPostRequestFormData(Saml2LogoutResponse logoutResponse,
 			RelyingPartyRegistration registration) {
 		String authenticationRequestUri = registration.getAssertingPartyDetails().getSingleLogoutServiceLocation();
-		String samlRequest = logoutResponse.getSamlRequest();
+		String samlRequest = logoutResponse.getSamlResponse();
 		StringBuilder html = new StringBuilder();
 		html.append("<!DOCTYPE html>\n");
 		html.append("<html>\n").append("    <head>\n");

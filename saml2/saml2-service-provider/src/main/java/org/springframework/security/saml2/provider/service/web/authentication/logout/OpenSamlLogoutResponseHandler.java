@@ -63,6 +63,7 @@ import org.springframework.security.saml2.core.Saml2X509Credential;
 import org.springframework.security.saml2.provider.service.authentication.Saml2Authentication;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
+import org.springframework.web.util.UriUtils;
 
 /**
  * We initiated logout, and now its complete
@@ -101,7 +102,7 @@ public final class OpenSamlLogoutResponseHandler implements LogoutHandler {
 					"A RelyingPartyRegistration is required in order to validate the LogoutResponse signature, but none was found");
 		}
 		LogoutResponse logoutResponse = parse(serialized);
-		Saml2ResponseValidatorResult result = verifySignature(logoutResponse, registration);
+		Saml2ResponseValidatorResult result = verifySignature(request, logoutResponse, registration);
 		result.concat(validateRequest(logoutResponse, registration, authentication));
 		if (result.hasErrors()) {
 			throw new Saml2Exception("Failed to validate LogoutResponse: " + result.getErrors().iterator().next());
@@ -120,18 +121,59 @@ public final class OpenSamlLogoutResponseHandler implements LogoutHandler {
 		}
 	}
 
-	private Saml2ResponseValidatorResult verifySignature(LogoutResponse request,
+	private Saml2ResponseValidatorResult verifySignature(HttpServletRequest request, LogoutResponse response,
+			RelyingPartyRegistration registration) {
+		if (response.isSigned()) {
+			return verifyPostSignature(response, registration);
+		}
+		if (request.getParameter("SigAlg") == null) {
+			return Saml2ResponseValidatorResult.failure(new Saml2Error(Saml2ErrorCodes.INVALID_SIGNATURE, "Failed to derive signature algorithm from request"));
+		}
+		if (request.getParameter("Signature") == null) {
+			return Saml2ResponseValidatorResult.failure(new Saml2Error(Saml2ErrorCodes.INVALID_SIGNATURE, "Failed to derive signature from request"));
+		}
+		return verifyRedirectSignature(request, response, registration);
+	}
+
+	private Saml2ResponseValidatorResult verifyRedirectSignature(HttpServletRequest request, LogoutResponse logoutResponse,
 			RelyingPartyRegistration registration) {
 		Collection<Saml2Error> errors = new ArrayList<>();
-		String issuer = request.getIssuer().getValue();
-		if (request.isSigned()) {
+		String algorithmUri = request.getParameter("SigAlg");
+		byte[] signature = Saml2Utils.samlDecode(request.getParameter("Signature"));
+		String query = "SAMLResponse=" + UriUtils.encode(request.getParameter("SAMLResponse"), StandardCharsets.ISO_8859_1) + "&" +
+				"SigAlg=" + UriUtils.encode(algorithmUri, StandardCharsets.ISO_8859_1);
+		byte[] content = query.getBytes(StandardCharsets.UTF_8);
+		String issuer = logoutResponse.getIssuer().getValue();
+		try {
+			CriteriaSet criteriaSet = new CriteriaSet();
+			criteriaSet.add(new EvaluableEntityIDCredentialCriterion(new EntityIdCriterion(issuer)));
+			criteriaSet.add(
+					new EvaluableProtocolRoleDescriptorCriterion(new ProtocolCriterion(SAMLConstants.SAML20P_NS)));
+			criteriaSet.add(new EvaluableUsageCredentialCriterion(new UsageCriterion(UsageType.SIGNING)));
+			if (!trustEngine(registration).validate(signature, content, algorithmUri, criteriaSet, null)) {
+				errors.add(new Saml2Error(Saml2ErrorCodes.INVALID_SIGNATURE,
+						"Invalid signature for SAML Response [" + logoutResponse.getID() + "]"));
+			}
+		}
+		catch (Exception ex) {
+			errors.add(new Saml2Error(Saml2ErrorCodes.INVALID_SIGNATURE,
+					"Invalid signature for SAML Response [" + logoutResponse.getID() + "]: "));
+		}
+		return Saml2ResponseValidatorResult.failure(errors);
+	}
+
+	private Saml2ResponseValidatorResult verifyPostSignature(LogoutResponse response,
+			RelyingPartyRegistration registration) {
+		Collection<Saml2Error> errors = new ArrayList<>();
+		String issuer = response.getIssuer().getValue();
+		if (response.isSigned()) {
 			SAMLSignatureProfileValidator profileValidator = new SAMLSignatureProfileValidator();
 			try {
-				profileValidator.validate(request.getSignature());
+				profileValidator.validate(response.getSignature());
 			}
 			catch (Exception ex) {
 				errors.add(new Saml2Error(Saml2ErrorCodes.INVALID_SIGNATURE,
-						"Invalid signature for SAML Response [" + request.getID() + "]: "));
+						"Invalid signature for SAML Response [" + response.getID() + "]: "));
 			}
 
 			try {
@@ -140,14 +182,14 @@ public final class OpenSamlLogoutResponseHandler implements LogoutHandler {
 				criteriaSet.add(
 						new EvaluableProtocolRoleDescriptorCriterion(new ProtocolCriterion(SAMLConstants.SAML20P_NS)));
 				criteriaSet.add(new EvaluableUsageCredentialCriterion(new UsageCriterion(UsageType.SIGNING)));
-				if (!trustEngine(registration).validate(request.getSignature(), criteriaSet)) {
+				if (!trustEngine(registration).validate(response.getSignature(), criteriaSet)) {
 					errors.add(new Saml2Error(Saml2ErrorCodes.INVALID_SIGNATURE,
-							"Invalid signature for SAML Response [" + request.getID() + "]"));
+							"Invalid signature for SAML Response [" + response.getID() + "]"));
 				}
 			}
 			catch (Exception ex) {
 				errors.add(new Saml2Error(Saml2ErrorCodes.INVALID_SIGNATURE,
-						"Invalid signature for SAML Response [" + request.getID() + "]: "));
+						"Invalid signature for SAML Response [" + response.getID() + "]: "));
 			}
 		}
 

@@ -44,7 +44,7 @@ public class OpenSamlLogoutResponseResolverTests {
 		RelyingPartyRegistration registration = TestRelyingPartyRegistrations.full().build();
 		HttpServletRequest request = new MockHttpServletRequest();
 		request.setAttribute(Saml2RequestAttributeNames.LOGOUT_REQUEST_ID, "logout_request_id");
-		String serialized = resolver.resolveLogoutResponse(request, registration).resolve().getSamlRequest();
+		String serialized = resolver.resolveLogoutResponse(request, registration).resolve().getSamlResponse();
 		Saml2MessageBinding binding = registration.getAssertingPartyDetails().getSingleLogoutServiceBinding();
 		LogoutResponse logoutResponse = getLogoutResponse(serialized, binding);
 		assertThat(logoutResponse.getStatus().getStatusCode().getValue()).isEqualTo(StatusCode.SUCCESS);

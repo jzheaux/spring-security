@@ -29,8 +29,8 @@ public class Saml2LogoutResponse {
 		this.parameters = Collections.unmodifiableMap(new HashMap<>(parameters));
 	}
 
-	public String getSamlRequest() {
-		return this.parameters.get("SAMLRequest");
+	public String getSamlResponse() {
+		return this.parameters.get("SAMLResponse");
 	}
 
 	public String getParameter(String name) {

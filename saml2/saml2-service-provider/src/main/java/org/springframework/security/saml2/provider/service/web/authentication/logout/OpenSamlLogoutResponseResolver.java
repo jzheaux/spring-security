@@ -171,7 +171,7 @@ public final class OpenSamlLogoutResponseResolver implements Saml2LogoutResponse
 				String deflatedAndEncoded = Saml2Utils.samlEncode(Saml2Utils.samlDeflate(xml));
 				result.samlRequest(deflatedAndEncoded);
 				Map<String, String> parameters = new LinkedHashMap<>();
-				parameters.put("SAMLRequest", deflatedAndEncoded);
+				parameters.put("SAMLResponse", deflatedAndEncoded);
 				sign(parameters, this.registration);
 				return result.parameters((params) -> params.putAll(parameters)).build();
 			}
