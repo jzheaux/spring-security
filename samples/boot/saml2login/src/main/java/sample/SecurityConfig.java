@@ -64,7 +64,7 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	SecurityFilterChain web(HttpSecurity http, LogoutSuccessHandler successHandler, Saml2LogoutRequestResolver requestResolver) throws Exception {
+	SecurityFilterChain web(HttpSecurity http, LogoutSuccessHandler successHandler) throws Exception {
 		LogoutSuccessHandler redirect = new SimpleUrlLogoutSuccessHandler();
 		http
 			.authorizeRequests((authorize) -> authorize
@@ -80,17 +80,16 @@ public class SecurityConfig {
 					redirect.onLogoutSuccess(request, response, authentication);
 				})
 			)
-			.addFilterAfter(new Saml2RelyingPartyInitiatedLogoutFilter(requestResolver), LogoutFilter.class);
+			.addFilterAfter(new Saml2RelyingPartyInitiatedLogoutFilter(requestResolver()), LogoutFilter.class);
 
 		return http.build();
 	}
 
 	@Bean
-	Saml2AssertingPartyInitiatedLogoutSuccessHandler logoutSuccessHandler(Saml2LogoutResponseResolver requestResolver) {
-		return new Saml2AssertingPartyInitiatedLogoutSuccessHandler(requestResolver);
+	Saml2AssertingPartyInitiatedLogoutSuccessHandler logoutSuccessHandler() {
+		return new Saml2AssertingPartyInitiatedLogoutSuccessHandler(responseResolver());
 	}
 
-	@Bean
 	Saml2LogoutRequestResolver requestResolver() {
 		OpenSamlLogoutRequestResolver delegate = new OpenSamlLogoutRequestResolver();
 		return (request, registration, authentication) ->
@@ -99,7 +98,6 @@ public class SecurityConfig {
 						.request((logoutRequest) -> logoutRequest.setIssueInstant(DateTime.now()));
 	}
 
-	@Bean
 	Saml2LogoutResponseResolver responseResolver() {
 		OpenSamlLogoutResponseResolver delegate = new OpenSamlLogoutResponseResolver();
 		return (request, registration) -> delegate.resolveLogoutResponse(request, registration)
