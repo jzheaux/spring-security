@@ -102,7 +102,8 @@ public final class OpenSamlLogoutRequestResolver implements Saml2LogoutRequestRe
 			RelyingPartyRegistration registration, Authentication authentication) {
 		return new OpenSamlLogoutRequestSpec(registration)
 				.destination(registration.getAssertingPartyDetails().getSingleLogoutServiceLocation())
-				.issuer(registration.getEntityId()).name(authentication.getName());
+				.issuer(registration.getEntityId())
+				.name(authentication.getName());
 	}
 
 	public class OpenSamlLogoutRequestSpec implements Saml2LogoutRequestSpec<OpenSamlLogoutRequestSpec> {
