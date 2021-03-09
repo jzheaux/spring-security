@@ -24,29 +24,37 @@ import java.util.function.Consumer;
 public interface JwtEncoderAlternative {
 
 	/**
-	 * Return a partial application for specifying any claims or headers needed in the JWT
+	 * Return a {@link JwtMutator} for specifying any claims or headers needed in the JWT
 	 *
-	 * @return a partial application
+	 * @return a parameter mutator
 	 */
 	JwtMutator<?> encoder();
 
 	/**
-	 * It's more natural to return a builder-like object since encoding a
-	 * JWT is a sophisticated operation with a hard-to-reverse result
-	 *
-	 * @param <B>
+	 * A parameter mutator for specifying headers and claims to encode
 	 */
 	interface JwtMutator<B extends JwtMutator<B>> {
 		/**
-		 * By expressing this as optional method parameters, it allows the
-		 * API to add more parameters in the future. For example, JWE support
-		 * could be added by adding a {@code jweHeaders} method
+		 * Mutate the JWS headers
 		 *
-		 * This kind of separation also allows for clarity when the caller
-		 * wants to indicate the JWS algorithm and the JWE algorithm.
+		 * @param headersConsumer the {@link Consumer} that mutates the JWS headers
+		 * @return the {@link JwtMutator} for further customizations
 		 */
 		B jwsHeaders(Consumer<JwsHeaderMutator<?>> headersConsumer);
+
+		/**
+		 * Mutate the JWT Claims Set
+		 *
+		 * @param claimsConsumer the {@link Consumer} that mutates the JWT Claims Set
+		 * @return the {@link JwtMutator} for further customizations
+		 */
 		B claims(Consumer<JwtClaimMutator<?>> claimsConsumer);
+
+		/**
+		 * Sign and serialize the JWT
+		 *
+		 * @return the signed and serialized JWT
+		 */
 		String encode();
 	}
 }

@@ -29,6 +29,7 @@ import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKMatcher;
 import com.nimbusds.jose.jwk.JWKSelector;
 import com.nimbusds.jose.jwk.source.JWKSource;
+import com.nimbusds.jose.proc.JWKSecurityContext;
 import com.nimbusds.jose.proc.SecurityContext;
 import com.nimbusds.jose.produce.JWSSignerFactory;
 import com.nimbusds.jwt.JWTClaimsSet;
@@ -38,6 +39,9 @@ import org.springframework.security.oauth2.jose.jws.JwsAlgorithm;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.util.Assert;
 
+/**
+ * Signs and serialized a JWT using the Nimbus library
+ */
 public class NimbusJwtEncoder implements JwtEncoderAlternative {
 	private static final String ENCODING_ERROR_MESSAGE_TEMPLATE = "An error occurred while attempting to encode the Jwt: %s";
 
@@ -49,39 +53,10 @@ public class NimbusJwtEncoder implements JwtEncoderAlternative {
 		this.jwksSource = jwksSource;
 	}
 
-	/**
-	 * While true that a new {@link NimbusJwtSpec} is created on every invocation,
-	 * such is no more work than is already being asked of the JVM in the original PR
-	 * which requires two objects to be constructed {@link JoseHeader} and {@link JwtClaimsSet}
-	 * in order to call it.
-	 *
-	 * There was originally a question about thread-safety, but there is no less thread-safety
-	 * here than with the {@link JoseHeader} and {@link JwtClaimsSet} builders.
-	 *
-	 * Also note that this implementation specifies the {@code iat}, {@code exp}, and {@code nbf}
-	 * claims. I add these for illustration of the fact that, when following this pattern it's
-	 * simple for each implementation to supply reasonable defaults. Spring Security's
-	 * reasonable defaults will likely be much more conservative than a given company's reasonable
-	 * defaults, but the point is that this allows a company implementing custom Spring Security
-	 * components to offer their own opinion in the same place in the codebase where we offer ours.
-	 *
-	 * This is not mixing concerns, it is simply asking for the method parameters in a
-	 * way that allows the caller to override the opinion of this implementation. With
-	 * that kind of a construct, it's very simple for implementers to base their custom
-	 * implementation off of this one. This is a more secure way for a platform team at a company
-	 * to set important defaults without getting in the way of application developers who have
-	 * legitimate exceptions.
-	 *
-	 * Finally, this class could potentially be renamed and internally could invoke
-	 * the proposed {@link JwtEncoder}. The limiting factor there is that this class allows the
-	 * caller access to the underlying Nimbus library, and it would be tricky to hand that context down
-	 * through {@link JwtEncoder}. Since this class is Nimbus-specific anyway, I see no
-	 * reason to call an abstracted version of Nimbus's JWT minting support.
-	 */
 	@Override
-	public NimbusJwtSpec encoder() {
+	public NimbusJwtMutator encoder() {
 		Instant now = Instant.now();
-		return new NimbusJwtSpec(this.jwksSource)
+		return new NimbusJwtMutator(this.jwksSource)
 				.jwsHeaders((jws) -> jws
 						.algorithm(this.defaultAlgorithm)
 						.header(JoseHeaderNames.TYP, "JWT")
@@ -93,7 +68,7 @@ public class NimbusJwtEncoder implements JwtEncoderAlternative {
 				);
 	}
 
-	public static final class NimbusJwtSpec implements JwtMutator<NimbusJwtSpec> {
+	public static final class NimbusJwtMutator implements JwtMutator<NimbusJwtMutator> {
 		private final JWSSignerFactory jwsSignerFactory = new DefaultJWSSignerFactory();
 		private final JWKSource<SecurityContext> jwkSource;
 		private final NimbusJwtClaimMutator claims = new NimbusJwtClaimMutator();
@@ -102,26 +77,20 @@ public class NimbusJwtEncoder implements JwtEncoderAlternative {
 		private JWK jwk;
 		private SecurityContext context;
 
-		private NimbusJwtSpec(JWKSource<SecurityContext> jwkSource) {
+		private NimbusJwtMutator(JWKSource<SecurityContext> jwkSource) {
 			this.jwkSource = jwkSource;
 		}
 
 		@Override
-		public NimbusJwtSpec jwsHeaders(Consumer<JwsHeaderMutator<?>> headersConsumer) {
+		public NimbusJwtMutator jwsHeaders(Consumer<JwsHeaderMutator<?>> headersConsumer) {
 			headersConsumer.accept(this.jwsHeaders);
 			return this;
 		}
 
 		/**
-		 * This is intended to demonstrate that this pattern simplifies exposing
-		 * library-specific domain objects that we don't want to replicate in Spring
-		 * Security, like JWK.
-		 *
-		 * Actually, I think this method might be unnecessary since with {@link #jwsSecurityContext}
-		 * the caller could specify a {@link com.nimbusds.jose.proc.JWKSecurityContext}. But
-		 * I've left it in here for demonstration.
+		 * Use this {@link JWK} to sign the JWT
 		 */
-		public NimbusJwtSpec jwsKey(JWK jwk) {
+		public NimbusJwtMutator jwsKey(JWK jwk) {
 			this.jwk = jwk;
 			if (this.jwk.getKeyID() != null) {
 				this.jwsHeaders.headers.put(JoseHeaderNames.KID, this.jwk.getKeyID());
@@ -133,18 +102,15 @@ public class NimbusJwtEncoder implements JwtEncoderAlternative {
 		}
 
 		/**
-		 * This is intended to demonstrate the power of exposing library-specific
-		 * domain objects at the method-invocation level. Since Nimbus takes a {@link SecurityContext}
-		 * as a method parameter, an API that also accepts it as a method parameter
-		 * will have the least impedence mismatch.
+		 * Send this {@link SecurityContext} to Nimbus's signing infrastructure
 		 */
-		public NimbusJwtSpec jwsSecurityContext(SecurityContext context) {
+		public NimbusJwtMutator jwsSecurityContext(SecurityContext context) {
 			this.context = context;
 			return this;
 		}
 
 		@Override
-		public NimbusJwtSpec claims(Consumer<JwtClaimMutator<?>> claimsConsumer) {
+		public NimbusJwtMutator claims(Consumer<JwtClaimMutator<?>> claimsConsumer) {
 			claimsConsumer.accept(this.claims);
 			return this;
 		}
@@ -152,14 +118,17 @@ public class NimbusJwtEncoder implements JwtEncoderAlternative {
 		@Override
 		public String encode() {
 			if (this.jwk == null) {
-				jwsKey(selectJwk());
+				if (this.context instanceof JWKSecurityContext) {
+					this.jwk = ((JWKSecurityContext) this.context).getKeys().iterator().next();
+				} else if (this.jwkSource != null) {
+					jwsKey(selectJwk());
+				} else {
+					throw new IllegalStateException("Could not derive any key");
+				}
 			}
 			return sign().serialize();
 		}
 
-		/**
-		 * As a side note, this method can be removed once Nimbus adds a JWT minting component
-		 */
 		private JWK selectJwk() {
 			List<JWK> jwks;
 			try {
@@ -180,9 +149,6 @@ public class NimbusJwtEncoder implements JwtEncoderAlternative {
 			return jwks.get(0);
 		}
 
-		/**
-		 * As a side note, this method can be removed once Nimbus adds a JWT minting component
-		 */
 		private SignedJWT sign() {
 			JWSHeader jwsHeader = this.jwsHeaders.jwsHeader();
 			JWTClaimsSet jwtClaimsSet = this.claims.jwtClaimsSet();
@@ -200,15 +166,6 @@ public class NimbusJwtEncoder implements JwtEncoderAlternative {
 		}
 	}
 
-	/**
-	 * I think it's reasonable to have this delegate to a domain object where some of this
-	 * behavior is centralized. For example, {@link JoseHeader.Builder} could contain the extra support for
-	 * critical headers so that the Nimbus implementation doesn't need to have it as well.
-	 *
-	 * Note as well that this conversion needs to happen with either approach.
-	 * I prefer this approach because it reduces business logic, like checking whether a value exists
-	 * before converting it.
-	 */
 	static final class NimbusJwsHeaderMutator implements JwsHeaderMutator<NimbusJwsHeaderMutator> {
 		private final Map<String, Object> headers = new LinkedHashMap<>();
 		private final Map<String, Object> criticalHeaders = new LinkedHashMap<>();
@@ -246,19 +203,9 @@ public class NimbusJwtEncoder implements JwtEncoderAlternative {
 		}
 	}
 
-	/**
-	 * Note as well that this conversion needs to happen with either approach.
-	 * I prefer this approach because it reduces business logic, like checking whether a value exists
-	 * before converting it.
-	 */
 	static final class NimbusJwtClaimMutator implements JwtClaimMutator<NimbusJwtClaimMutator> {
 		private final Map<String, Object> claims = new LinkedHashMap<>();
 
-		/**
-		 * {@link Instant} is the only datatype that I know of that Nimbus does not
-		 * know how to parse for us in {@link JWTClaimsSet#parse}. Everything else,
-		 * we can simply lean on Nimbus to do the work.
-		 */
 		@Override
 		public NimbusJwtClaimMutator claim(String name, Object value) {
 			if (value instanceof Instant) {

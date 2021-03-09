@@ -21,13 +21,6 @@ import java.util.function.Consumer;
 
 import org.springframework.security.oauth2.jose.jws.JwsAlgorithm;
 
-/**
- * This interface represents the minimal set of headers necessary to
- * specify a JWT.
- *
- * I like this interface due to the symmetry with Spring Security's claim accessors
- *
- */
 public interface JwsHeaderMutator<M extends JwsHeaderMutator<M>> {
 	/**
 	 * Set the algorithm {@code (alg)} header which identifies the algorithm
@@ -40,17 +33,11 @@ public interface JwsHeaderMutator<M extends JwsHeaderMutator<M>> {
 	}
 
 	/**
-	 * The spec indicates that when a critical header is specified, it generates
-	 * two actual headers. The first is the {@code crit}, which contains a
-	 * list of the header names and the second is the header itself.
+	 * Set a header that is critical for decoders to understand
 	 *
-	 * Because of how easy it would be for an application to indicate the {@code crit}
-	 * header, but not the actual value of that header, it's important this be
-	 * a dedicated method.
-	 *
-	 * @param name
-	 * @param value
-	 * @return
+	 * @param name the header name
+	 * @param value the header value
+	 * @return the {@link JwsHeaderMutator} for more customizations
 	 */
 	default M criticalHeader(String name, Object value) {
 		return criticalHeaders((crit) -> crit.put(name, value));
@@ -59,17 +46,12 @@ public interface JwsHeaderMutator<M extends JwsHeaderMutator<M>> {
 	M criticalHeaders(Consumer<Map<String, Object>> criticalHeadersConsumer);
 
 	/**
-	 * Since no other headers are required, and since those headers are quite easy to
-	 * get wrong in the general case, I think it's best to leave other headers
-	 * out for now.
+	 * Set a header
 	 *
-	 * Generally speaking, those headers are for looking up keys anyway, which is something
-	 * likely better decided centrally in an encoder instead of by the caller. And even if
-	 * that's not the case, this method still exists so that an application can specify them if needed.
+	 * Note that key-specific headers are typically best specified by the encoder
+	 * itself.
 	 *
-	 * @param name
-	 * @param value
-	 * @return
+	 * See {@link JwtEncoderAlternative}
 	 */
 	default M header(String name, Object value) {
 		return headers((headers) -> headers.put(name, value));
