@@ -23,6 +23,8 @@ import java.util.function.Consumer;
  */
 public interface JwtEncoderAlternative {
 
+	enum EncodingMode { SIGN, ENCRYPT, SIGN_THEN_ENCRYPT }
+
 	/**
 	 * Return a {@link JwtMutator} for specifying any claims or headers needed in the JWT
 	 *
@@ -43,6 +45,14 @@ public interface JwtEncoderAlternative {
 		B jwsHeaders(Consumer<JwsHeaderMutator<?>> headersConsumer);
 
 		/**
+		 * Mutate the JWE headers
+		 *
+		 * @param headersConsumer the {@link Consumer} that mutates the JWS headers
+		 * @return the {@link JwtMutator} for further customizations
+		 */
+		B jweHeaders(Consumer<JweHeaderMutator<?>> headersConsumer);
+
+		/**
 		 * Mutate the JWT Claims Set
 		 *
 		 * @param claimsConsumer the {@link Consumer} that mutates the JWT Claims Set
@@ -56,5 +66,12 @@ public interface JwtEncoderAlternative {
 		 * @return the signed and serialized JWT
 		 */
 		String encode();
+
+		/**
+		 * Encode the JWT according to the specified {@link EncodingMode}
+		 *
+		 * @return the signed and serialized JWT
+		 */
+		String encode(EncodingMode mode);
 	}
 }

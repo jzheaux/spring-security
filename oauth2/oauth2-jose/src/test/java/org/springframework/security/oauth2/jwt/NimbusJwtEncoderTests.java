@@ -19,14 +19,25 @@ package org.springframework.security.oauth2.jwt;
 import java.util.Arrays;
 import java.util.function.Consumer;
 
+import com.nimbusds.jose.EncryptionMethod;
+import com.nimbusds.jose.JWEAlgorithm;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.KeyUse;
 import com.nimbusds.jose.jwk.RSAKey;
+import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
+import com.nimbusds.jose.proc.JWEDecryptionKeySelector;
+import com.nimbusds.jose.proc.JWSVerificationKeySelector;
 import com.nimbusds.jose.proc.SecurityContext;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.proc.DefaultJWTProcessor;
 import org.junit.Before;
 import org.junit.Test;
 
 import org.springframework.security.oauth2.jose.TestKeys;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
+import org.springframework.security.oauth2.jwt.JwtEncoderAlternative.EncodingMode;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -212,4 +223,96 @@ public class NimbusJwtEncoderTests {
 		assertThat(decoded.getExpiresAt()).isNull();
 	}
 
+	@Test
+	public void encryptWithDefaultsThenWorks() throws Exception {
+		RSAKey rsaJwk = new RSAKey.Builder(TestKeys.DEFAULT_PUBLIC_KEY)
+				.privateKey(TestKeys.DEFAULT_PRIVATE_KEY)
+				.keyID("keyId")
+				.keyUse(KeyUse.ENCRYPTION)
+				.build();
+
+		given(this.jwkSelector.get(any(), any())).willReturn(Arrays.asList(rsaJwk));
+
+		String token = this.jwsEncoder.encoder().encode(EncodingMode.ENCRYPT);
+
+		DefaultJWTProcessor<SecurityContext> processor = new DefaultJWTProcessor<>();
+		processor.setJWEKeySelector(new JWEDecryptionKeySelector<>(JWEAlgorithm.RSA_OAEP_256, EncryptionMethod.A256GCM, new ImmutableJWKSet<>(new JWKSet(rsaJwk))));
+		JWTClaimsSet claims = processor.process(token, null);
+		assertThat(claims.getExpirationTime()).isNotNull();
+	}
+
+	@Test
+	public void signThenEncryptWithDefaultsThenWorks() throws Exception {
+		RSAKey rsaJwk = new RSAKey.Builder(TestKeys.DEFAULT_PUBLIC_KEY)
+				.privateKey(TestKeys.DEFAULT_PRIVATE_KEY)
+				.keyID("keyId")
+				.build();
+
+		given(this.jwkSelector.get(any(), any())).willReturn(Arrays.asList(rsaJwk));
+
+		String token = this.jwsEncoder.encoder().encode(EncodingMode.SIGN_THEN_ENCRYPT);
+
+		DefaultJWTProcessor<SecurityContext> processor = new DefaultJWTProcessor<>();
+		processor.setJWEKeySelector(new JWEDecryptionKeySelector<>(JWEAlgorithm.RSA_OAEP_256, EncryptionMethod.A256GCM, new ImmutableJWKSet<>(new JWKSet(rsaJwk))));
+		processor.setJWSKeySelector(new JWSVerificationKeySelector<>(JWSAlgorithm.RS256, new ImmutableJWKSet<>(new JWKSet(rsaJwk))));
+		JWTClaimsSet claims = processor.process(token, null);
+		assertThat(claims.getExpirationTime()).isNotNull();
+	}
+
+	@Test
+	public void signThenEncryptWithOverridingClaimsThenWorks() throws Exception {
+		RSAKey rsaJwk = new RSAKey.Builder(TestKeys.DEFAULT_PUBLIC_KEY)
+				.privateKey(TestKeys.DEFAULT_PRIVATE_KEY)
+				.keyID("keyId")
+				.build();
+
+		given(this.jwkSelector.get(any(), any())).willReturn(Arrays.asList(rsaJwk));
+
+		String token = this.jwsEncoder.encoder()
+				.jwsHeaders((jws) -> jws.algorithm(SignatureAlgorithm.RS512))
+				.jweHeaders((jwe) -> jwe.header("zip", "DEF"))
+				.claims((claims) -> claims.id("id"))
+				.encode(EncodingMode.SIGN_THEN_ENCRYPT);
+
+		DefaultJWTProcessor<SecurityContext> processor = new DefaultJWTProcessor<>();
+		processor.setJWEKeySelector(new JWEDecryptionKeySelector<>(JWEAlgorithm.RSA_OAEP_256, EncryptionMethod.A256GCM, new ImmutableJWKSet<>(new JWKSet(rsaJwk))));
+		processor.setJWSKeySelector(new JWSVerificationKeySelector<>(JWSAlgorithm.RS512, new ImmutableJWKSet<>(new JWKSet(rsaJwk))));
+		JWTClaimsSet claims = processor.process(token, null);
+		assertThat(claims.getJWTID()).isEqualTo("id");
+		assertThat(claims.getExpirationTime()).isNotNull();
+	}
+
+	@Test
+	public void signWithSettingKeyThenWorks() throws Exception {
+		RSAKey rsaJwk = new RSAKey.Builder(TestKeys.DEFAULT_PUBLIC_KEY)
+				.privateKey(TestKeys.DEFAULT_PRIVATE_KEY)
+				.keyID("keyId")
+				.build();
+
+		given(this.jwkSelector.get(any(), any())).willReturn(Arrays.asList(rsaJwk));
+
+		String token = this.jwsEncoder.encoder().jwsKey(rsaJwk).encode();
+
+		NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withPublicKey(rsaJwk.toRSAPublicKey()).build();
+		Jwt decoded = jwtDecoder.decode(token);
+		assertThat(decoded.getHeaders().get(JoseHeaderNames.KID)).isEqualTo("keyId");
+		assertThat(decoded.getExpiresAt()).isNotNull();
+	}
+
+	@Test
+	public void encryptWithSettingKeyThenWorks() throws Exception {
+		RSAKey rsaJwk = new RSAKey.Builder(TestKeys.DEFAULT_PUBLIC_KEY)
+				.privateKey(TestKeys.DEFAULT_PRIVATE_KEY)
+				.keyID("keyId")
+				.build();
+
+		given(this.jwkSelector.get(any(), any())).willReturn(Arrays.asList(rsaJwk));
+
+		String token = this.jwsEncoder.encoder().jweKey(rsaJwk).encode(EncodingMode.ENCRYPT);
+
+		DefaultJWTProcessor<SecurityContext> processor = new DefaultJWTProcessor<>();
+		processor.setJWEKeySelector(new JWEDecryptionKeySelector<>(JWEAlgorithm.RSA_OAEP_256, EncryptionMethod.A256GCM, new ImmutableJWKSet<>(new JWKSet(rsaJwk))));
+		JWTClaimsSet claims = processor.process(token, null);
+		assertThat(claims.getExpirationTime()).isNotNull();
+	}
 }

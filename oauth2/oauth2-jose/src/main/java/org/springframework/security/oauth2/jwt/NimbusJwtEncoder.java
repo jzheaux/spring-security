@@ -22,12 +22,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import com.nimbusds.jose.JWEHeader;
+import com.nimbusds.jose.JWEObject;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.JWSSigner;
+import com.nimbusds.jose.Payload;
+import com.nimbusds.jose.crypto.RSAEncrypter;
 import com.nimbusds.jose.crypto.factories.DefaultJWSSignerFactory;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKMatcher;
 import com.nimbusds.jose.jwk.JWKSelector;
+import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.JWKSecurityContext;
 import com.nimbusds.jose.proc.SecurityContext;
@@ -35,6 +40,9 @@ import com.nimbusds.jose.produce.JWSSignerFactory;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 
+import org.springframework.security.oauth2.jose.jws.EncryptionAlgorithm;
+import org.springframework.security.oauth2.jose.jws.EncryptionMethod;
+import org.springframework.security.oauth2.jose.jws.JweAlgorithm;
 import org.springframework.security.oauth2.jose.jws.JwsAlgorithm;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.util.Assert;
@@ -46,6 +54,9 @@ public class NimbusJwtEncoder implements JwtEncoderAlternative {
 	private static final String ENCODING_ERROR_MESSAGE_TEMPLATE = "An error occurred while attempting to encode the Jwt: %s";
 
 	private JwsAlgorithm defaultAlgorithm = SignatureAlgorithm.RS256;
+	private JweAlgorithm defaultJweAlgorithm = EncryptionAlgorithm.RSA_OAEP_256;
+	private EncryptionMethod defaultEncryptionMethod = EncryptionMethod.A256GCM;
+
 	private JWKSource<SecurityContext> jwksSource;
 
 	public void setJwkSource(JWKSource<SecurityContext> jwksSource) {
@@ -61,6 +72,10 @@ public class NimbusJwtEncoder implements JwtEncoderAlternative {
 						.algorithm(this.defaultAlgorithm)
 						.header(JoseHeaderNames.TYP, "JWT")
 				)
+				.jweHeaders((jwe) -> jwe
+						.algorithm(this.defaultJweAlgorithm)
+						.encryptionMethod(this.defaultEncryptionMethod)
+				)
 				.claims((claims) -> claims
 						.issuedAt(now)
 						.expiresAt(now.plusSeconds(3600))
@@ -73,9 +88,12 @@ public class NimbusJwtEncoder implements JwtEncoderAlternative {
 		private final JWKSource<SecurityContext> jwkSource;
 		private final NimbusJwtClaimMutator claims = new NimbusJwtClaimMutator();
 		private final NimbusJwsHeaderMutator jwsHeaders = new NimbusJwsHeaderMutator();
+		private final NimbusJweHeaderMutator jweHeaders = new NimbusJweHeaderMutator();
 
-		private JWK jwk;
-		private SecurityContext context;
+		private JWK jwsKey;
+		private JWK jweKey;
+		private SecurityContext jwsContext;
+		private SecurityContext jweContext;
 
 		private NimbusJwtMutator(JWKSource<SecurityContext> jwkSource) {
 			this.jwkSource = jwkSource;
@@ -87,16 +105,36 @@ public class NimbusJwtEncoder implements JwtEncoderAlternative {
 			return this;
 		}
 
+		@Override
+		public NimbusJwtMutator jweHeaders(Consumer<JweHeaderMutator<?>> headersConsumer) {
+			headersConsumer.accept(this.jweHeaders);
+			return this;
+		}
+
 		/**
 		 * Use this {@link JWK} to sign the JWT
 		 */
 		public NimbusJwtMutator jwsKey(JWK jwk) {
-			this.jwk = jwk;
-			if (this.jwk.getKeyID() != null) {
-				this.jwsHeaders.headers.put(JoseHeaderNames.KID, this.jwk.getKeyID());
+			this.jwsKey = jwk;
+			if (this.jwsKey.getKeyID() != null) {
+				this.jwsHeaders.headers.put(JoseHeaderNames.KID, this.jwsKey.getKeyID());
 			}
-			if (this.jwk.getX509CertSHA256Thumbprint() != null) {
-				this.jwsHeaders.headers.put(JoseHeaderNames.X5T, this.jwk.getX509CertSHA256Thumbprint().toString());
+			if (this.jwsKey.getX509CertSHA256Thumbprint() != null) {
+				this.jwsHeaders.headers.put(JoseHeaderNames.X5T, this.jwsKey.getX509CertSHA256Thumbprint().toString());
+			}
+			return this;
+		}
+
+		/**
+		 * Use this {@link JWK} to encrypt the JWT
+		 */
+		public NimbusJwtMutator jweKey(RSAKey jwk) {
+			this.jweKey = jwk;
+			if (this.jweKey.getKeyID() != null) {
+				this.jweHeaders.headers.put(JoseHeaderNames.KID, this.jweKey.getKeyID());
+			}
+			if (this.jweKey.getX509CertSHA256Thumbprint() != null) {
+				this.jweHeaders.headers.put(JoseHeaderNames.X5T, this.jweKey.getX509CertSHA256Thumbprint().toString());
 			}
 			return this;
 		}
@@ -105,7 +143,15 @@ public class NimbusJwtEncoder implements JwtEncoderAlternative {
 		 * Send this {@link SecurityContext} to Nimbus's signing infrastructure
 		 */
 		public NimbusJwtMutator jwsSecurityContext(SecurityContext context) {
-			this.context = context;
+			this.jwsContext = context;
+			return this;
+		}
+
+		/**
+		 * Send this {@link SecurityContext} to Nimbus's encryption infrastructure
+		 */
+		public NimbusJwtMutator jweSecurityContext(SecurityContext context) {
+			this.jweContext = context;
 			return this;
 		}
 
@@ -117,24 +163,59 @@ public class NimbusJwtEncoder implements JwtEncoderAlternative {
 
 		@Override
 		public String encode() {
-			if (this.jwk == null) {
-				if (this.context instanceof JWKSecurityContext) {
-					this.jwk = ((JWKSecurityContext) this.context).getKeys().iterator().next();
-				} else if (this.jwkSource != null) {
-					jwsKey(selectJwk());
-				} else {
-					throw new IllegalStateException("Could not derive any key");
-				}
-			}
-			return sign().serialize();
+			return encode(EncodingMode.SIGN);
 		}
 
-		private JWK selectJwk() {
+		@Override
+		public String encode(EncodingMode mode) {
+			switch (mode) {
+				case SIGN: return sign();
+				case ENCRYPT: return encrypt(false);
+				default: return encrypt(true);
+			}
+		}
+
+		private String sign() {
+			if (this.jwsKey == null) {
+				if (this.jwsContext instanceof JWKSecurityContext) {
+					this.jwsKey = ((JWKSecurityContext) this.jwsContext).getKeys().iterator().next();
+				} else if (this.jwkSource != null) {
+					jwsKey(selectJwsJwk());
+				} else {
+					throw new IllegalStateException("Could not derive a signing key");
+				}
+			}
+
+			JWSHeader jwsHeader = this.jwsHeaders.jwsHeader();
+			JWTClaimsSet jwtClaimsSet = this.claims.jwtClaimsSet();
+
+			SignedJWT signedJwt = new SignedJWT(jwsHeader, jwtClaimsSet);
+			try {
+				JWSSigner signer = this.jwsSignerFactory.createJWSSigner(this.jwsKey);
+				signedJwt.sign(signer);
+				return signedJwt.serialize();
+			}
+			catch (Exception ex) {
+				throw new JwtEncodingException(
+						String.format(ENCODING_ERROR_MESSAGE_TEMPLATE, "Failed to sign the JWT"), ex);
+			}
+		}
+
+		private String encrypt(boolean sign) {
+			if (sign) {
+				this.jweHeaders.header(JoseHeaderNames.CTY, "JWT"); // required parameter
+				return encrypt(new Payload(sign()));
+			} else {
+				return encrypt(new Payload(this.claims.jwtClaimsSet().toJSONObject()));
+			}
+		}
+
+		private JWK selectJwsJwk() {
 			List<JWK> jwks;
 			try {
 				JWSHeader jwsHeader = this.jwsHeaders.jwsHeader();
 				JWKSelector jwkSelector = new JWKSelector(JWKMatcher.forJWSHeader(jwsHeader));
-				jwks = this.jwkSource.get(jwkSelector, this.context);
+				jwks = this.jwkSource.get(jwkSelector, this.jwsContext);
 			}
 			catch (Exception ex) {
 				throw new JwtEncodingException(String.format(ENCODING_ERROR_MESSAGE_TEMPLATE,
@@ -149,15 +230,42 @@ public class NimbusJwtEncoder implements JwtEncoderAlternative {
 			return jwks.get(0);
 		}
 
-		private SignedJWT sign() {
-			JWSHeader jwsHeader = this.jwsHeaders.jwsHeader();
-			JWTClaimsSet jwtClaimsSet = this.claims.jwtClaimsSet();
-
-			SignedJWT signedJwt = new SignedJWT(jwsHeader, jwtClaimsSet);
+		private JWK selectJweJwk() {
+			List<JWK> jwks;
 			try {
-				JWSSigner signer = this.jwsSignerFactory.createJWSSigner(this.jwk);
-				signedJwt.sign(signer);
-				return signedJwt;
+				JWEHeader jweHeader = this.jweHeaders.jweHeader();
+				JWKSelector jwkSelector = new JWKSelector(JWKMatcher.forJWEHeader(jweHeader));
+				jwks = this.jwkSource.get(jwkSelector, this.jweContext);
+			}
+			catch (Exception ex) {
+				throw new JwtEncodingException(String.format(ENCODING_ERROR_MESSAGE_TEMPLATE,
+						"Failed to select a JWK encryption key -> " + ex.getMessage()), ex);
+			}
+
+			if (jwks.isEmpty()) {
+				throw new JwtEncodingException(
+						String.format(ENCODING_ERROR_MESSAGE_TEMPLATE, "Failed to select a JWK encryption key"));
+			}
+
+			return jwks.get(0);
+		}
+
+		private String encrypt(Payload payload) {
+			if (this.jweKey == null) {
+				if (this.jweContext instanceof JWKSecurityContext) {
+					this.jweKey = ((JWKSecurityContext) this.jweContext).getKeys().iterator().next();
+				} else if (this.jwkSource != null) {
+					jweKey((RSAKey) selectJweJwk());
+				} else {
+					throw new IllegalStateException("Could not derive a encryption key");
+				}
+			}
+
+			JWEHeader jweHeader = this.jweHeaders.jweHeader();
+			JWEObject object = new JWEObject(jweHeader, payload);
+			try {
+				object.encrypt(new RSAEncrypter((RSAKey) this.jweKey));
+				return object.serialize();
 			}
 			catch (Exception ex) {
 				throw new JwtEncodingException(
@@ -196,6 +304,48 @@ public class NimbusJwtEncoder implements JwtEncoderAlternative {
 
 			try {
 				return JWSHeader.parse(allHeaders);
+			} catch (Exception ex) {
+				throw new JwtEncodingException(String.format(ENCODING_ERROR_MESSAGE_TEMPLATE,
+						"Failed to convert header to Nimbus JWSHeader"), ex);
+			}
+		}
+	}
+
+	static final class NimbusJweHeaderMutator implements JweHeaderMutator<NimbusJweHeaderMutator> {
+		private final Map<String, Object> headers = new LinkedHashMap<>();
+		private final Map<String, Object> criticalHeaders = new LinkedHashMap<>();
+
+		@Override
+		public NimbusJweHeaderMutator algorithm(JweAlgorithm jwe) {
+			return header(JoseHeaderNames.ALG, jwe.getName());
+		}
+
+		@Override
+		public NimbusJweHeaderMutator encryptionMethod(EncryptionMethod method) {
+			return header("enc", method.getName());
+		}
+
+		@Override
+		public NimbusJweHeaderMutator criticalHeaders(Consumer<Map<String, Object>> criticalHeadersConsumer) {
+			criticalHeadersConsumer.accept(this.criticalHeaders);
+			return this;
+		}
+
+		@Override
+		public NimbusJweHeaderMutator headers(Consumer<Map<String, Object>> headersConsumer) {
+			headersConsumer.accept(this.headers);
+			return this;
+		}
+
+		JWEHeader jweHeader() {
+			Map<String, Object> allHeaders = new LinkedHashMap<>(this.headers);
+			if (!this.criticalHeaders.isEmpty()) {
+				allHeaders.put(JoseHeaderNames.CRIT, this.criticalHeaders.keySet());
+				allHeaders.putAll(this.criticalHeaders);
+			}
+
+			try {
+				return JWEHeader.parse(allHeaders);
 			} catch (Exception ex) {
 				throw new JwtEncodingException(String.format(ENCODING_ERROR_MESSAGE_TEMPLATE,
 						"Failed to convert header to Nimbus JWSHeader"), ex);
