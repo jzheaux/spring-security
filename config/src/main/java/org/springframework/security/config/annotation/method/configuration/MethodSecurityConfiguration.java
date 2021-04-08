@@ -16,7 +16,6 @@
 
 package org.springframework.security.config.annotation.method.configuration;
 
-import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -26,10 +25,8 @@ import javax.annotation.security.PermitAll;
 import javax.annotation.security.RolesAllowed;
 
 import org.springframework.aop.Pointcut;
-import org.springframework.aop.support.ComposablePointcut;
 import org.springframework.aop.support.DefaultPointcutAdvisor;
 import org.springframework.aop.support.Pointcuts;
-import org.springframework.aop.support.annotation.AnnotationMatchingPointcut;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanDefinition;
@@ -51,6 +48,7 @@ import org.springframework.security.authorization.method.AuthorizationManagerMet
 import org.springframework.security.authorization.method.AuthorizationMethodAfterAdvice;
 import org.springframework.security.authorization.method.AuthorizationMethodBeforeAdvice;
 import org.springframework.security.authorization.method.AuthorizationMethodInterceptor;
+import org.springframework.security.authorization.method.AuthorizationMethodPointcuts;
 import org.springframework.security.authorization.method.DelegatingAuthorizationMethodAfterAdvice;
 import org.springframework.security.authorization.method.DelegatingAuthorizationMethodBeforeAdvice;
 import org.springframework.security.authorization.method.Jsr250AuthorizationManager;
@@ -145,29 +143,29 @@ final class MethodSecurityConfiguration implements ImportAware, InitializingBean
 	}
 
 	private PreFilterAuthorizationMethodBeforeAdvice getPreFilterAuthorizationMethodBeforeAdvice() {
-		Pointcut pointcut = forAnnotation(PreFilter.class);
+		Pointcut pointcut = AuthorizationMethodPointcuts.forAnnotations(PreFilter.class);
 		PreFilterAuthorizationMethodBeforeAdvice preFilterBeforeAdvice = new PreFilterAuthorizationMethodBeforeAdvice(
 				pointcut);
 		preFilterBeforeAdvice.setExpressionHandler(getMethodSecurityExpressionHandler());
-		return preFilterBeforeAdvice;
+		return new PreFilterAuthorizationMethodBeforeAdvice(pointcut);
 	}
 
 	private AuthorizationMethodBeforeAdvice<MethodAuthorizationContext> getPreAuthorizeAuthorizationMethodBeforeAdvice() {
-		Pointcut pointcut = forAnnotation(PreAuthorize.class);
+		Pointcut pointcut = AuthorizationMethodPointcuts.forAnnotations(PreAuthorize.class);
 		PreAuthorizeAuthorizationManager authorizationManager = new PreAuthorizeAuthorizationManager();
 		authorizationManager.setExpressionHandler(getMethodSecurityExpressionHandler());
 		return new AuthorizationManagerMethodBeforeAdvice<>(pointcut, authorizationManager);
 	}
 
 	private AuthorizationManagerMethodBeforeAdvice<MethodAuthorizationContext> getSecuredAuthorizationMethodBeforeAdvice() {
-		Pointcut pointcut = forAnnotation(Secured.class);
+		Pointcut pointcut = AuthorizationMethodPointcuts.forAnnotations(Secured.class);
 		SecuredAuthorizationManager authorizationManager = new SecuredAuthorizationManager();
 		return new AuthorizationManagerMethodBeforeAdvice<>(pointcut, authorizationManager);
 	}
 
-	private AuthorizationManagerMethodBeforeAdvice<MethodAuthorizationContext> getJsr250AuthorizationMethodBeforeAdvice() {
-		Pointcut pointcut = new ComposablePointcut(forAnnotation(DenyAll.class)).union(forAnnotation(PermitAll.class))
-				.union(forAnnotation(RolesAllowed.class));
+	private AuthorizationMethodBeforeAdvice<MethodAuthorizationContext> getJsr250AuthorizationMethodBeforeAdvice() {
+		Pointcut pointcut = AuthorizationMethodPointcuts.forAnnotations(DenyAll.class, PermitAll.class,
+				RolesAllowed.class);
 		Jsr250AuthorizationManager authorizationManager = new Jsr250AuthorizationManager();
 		if (this.grantedAuthorityDefaults != null) {
 			authorizationManager.setRolePrefix(this.grantedAuthorityDefaults.getRolePrefix());
@@ -196,7 +194,7 @@ final class MethodSecurityConfiguration implements ImportAware, InitializingBean
 	}
 
 	private PostFilterAuthorizationMethodAfterAdvice getPostFilterAuthorizationMethodAfterAdvice() {
-		Pointcut pointcut = forAnnotation(PostFilter.class);
+		Pointcut pointcut = AuthorizationMethodPointcuts.forAnnotations(PostFilter.class);
 		PostFilterAuthorizationMethodAfterAdvice postFilterAfterAdvice = new PostFilterAuthorizationMethodAfterAdvice(
 				pointcut);
 		postFilterAfterAdvice.setExpressionHandler(getMethodSecurityExpressionHandler());
@@ -204,7 +202,7 @@ final class MethodSecurityConfiguration implements ImportAware, InitializingBean
 	}
 
 	private AuthorizationManagerMethodAfterAdvice<MethodAuthorizationContext> getPostAuthorizeAuthorizationMethodAfterAdvice() {
-		Pointcut pointcut = forAnnotation(PostAuthorize.class);
+		Pointcut pointcut = AuthorizationMethodPointcuts.forAnnotations(PostAuthorize.class);
 		PostAuthorizeAuthorizationManager authorizationManager = new PostAuthorizeAuthorizationManager();
 		authorizationManager.setExpressionHandler(getMethodSecurityExpressionHandler());
 		return new AuthorizationManagerMethodAfterAdvice<>(pointcut, authorizationManager);
@@ -241,11 +239,6 @@ final class MethodSecurityConfiguration implements ImportAware, InitializingBean
 
 	private int order() {
 		return this.enableMethodSecurity.getNumber("order");
-	}
-
-	private Pointcut forAnnotation(Class<? extends Annotation> annotationClass) {
-		return Pointcuts.union(new AnnotationMatchingPointcut(annotationClass, true),
-				new AnnotationMatchingPointcut(null, annotationClass, true));
 	}
 
 }
