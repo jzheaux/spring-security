@@ -18,8 +18,6 @@ package org.springframework.security.authorization.method;
 
 import java.util.function.Supplier;
 
-import org.aopalliance.intercept.MethodInvocation;
-
 import org.springframework.lang.Nullable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authorization.AuthorizationDecision;
@@ -38,12 +36,12 @@ import org.springframework.security.core.Authentication;
 public interface AfterMethodAuthorizationManager<T> {
 
 	/**
-	 * Determines if access should be granted for a specific authentication and
+	 * Determine if access should be granted for a specific authentication, object and
 	 * returnedObject.
 	 * @param authentication the {@link Supplier} of the {@link Authentication} to check
 	 * @param object the {@link T} object to check, typically a
 	 * {@link MethodAuthorizationContext}
-	 * @param returnedObject the returnedObject to check
+	 * @param returnedObject the returnedObject from the method invocation to check
 	 * @throws AccessDeniedException if access is not granted
 	 */
 	default void verify(Supplier<Authentication> authentication, T object, Object returnedObject) {
@@ -54,12 +52,12 @@ public interface AfterMethodAuthorizationManager<T> {
 	}
 
 	/**
-	 * Determines if access is granted for a specific authentication and returnedObject.
+	 * Determine if access is granted for a specific authentication, object, and
+	 * returnedObject.
 	 * @param authentication the {@link Supplier} of the {@link Authentication} to check
 	 * @param object the {@link T} object to check, typically a
 	 * {@link MethodAuthorizationContext}
-	 * @param returnedObject the returned object from the {@link MethodInvocation} to
-	 * check
+	 * @param returnedObject the returned object from the method invocation to check
 	 * @return an {@link AuthorizationDecision} or null if no decision could be made
 	 */
 	@Nullable
