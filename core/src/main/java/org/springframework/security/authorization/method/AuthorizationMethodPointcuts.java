@@ -24,12 +24,12 @@ import org.springframework.aop.support.Pointcuts;
 import org.springframework.aop.support.annotation.AnnotationMatchingPointcut;
 
 /**
- *
+ * @author Josh Cummings
  */
-public final class AuthorizationMethodPointcuts {
+final class AuthorizationMethodPointcuts {
 
 	@SafeVarargs
-	public static Pointcut forAnnotations(Class<? extends Annotation>... annotations) {
+	static Pointcut forAnnotations(Class<? extends Annotation>... annotations) {
 		ComposablePointcut pointcut = null;
 		for (Class<? extends Annotation> annotation : annotations) {
 			if (pointcut == null) {

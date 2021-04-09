@@ -18,6 +18,8 @@ package org.springframework.security.authorization.method;
 
 import java.util.function.Supplier;
 
+import org.aopalliance.intercept.MethodInvocation;
+
 import org.springframework.lang.Nullable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authorization.AuthorizationDecision;
@@ -40,7 +42,7 @@ public interface AfterMethodAuthorizationManager<T> {
 	 * returnedObject.
 	 * @param authentication the {@link Supplier} of the {@link Authentication} to check
 	 * @param object the {@link T} object to check, typically a
-	 * {@link MethodAuthorizationContext}
+	 * {@link MethodInvocation}
 	 * @param returnedObject the returnedObject from the method invocation to check
 	 * @throws AccessDeniedException if access is not granted
 	 */
@@ -56,7 +58,7 @@ public interface AfterMethodAuthorizationManager<T> {
 	 * returnedObject.
 	 * @param authentication the {@link Supplier} of the {@link Authentication} to check
 	 * @param object the {@link T} object to check, typically a
-	 * {@link MethodAuthorizationContext}
+	 * {@link MethodInvocation}
 	 * @param returnedObject the returned object from the method invocation to check
 	 * @return an {@link AuthorizationDecision} or null if no decision could be made
 	 */
