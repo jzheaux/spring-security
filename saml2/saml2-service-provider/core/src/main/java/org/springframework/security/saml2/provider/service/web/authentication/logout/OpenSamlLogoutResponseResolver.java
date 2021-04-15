@@ -58,7 +58,7 @@ import org.springframework.util.Assert;
  * {@code OpenSaml4LogoutResponseResolver}
  *
  * @author Josh Cummings
- * @since 5.5
+ * @since 5.6
  */
 public final class OpenSamlLogoutResponseResolver implements Saml2LogoutResponseResolver {
 

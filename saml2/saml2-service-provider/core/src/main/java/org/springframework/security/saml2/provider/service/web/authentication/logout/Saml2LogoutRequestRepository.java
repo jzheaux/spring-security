@@ -32,7 +32,7 @@ import org.springframework.security.saml2.provider.service.authentication.logout
  * that Logout Response.
  *
  * @author Josh Cummings
- * @since 5.5
+ * @since 5.6
  * @see Saml2LogoutRequest
  * @see HttpSessionLogoutRequestRepository
  */

@@ -53,7 +53,7 @@ import org.springframework.web.util.UriUtils;
  * from the asserting party.
  *
  * @author Josh Cummings
- * @since 5.5
+ * @since 5.6
  */
 public final class Saml2LogoutRequestFilter extends OncePerRequestFilter {
 
@@ -78,12 +78,11 @@ public final class Saml2LogoutRequestFilter extends OncePerRequestFilter {
 	/**
 	 * Constructs a {@link Saml2LogoutResponseFilter} for accepting SAML 2.0 Logout
 	 * Requests from the asserting party
-	 * @param logoutSuccessHandler the success handler to be run after the logout request
-	 * passes validation and other logout operations succeed. This success handler will
-	 * typically be one that issues a SAML 2.0 Logout Response to the asserting party,
-	 * like {@link Saml2LogoutResponseSuccessHandler}
-	 * @param logoutHandler the handler for handling the logout request, may be a
-	 * {@link org.springframework.security.web.authentication.logout.CompositeLogoutHandler}
+	 * @param relyingPartyRegistrationResolver the strategy for resolving a {@link RelyingPartyRegistration}
+	 * @param authenticationManager authenticated the SAML 2.0 Logout Request
+	 * @param logoutHandler the handler for handling logout, once the SAML 2.0 Logout Request is authenticated
+	 * @param logoutResponseResolver the resolver that formulates the SAML 2.0 Logout
+	 * Response after logout has completed
 	 * that handles other logout concerns
 	 */
 	public Saml2LogoutRequestFilter(RelyingPartyRegistrationResolver relyingPartyRegistrationResolver,
@@ -136,6 +135,10 @@ public final class Saml2LogoutRequestFilter extends OncePerRequestFilter {
 		}
 	}
 
+	/**
+	 * Use this {@link RequestMatcher} for identifying which requests this filter should process
+	 * @param logoutRequestMatcher the {@link RequestMatcher} to use
+	 */
 	public void setLogoutRequestMatcher(RequestMatcher logoutRequestMatcher) {
 		Assert.notNull(logoutRequestMatcher, "logoutRequestMatcher cannot be null");
 		this.logoutRequestMatcher = logoutRequestMatcher;

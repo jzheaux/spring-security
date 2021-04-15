@@ -40,7 +40,7 @@ import org.springframework.web.util.UriUtils;
  * Logout Request that the SAML 2.0 Asserting Party sent
  *
  * @author Josh Cummings
- * @since 5.5
+ * @since 5.6
  */
 public final class Saml2LogoutRequestSuccessHandler implements LogoutSuccessHandler {
 
@@ -84,6 +84,12 @@ public final class Saml2LogoutRequestSuccessHandler implements LogoutSuccessHand
 		}
 	}
 
+	/**
+	 * Use this {@link Saml2LogoutRequestRepository} for saving the SAML 2.0
+	 * Logout Request
+	 *
+	 * @param logoutRequestRepository the {@link Saml2LogoutRequestRepository} to use
+	 */
 	public void setLogoutRequestRepository(Saml2LogoutRequestRepository logoutRequestRepository) {
 		Assert.notNull(logoutRequestRepository, "logoutRequestRepository cannot be null");
 		this.logoutRequestRepository = logoutRequestRepository;

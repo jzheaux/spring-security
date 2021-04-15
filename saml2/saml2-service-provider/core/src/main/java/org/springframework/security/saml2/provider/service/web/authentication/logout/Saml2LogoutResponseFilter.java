@@ -51,7 +51,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * on the user being logged in.
  *
  * @author Josh Cummings
- * @since 5.5
+ * @since 5.6
  */
 public final class Saml2LogoutResponseFilter extends OncePerRequestFilter {
 
@@ -74,6 +74,8 @@ public final class Saml2LogoutResponseFilter extends OncePerRequestFilter {
 	/**
 	 * Constructs a {@link Saml2LogoutResponseFilter} for accepting SAML 2.0 Logout
 	 * Responses from the asserting party
+	 * @param relyingPartyRegistrationResolver the strategy for resolving a {@link RelyingPartyRegistration}
+	 * @param authenticationManager authenticates the SAML 2.0 Logout Response
 	 */
 	public Saml2LogoutResponseFilter(RelyingPartyRegistrationResolver relyingPartyRegistrationResolver,
 			AuthenticationManager authenticationManager) {
@@ -128,6 +130,12 @@ public final class Saml2LogoutResponseFilter extends OncePerRequestFilter {
 		this.logoutRequestMatcher = logoutRequestMatcher;
 	}
 
+	/**
+	 * Use this {@link Saml2LogoutRequestRepository} for retrieving the SAML 2.0
+	 * Logout Request associated with the request's {@code RelayState}
+	 *
+	 * @param logoutRequestRepository the {@link Saml2LogoutRequestRepository} to use
+	 */
 	public void setLogoutRequestRepository(Saml2LogoutRequestRepository logoutRequestRepository) {
 		Assert.notNull(logoutRequestRepository, "logoutRequestRepository cannot be null");
 		this.logoutRequestRepository = logoutRequestRepository;

@@ -31,7 +31,7 @@ import org.springframework.util.Assert;
  * {@link Saml2LogoutRequest} in the {@code HttpSession}.
  *
  * @author Josh Cummings
- * @since 5.5
+ * @since 5.6
  * @see Saml2LogoutRequestRepository
  * @see Saml2LogoutRequest
  */

@@ -31,7 +31,7 @@ import org.springframework.security.saml2.provider.service.registration.RelyingP
  * {@link RelyingPartyRegistration#getAssertingPartyDetails()}.
  *
  * @author Josh Cummings
- * @since 5.5
+ * @since 5.6
  * @see RelyingPartyRegistration
  */
 public interface Saml2LogoutRequestResolver {
