@@ -65,7 +65,7 @@ public class Saml2Authentication extends AbstractAuthenticationToken {
 	 * @param authorities the authorities for the logged in user
 	 * @param relyingPartyRegistrationId the
 	 * {@link RelyingPartyRegistration#getRegistrationId} associated with this user
-	 * @since 5.5
+	 * @since 5.6
 	 */
 	public Saml2Authentication(AuthenticatedPrincipal principal, String saml2Response,
 			Collection<? extends GrantedAuthority> authorities, String relyingPartyRegistrationId) {
