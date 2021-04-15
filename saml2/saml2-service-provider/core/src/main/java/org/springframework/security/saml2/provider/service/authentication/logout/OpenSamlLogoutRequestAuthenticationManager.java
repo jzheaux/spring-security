@@ -43,8 +43,8 @@ import org.springframework.security.saml2.provider.service.registration.RelyingP
 import org.springframework.security.saml2.provider.service.registration.Saml2MessageBinding;
 
 /**
- * A {@link AuthenticationManager} that authenticates a SAML 2.0 Logout Requests received from a SAML 2.0
- * Asserting Party.
+ * A {@link AuthenticationManager} that authenticates a SAML 2.0 Logout Requests received
+ * from a SAML 2.0 Asserting Party.
  *
  * @author Josh Cummings
  * @since 5.6
