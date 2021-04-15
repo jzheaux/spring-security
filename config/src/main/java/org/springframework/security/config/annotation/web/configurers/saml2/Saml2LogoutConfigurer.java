@@ -113,7 +113,7 @@ import org.springframework.util.Assert;
  * Uses {@link CsrfTokenRepository} to add the {@link CsrfLogoutHandler}.
  *
  * @author Josh Cummings
- * @since 5.5
+ * @since 5.6
  * @see Saml2LogoutConfigurer
  */
 public final class Saml2LogoutConfigurer<H extends HttpSecurityBuilder<H>>
