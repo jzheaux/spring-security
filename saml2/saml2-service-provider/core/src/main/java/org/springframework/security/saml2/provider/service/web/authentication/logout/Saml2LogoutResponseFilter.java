@@ -23,10 +23,17 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.authentication.logout.CompositeLogoutHandler;
-import org.springframework.security.web.authentication.logout.LogoutHandler;
+import org.springframework.security.saml2.core.OpenSamlInitializationService;
+import org.springframework.security.saml2.core.Saml2Error;
+import org.springframework.security.saml2.core.Saml2ErrorCodes;
+import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticationException;
+import org.springframework.security.saml2.provider.service.authentication.logout.Saml2LogoutRequest;
+import org.springframework.security.saml2.provider.service.authentication.logout.Saml2LogoutResponse;
+import org.springframework.security.saml2.provider.service.authentication.logout.Saml2LogoutResponseAuthenticationToken;
+import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
+import org.springframework.security.saml2.provider.service.web.RelyingPartyRegistrationResolver;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuccessHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
@@ -40,29 +47,38 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * already sent by the relying party.
  *
  * Note that before a &lt;saml2:LogoutRequest&gt; is sent, the user is logged out. Given
- * that, this implementation should not use any {@link LogoutHandler} or
- * {@link LogoutSuccessHandler} that rely on the user being logged in.
+ * that, this implementation should not use any {@link LogoutSuccessHandler} that relies
+ * on the user being logged in.
  *
  * @author Josh Cummings
  * @since 5.5
  */
 public final class Saml2LogoutResponseFilter extends OncePerRequestFilter {
 
+	static {
+		OpenSamlInitializationService.initialize();
+	}
+
 	private static final String DEFAULT_LOGOUT_ENDPOINT = "/logout/saml2/slo";
 
-	private RequestMatcher logoutRequestMatcher = new AntPathRequestMatcher(DEFAULT_LOGOUT_ENDPOINT);
+	private final RelyingPartyRegistrationResolver relyingPartyRegistrationResolver;
 
-	private final LogoutHandler logoutHandler;
+	private final AuthenticationManager authenticationManager;
+
+	private Saml2LogoutRequestRepository logoutRequestRepository = new HttpSessionLogoutRequestRepository();
+
+	private RequestMatcher logoutRequestMatcher = new AntPathRequestMatcher(DEFAULT_LOGOUT_ENDPOINT);
 
 	private LogoutSuccessHandler logoutSuccessHandler = new SimpleUrlLogoutSuccessHandler();
 
 	/**
 	 * Constructs a {@link Saml2LogoutResponseFilter} for accepting SAML 2.0 Logout
 	 * Responses from the asserting party
-	 * @param logoutHandler the handlers for handling the logout response
 	 */
-	public Saml2LogoutResponseFilter(LogoutHandler logoutHandler) {
-		this.logoutHandler = new CompositeLogoutHandler(logoutHandler);
+	public Saml2LogoutResponseFilter(RelyingPartyRegistrationResolver relyingPartyRegistrationResolver,
+			AuthenticationManager authenticationManager) {
+		this.relyingPartyRegistrationResolver = relyingPartyRegistrationResolver;
+		this.authenticationManager = authenticationManager;
 	}
 
 	/**
@@ -82,8 +98,21 @@ public final class Saml2LogoutResponseFilter extends OncePerRequestFilter {
 			return;
 		}
 
-		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		this.logoutHandler.logout(request, response, authentication);
+		String serialized = request.getParameter("SAMLResponse");
+		Saml2LogoutRequest logoutRequest = this.logoutRequestRepository.removeLogoutRequest(request, response);
+		if (logoutRequest == null) {
+			Saml2Error error = new Saml2Error(Saml2ErrorCodes.INVALID_REQUEST,
+					"Failed to find associated LogoutRequest");
+			throw new Saml2AuthenticationException(error);
+		}
+		RelyingPartyRegistration registration = this.relyingPartyRegistrationResolver.resolve(request,
+				logoutRequest.getRelyingPartyRegistrationId());
+		Saml2LogoutResponse logoutResponse = Saml2LogoutResponse.withRelyingPartyRegistration(registration)
+				.samlResponse(serialized).relayState(request.getParameter("RelayState"))
+				.parameters((params) -> params.put("SigAlg", request.getParameter("SigAlg")))
+				.parameters((params) -> params.put("Signature", request.getParameter("Signature"))).build();
+		Authentication token = new Saml2LogoutResponseAuthenticationToken(logoutResponse, logoutRequest, registration);
+		Authentication authentication = this.authenticationManager.authenticate(token);
 		this.logoutSuccessHandler.onLogoutSuccess(request, response, authentication);
 	}
 
@@ -97,6 +126,11 @@ public final class Saml2LogoutResponseFilter extends OncePerRequestFilter {
 	public void setLogoutRequestMatcher(RequestMatcher logoutRequestMatcher) {
 		Assert.notNull(logoutRequestMatcher, "logoutRequestMatcher cannot be null");
 		this.logoutRequestMatcher = logoutRequestMatcher;
+	}
+
+	public void setLogoutRequestRepository(Saml2LogoutRequestRepository logoutRequestRepository) {
+		Assert.notNull(logoutRequestRepository, "logoutRequestRepository cannot be null");
+		this.logoutRequestRepository = logoutRequestRepository;
 	}
 
 	/**

@@ -42,10 +42,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.saml2.Saml2Exception;
 import org.springframework.security.saml2.core.OpenSamlInitializationService;
 import org.springframework.security.saml2.provider.service.authentication.Saml2Authentication;
+import org.springframework.security.saml2.provider.service.authentication.logout.OpenSamlLogoutRequestAuthentication;
 import org.springframework.security.saml2.provider.service.authentication.logout.Saml2LogoutResponse;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 import org.springframework.security.saml2.provider.service.registration.Saml2MessageBinding;
-import org.springframework.security.saml2.provider.service.web.RelyingPartyRegistrationResolver;
 import org.springframework.security.saml2.provider.service.web.authentication.logout.OpenSamlSigningUtils.QueryParametersPartial;
 import org.springframework.util.Assert;
 
@@ -61,18 +61,6 @@ import org.springframework.util.Assert;
  * @since 5.5
  */
 public final class OpenSamlLogoutResponseResolver implements Saml2LogoutResponseResolver {
-
-	private final RelyingPartyRegistrationResolver relyingPartyRegistrationResolver;
-
-	/**
-	 * Construct a {@link OpenSamlLogoutResponseResolver} using the provided parameters
-	 * @param relyingPartyRegistrationResolver the
-	 * {@link RelyingPartyRegistrationResolver} for selecting the
-	 * {@link RelyingPartyRegistration}
-	 */
-	public OpenSamlLogoutResponseResolver(RelyingPartyRegistrationResolver relyingPartyRegistrationResolver) {
-		this.relyingPartyRegistrationResolver = relyingPartyRegistrationResolver;
-	}
 
 	/**
 	 * Prepare to create, sign, and serialize a SAML 2.0 Logout Response.
@@ -92,24 +80,16 @@ public final class OpenSamlLogoutResponseResolver implements Saml2LogoutResponse
 	@Override
 	public OpenSamlLogoutResponseBuilder resolveLogoutResponse(HttpServletRequest request,
 			Authentication authentication) {
-		LogoutRequest logoutRequest = (LogoutRequest) request.getAttribute(LogoutRequest.class.getName());
-		if (logoutRequest == null) {
+		if (!(authentication instanceof OpenSamlLogoutRequestAuthentication)) {
 			throw new Saml2Exception("Failed to find associated LogoutRequest");
 		}
-		RelyingPartyRegistration registration = this.relyingPartyRegistrationResolver.resolve(request,
-				getRegistrationId(authentication));
-		Assert.notNull(registration, "Failed to lookup RelyingPartyRegistration for request");
+		OpenSamlLogoutRequestAuthentication logoutRequestAuthentication = (OpenSamlLogoutRequestAuthentication) authentication;
+		LogoutRequest logoutRequest = logoutRequestAuthentication.getLogoutRequest();
+		RelyingPartyRegistration registration = logoutRequestAuthentication.getRelyingPartyRegistration();
 		return new OpenSamlLogoutResponseBuilder(registration)
 				.destination(registration.getAssertingPartyDetails().getSingleLogoutServiceResponseLocation())
 				.issuer(registration.getEntityId()).status(StatusCode.SUCCESS)
 				.relayState(request.getParameter("RelayState")).inResponseTo(logoutRequest.getID());
-	}
-
-	private String getRegistrationId(Authentication authentication) {
-		if (authentication instanceof Saml2Authentication) {
-			return ((Saml2Authentication) authentication).getRelyingPartyRegistrationId();
-		}
-		return null;
 	}
 
 	/**

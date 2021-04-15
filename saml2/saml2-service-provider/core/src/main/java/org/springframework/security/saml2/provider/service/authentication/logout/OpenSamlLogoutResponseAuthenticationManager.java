@@ -14,13 +14,10 @@
  * limitations under the License.
  */
 
-package org.springframework.security.saml2.provider.service.web.authentication.logout;
+package org.springframework.security.saml2.provider.service.authentication.logout;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 import net.shibboleth.utilities.java.support.xml.ParserPool;
 import org.opensaml.core.config.ConfigurationService;
@@ -32,99 +29,66 @@ import org.opensaml.saml.saml2.core.impl.LogoutResponseUnmarshaller;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
-import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.saml2.Saml2Exception;
 import org.springframework.security.saml2.core.OpenSamlInitializationService;
 import org.springframework.security.saml2.core.Saml2Error;
 import org.springframework.security.saml2.core.Saml2ErrorCodes;
 import org.springframework.security.saml2.core.Saml2ResponseValidatorResult;
-import org.springframework.security.saml2.provider.service.authentication.logout.Saml2LogoutRequest;
+import org.springframework.security.saml2.provider.service.authentication.logout.OpenSamlVerificationUtils.VerifierPartial;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
-import org.springframework.security.saml2.provider.service.web.RelyingPartyRegistrationResolver;
-import org.springframework.security.saml2.provider.service.web.authentication.logout.OpenSamlVerificationUtils.VerifierPartial;
-import org.springframework.security.web.authentication.logout.LogoutHandler;
-import org.springframework.util.Assert;
+import org.springframework.security.saml2.provider.service.registration.Saml2MessageBinding;
 
 /**
- * A {@link LogoutHandler} that handles SAML 2.0 Logout Responses received from a SAML 2.0
+ * A {@link AuthenticationManager} that authenticates a SAML 2.0 Logout Responses received from a SAML 2.0
  * Asserting Party.
  *
  * @author Josh Cummings
- * @since 5.5
+ * @since 5.6
  */
-public final class OpenSamlLogoutResponseHandler implements LogoutHandler {
+public class OpenSamlLogoutResponseAuthenticationManager implements AuthenticationManager {
 
 	static {
 		OpenSamlInitializationService.initialize();
 	}
 
-	private final RelyingPartyRegistrationResolver relyingPartyRegistrationResolver;
-
 	private final ParserPool parserPool;
 
 	private final LogoutResponseUnmarshaller unmarshaller;
 
-	private Saml2LogoutRequestRepository logoutRequestRepository = new HttpSessionLogoutRequestRepository();
-
 	/**
-	 * Constructs a {@link OpenSamlLogoutResponseHandler} from the provided parameters
-	 * @param relyingPartyRegistrationResolver the
-	 * {@link RelyingPartyRegistrationResolver} from which to derive the
-	 * {@link RelyingPartyRegistration}
+	 * Constructs a {@link OpenSamlLogoutRequestAuthenticationManager}
 	 */
-	public OpenSamlLogoutResponseHandler(RelyingPartyRegistrationResolver relyingPartyRegistrationResolver) {
-		this.relyingPartyRegistrationResolver = relyingPartyRegistrationResolver;
+	public OpenSamlLogoutResponseAuthenticationManager() {
 		XMLObjectProviderRegistry registry = ConfigurationService.get(XMLObjectProviderRegistry.class);
 		this.parserPool = registry.getParserPool();
 		this.unmarshaller = (LogoutResponseUnmarshaller) XMLObjectProviderRegistrySupport.getUnmarshallerFactory()
 				.getUnmarshaller(LogoutResponse.DEFAULT_ELEMENT_NAME);
 	}
 
-	/**
-	 * Processes the SAML 2.0 Logout Response received from the SAML 2.0 Asserting Party.
-	 *
-	 * By default, verifies the signature, validates the issuer, destination, and status.
-	 *
-	 * If any processing step fails, a {@link Saml2Exception} is thrown, stopping the
-	 * logout process
-	 * @param request the HTTP request
-	 * @param response the HTTP response
-	 * @param authentication the current principal details
-	 */
 	@Override
-	public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
-		String serialized = request.getParameter("SAMLResponse");
-		Assert.notNull(serialized, "SAMLResponse cannot be null");
-		byte[] b = Saml2Utils.samlDecode(serialized);
-		serialized = inflateIfRequired(request, b);
-		Saml2LogoutRequest logoutRequest = this.logoutRequestRepository.removeLogoutRequest(request, response);
-		if (logoutRequest == null) {
-			throw new Saml2Exception("Failed to find associated LogoutRequest");
-		}
-		RelyingPartyRegistration registration = this.relyingPartyRegistrationResolver.resolve(request,
-				logoutRequest.getRelyingPartyRegistrationId());
-		LogoutResponse logoutResponse = parse(serialized);
-		Saml2ResponseValidatorResult result = verifySignature(request, logoutResponse, registration)
+	public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+		Saml2LogoutResponseAuthenticationToken token = (Saml2LogoutResponseAuthenticationToken) authentication;
+		Saml2LogoutRequest logoutRequest = token.getLogoutRequest();
+		Saml2LogoutResponse response = token.getLogoutResponse();
+		RelyingPartyRegistration registration = token.getRelyingPartyRegistration();
+		byte[] b = Saml2Utils.samlDecode(response.getSamlResponse());
+		LogoutResponse logoutResponse = parse(inflateIfRequired(response, b));
+		Saml2ResponseValidatorResult result = verifySignature(response, logoutResponse, registration)
 				.concat(validateRequest(logoutResponse, registration))
 				.concat(validateLogoutRequest(logoutResponse, logoutRequest.getId()));
 		if (result.hasErrors()) {
-			throw new Saml2Exception("Failed to validate LogoutResponse: " + result.getErrors().iterator().next());
+			throw new BadCredentialsException(
+					"Failed to validate LogoutResponse: " + result.getErrors().iterator().next());
 		}
+		return new OpenSamlLogoutResponseAuthentication(logoutResponse, registration);
 	}
 
-	/**
-	 * Use this {@link Saml2LogoutRequestRepository} for looking up the associated logout
-	 * request.
-	 * @param logoutRequestRepository the {@link Saml2LogoutRequestRepository} to use
-	 */
-	public void setLogoutRequestRepository(Saml2LogoutRequestRepository logoutRequestRepository) {
-		Assert.notNull(logoutRequestRepository, "logoutRequestRepository cannot be null");
-		this.logoutRequestRepository = logoutRequestRepository;
-	}
-
-	private String inflateIfRequired(HttpServletRequest request, byte[] b) {
-		if (HttpMethod.GET.matches(request.getMethod())) {
+	private String inflateIfRequired(Saml2LogoutResponse response, byte[] b) {
+		if (response.getBinding() == Saml2MessageBinding.REDIRECT) {
 			return Saml2Utils.samlInflate(b);
 		}
 		return new String(b, StandardCharsets.UTF_8);
@@ -142,13 +106,13 @@ public final class OpenSamlLogoutResponseHandler implements LogoutHandler {
 		}
 	}
 
-	private Saml2ResponseValidatorResult verifySignature(HttpServletRequest request, LogoutResponse response,
+	private Saml2ResponseValidatorResult verifySignature(Saml2LogoutResponse response, LogoutResponse logoutResponse,
 			RelyingPartyRegistration registration) {
-		VerifierPartial partial = OpenSamlVerificationUtils.verifySignature(response, registration);
-		if (response.isSigned()) {
-			return partial.post(response.getSignature());
+		VerifierPartial partial = OpenSamlVerificationUtils.verifySignature(logoutResponse, registration);
+		if (logoutResponse.isSigned()) {
+			return partial.post(logoutResponse.getSignature());
 		}
-		return partial.redirect(request, "SAMLResponse");
+		return partial.redirect(response);
 	}
 
 	private Saml2ResponseValidatorResult validateRequest(LogoutResponse response,

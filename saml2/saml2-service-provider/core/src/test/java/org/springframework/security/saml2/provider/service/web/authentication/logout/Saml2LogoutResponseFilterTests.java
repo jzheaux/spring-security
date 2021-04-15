@@ -23,13 +23,20 @@ import org.junit.Test;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.authentication.logout.LogoutHandler;
+import org.springframework.security.saml2.Saml2Exception;
+import org.springframework.security.saml2.provider.service.authentication.logout.Saml2LogoutRequest;
+import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
+import org.springframework.security.saml2.provider.service.registration.TestRelyingPartyRegistrations;
+import org.springframework.security.saml2.provider.service.web.RelyingPartyRegistrationResolver;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.mock;
 import static org.mockito.BDDMockito.verify;
 import static org.mockito.BDDMockito.willThrow;
@@ -37,14 +44,19 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 public class Saml2LogoutResponseFilterTests {
 
-	private final LogoutHandler handler = mock(LogoutHandler.class);
+	private final RelyingPartyRegistrationResolver resolver = mock(RelyingPartyRegistrationResolver.class);
+
+	private final Saml2LogoutRequestRepository repository = mock(Saml2LogoutRequestRepository.class);
+
+	private final AuthenticationManager manager = mock(AuthenticationManager.class);
 
 	private final LogoutSuccessHandler successHandler = mock(LogoutSuccessHandler.class);
 
-	private final Saml2LogoutResponseFilter filter = new Saml2LogoutResponseFilter(this.handler);
+	private final Saml2LogoutResponseFilter filter = new Saml2LogoutResponseFilter(this.resolver, this.manager);
 
 	@Before
 	public void setUp() {
+		this.filter.setLogoutRequestRepository(this.repository);
 		this.filter.setLogoutSuccessHandler(this.successHandler);
 	}
 
@@ -54,29 +66,39 @@ public class Saml2LogoutResponseFilterTests {
 	}
 
 	@Test
-	public void doFilterWhenSamlRequestMatchesThenLogout() throws Exception {
+	public void doFilterWhenSamlResponsePostThenLogout() throws Exception {
 		Authentication authentication = new TestingAuthenticationToken("user", "password");
 		SecurityContextHolder.getContext().setAuthentication(authentication);
 		MockHttpServletRequest request = new MockHttpServletRequest("POST", "/logout/saml2/slo");
 		request.setServletPath("/logout/saml2/slo");
 		request.setParameter("SAMLResponse", "response");
 		MockHttpServletResponse response = new MockHttpServletResponse();
+		RelyingPartyRegistration registration = TestRelyingPartyRegistrations.full().build();
+		given(this.resolver.resolve(request, "registration-id")).willReturn(registration);
+		Saml2LogoutRequest logoutRequest = Saml2LogoutRequest.withRelyingPartyRegistration(registration)
+				.samlRequest("request").build();
+		given(this.repository.removeLogoutRequest(request, response)).willReturn(logoutRequest);
 		this.filter.doFilterInternal(request, response, new MockFilterChain());
-		verify(this.handler).logout(request, response, authentication);
-		verify(this.successHandler).onLogoutSuccess(request, response, authentication);
+		verify(this.manager).authenticate(any());
+		verify(this.successHandler).onLogoutSuccess(any(), any(), any());
 	}
 
 	@Test
-	public void doFilterWhenSamlResponseMatchesThenLogout() throws Exception {
+	public void doFilterWhenSamlResponseRedirectThenLogout() throws Exception {
 		Authentication authentication = new TestingAuthenticationToken("user", "password");
 		SecurityContextHolder.getContext().setAuthentication(authentication);
-		MockHttpServletRequest request = new MockHttpServletRequest("POST", "/logout/saml2/slo");
+		MockHttpServletRequest request = new MockHttpServletRequest("GET", "/logout/saml2/slo");
 		request.setServletPath("/logout/saml2/slo");
 		request.setParameter("SAMLResponse", "response");
 		MockHttpServletResponse response = new MockHttpServletResponse();
+		RelyingPartyRegistration registration = TestRelyingPartyRegistrations.full().build();
+		given(this.resolver.resolve(request, "registration-id")).willReturn(registration);
+		Saml2LogoutRequest logoutRequest = Saml2LogoutRequest.withRelyingPartyRegistration(registration)
+				.samlRequest("request").build();
+		given(this.repository.removeLogoutRequest(request, response)).willReturn(logoutRequest);
 		this.filter.doFilterInternal(request, response, new MockFilterChain());
-		verify(this.handler).logout(request, response, authentication);
-		verify(this.successHandler).onLogoutSuccess(request, response, authentication);
+		verify(this.manager).authenticate(any());
+		verify(this.successHandler).onLogoutSuccess(any(), any(), any());
 	}
 
 	@Test
@@ -88,7 +110,7 @@ public class Saml2LogoutResponseFilterTests {
 		request.setParameter("SAMLResponse", "response");
 		MockHttpServletResponse response = new MockHttpServletResponse();
 		this.filter.doFilterInternal(request, response, new MockFilterChain());
-		verifyNoInteractions(this.handler);
+		verifyNoInteractions(this.manager);
 		verifyNoInteractions(this.successHandler);
 	}
 
@@ -100,7 +122,7 @@ public class Saml2LogoutResponseFilterTests {
 		request.setServletPath("/logout/saml2");
 		MockHttpServletResponse response = new MockHttpServletResponse();
 		this.filter.doFilterInternal(request, response, new MockFilterChain());
-		verifyNoInteractions(this.handler);
+		verifyNoInteractions(this.manager);
 		verifyNoInteractions(this.successHandler);
 	}
 
@@ -112,10 +134,15 @@ public class Saml2LogoutResponseFilterTests {
 		request.setServletPath("/logout/saml2/slo");
 		request.setParameter("SAMLResponse", "response");
 		MockHttpServletResponse response = new MockHttpServletResponse();
-		willThrow(RuntimeException.class).given(this.handler).logout(request, response, authentication);
-		assertThatExceptionOfType(RuntimeException.class)
+		RelyingPartyRegistration registration = TestRelyingPartyRegistrations.full().build();
+		given(this.resolver.resolve(request, "registration-id")).willReturn(registration);
+		Saml2LogoutRequest logoutRequest = Saml2LogoutRequest.withRelyingPartyRegistration(registration)
+				.samlRequest("request").build();
+		given(this.repository.removeLogoutRequest(request, response)).willReturn(logoutRequest);
+		willThrow(Saml2Exception.class).given(this.manager).authenticate(any());
+		assertThatExceptionOfType(Saml2Exception.class)
 				.isThrownBy(() -> this.filter.doFilterInternal(request, response, new MockFilterChain()));
-		verify(this.handler).logout(request, response, authentication);
+		verify(this.manager).authenticate(any());
 		verifyNoInteractions(this.successHandler);
 	}
 

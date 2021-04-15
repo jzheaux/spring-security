@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.springframework.security.saml2.provider.service.web.authentication.logout;
+package org.springframework.security.saml2.provider.service.authentication.logout;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -25,57 +25,55 @@ import org.junit.Test;
 import org.opensaml.core.xml.XMLObject;
 import org.opensaml.saml.saml2.core.LogoutRequest;
 
-import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.saml2.Saml2Exception;
 import org.springframework.security.saml2.core.Saml2ErrorCodes;
 import org.springframework.security.saml2.core.TestSaml2X509Credentials;
 import org.springframework.security.saml2.provider.service.authentication.DefaultSaml2AuthenticatedPrincipal;
 import org.springframework.security.saml2.provider.service.authentication.Saml2Authentication;
 import org.springframework.security.saml2.provider.service.authentication.TestOpenSamlObjects;
+import org.springframework.security.saml2.provider.service.authentication.logout.OpenSamlSigningUtils.QueryParametersPartial;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
+import org.springframework.security.saml2.provider.service.registration.Saml2MessageBinding;
 import org.springframework.security.saml2.provider.service.registration.TestRelyingPartyRegistrations;
-import org.springframework.security.saml2.provider.service.web.RelyingPartyRegistrationResolver;
-import org.springframework.security.saml2.provider.service.web.authentication.logout.OpenSamlSigningUtils.QueryParametersPartial;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.mock;
 
 /**
- * Tests for {@link OpenSamlLogoutRequestHandler}
+ * Tests for {@link OpenSamlLogoutRequestAuthenticationManager}
  *
  * @author Josh Cummings
  */
-public class OpenSamlLogoutRequestHandlerTests {
+public class OpenSamlLogoutRequestAuthenticationManagerTests {
 
-	private final RelyingPartyRegistrationResolver resolver = mock(RelyingPartyRegistrationResolver.class);
-
-	private final OpenSamlLogoutRequestHandler handler = new OpenSamlLogoutRequestHandler(this.resolver);
+	private final OpenSamlLogoutRequestAuthenticationManager manager = new OpenSamlLogoutRequestAuthenticationManager();
 
 	@Test
-	public void handleWhenAuthenticatedThenSavesRequestId() {
+	public void handleWhenAuthenticatedThenContainsLogoutRequest() {
 		RelyingPartyRegistration registration = registration().build();
 		LogoutRequest logoutRequest = TestOpenSamlObjects.assertingPartyLogoutRequest(registration);
 		sign(logoutRequest, registration);
-		Authentication authentication = authentication(registration);
-		MockHttpServletRequest request = post(logoutRequest);
-		given(this.resolver.resolve(request, registration.getRegistrationId())).willReturn(registration);
-		this.handler.logout(request, null, authentication);
-		String id = ((LogoutRequest) request.getAttribute(LogoutRequest.class.getName())).getID();
+		Saml2LogoutRequest request = post(logoutRequest, registration);
+		Saml2LogoutRequestAuthenticationToken token = new Saml2LogoutRequestAuthenticationToken(request, registration,
+				authentication(registration));
+		Authentication authentication = this.manager.authenticate(token);
+		assertThat(authentication).isInstanceOf(OpenSamlLogoutRequestAuthentication.class);
+		String id = ((OpenSamlLogoutRequestAuthentication) authentication).getLogoutRequest().getID();
 		assertThat(id).isEqualTo(logoutRequest.getID());
 	}
 
 	@Test
 	public void handleWhenRedirectBindingThenValidatesSignatureParameter() {
-		RelyingPartyRegistration registration = registration().build();
+		RelyingPartyRegistration registration = registration()
+				.assertingPartyDetails((party) -> party.singleLogoutServiceBinding(Saml2MessageBinding.REDIRECT))
+				.build();
 		LogoutRequest logoutRequest = TestOpenSamlObjects.assertingPartyLogoutRequest(registration);
-		Authentication authentication = authentication(registration);
-		MockHttpServletRequest request = redirect(logoutRequest, OpenSamlSigningUtils.sign(registration));
-		given(this.resolver.resolve(request, registration.getRegistrationId())).willReturn(registration);
-		this.handler.logout(request, null, authentication);
-		String id = ((LogoutRequest) request.getAttribute(LogoutRequest.class.getName())).getID();
+		Saml2LogoutRequest request = redirect(logoutRequest, registration, OpenSamlSigningUtils.sign(registration));
+		Saml2LogoutRequestAuthenticationToken token = new Saml2LogoutRequestAuthenticationToken(request, registration,
+				authentication(registration));
+		Authentication authentication = this.manager.authenticate(token);
+		String id = ((OpenSamlLogoutRequestAuthentication) authentication).getLogoutRequest().getID();
 		assertThat(id).isEqualTo(logoutRequest.getID());
 	}
 
@@ -85,11 +83,10 @@ public class OpenSamlLogoutRequestHandlerTests {
 		LogoutRequest logoutRequest = TestOpenSamlObjects.assertingPartyLogoutRequest(registration);
 		logoutRequest.getIssuer().setValue("wrong");
 		sign(logoutRequest, registration);
-		Authentication authentication = authentication(registration);
-		MockHttpServletRequest request = post(logoutRequest);
-		given(this.resolver.resolve(request, registration.getRegistrationId())).willReturn(registration);
-		assertThatExceptionOfType(Saml2Exception.class)
-				.isThrownBy(() -> this.handler.logout(request, null, authentication))
+		Saml2LogoutRequest request = post(logoutRequest, registration);
+		Saml2LogoutRequestAuthenticationToken token = new Saml2LogoutRequestAuthenticationToken(request, registration,
+				authentication(registration));
+		assertThatExceptionOfType(BadCredentialsException.class).isThrownBy(() -> this.manager.authenticate(token))
 				.withMessageContaining(Saml2ErrorCodes.INVALID_SIGNATURE);
 	}
 
@@ -99,11 +96,10 @@ public class OpenSamlLogoutRequestHandlerTests {
 		LogoutRequest logoutRequest = TestOpenSamlObjects.assertingPartyLogoutRequest(registration);
 		logoutRequest.getNameID().setValue("wrong");
 		sign(logoutRequest, registration);
-		Authentication authentication = authentication(registration);
-		MockHttpServletRequest request = post(logoutRequest);
-		given(this.resolver.resolve(request, registration.getRegistrationId())).willReturn(registration);
-		assertThatExceptionOfType(Saml2Exception.class)
-				.isThrownBy(() -> this.handler.logout(request, null, authentication))
+		Saml2LogoutRequest request = post(logoutRequest, registration);
+		Saml2LogoutRequestAuthenticationToken token = new Saml2LogoutRequestAuthenticationToken(request, registration,
+				authentication(registration));
+		assertThatExceptionOfType(BadCredentialsException.class).isThrownBy(() -> this.manager.authenticate(token))
 				.withMessageContaining(Saml2ErrorCodes.INVALID_REQUEST);
 	}
 
@@ -113,11 +109,10 @@ public class OpenSamlLogoutRequestHandlerTests {
 		LogoutRequest logoutRequest = TestOpenSamlObjects.assertingPartyLogoutRequest(registration);
 		logoutRequest.setNameID(null);
 		sign(logoutRequest, registration);
-		Authentication authentication = authentication(registration);
-		MockHttpServletRequest request = post(logoutRequest);
-		given(this.resolver.resolve(request, registration.getRegistrationId())).willReturn(registration);
-		assertThatExceptionOfType(Saml2Exception.class)
-				.isThrownBy(() -> this.handler.logout(request, null, authentication))
+		Saml2LogoutRequest request = post(logoutRequest, registration);
+		Saml2LogoutRequestAuthenticationToken token = new Saml2LogoutRequestAuthenticationToken(request, registration,
+				authentication(registration));
+		assertThatExceptionOfType(BadCredentialsException.class).isThrownBy(() -> this.manager.authenticate(token))
 				.withMessageContaining(Saml2ErrorCodes.SUBJECT_NOT_FOUND);
 	}
 
@@ -127,16 +122,16 @@ public class OpenSamlLogoutRequestHandlerTests {
 		LogoutRequest logoutRequest = TestOpenSamlObjects.assertingPartyLogoutRequest(registration);
 		logoutRequest.setDestination("wrong");
 		sign(logoutRequest, registration);
-		Authentication authentication = authentication(registration);
-		MockHttpServletRequest request = post(logoutRequest);
-		given(this.resolver.resolve(request, registration.getRegistrationId())).willReturn(registration);
-		assertThatExceptionOfType(Saml2Exception.class)
-				.isThrownBy(() -> this.handler.logout(request, null, authentication))
+		Saml2LogoutRequest request = post(logoutRequest, registration);
+		Saml2LogoutRequestAuthenticationToken token = new Saml2LogoutRequestAuthenticationToken(request, registration,
+				authentication(registration));
+		assertThatExceptionOfType(BadCredentialsException.class).isThrownBy(() -> this.manager.authenticate(token))
 				.withMessageContaining(Saml2ErrorCodes.INVALID_DESTINATION);
 	}
 
 	private RelyingPartyRegistration.Builder registration() {
-		return signing(verifying(TestRelyingPartyRegistrations.noCredentials()));
+		return signing(verifying(TestRelyingPartyRegistrations.noCredentials()))
+				.assertingPartyDetails((party) -> party.singleLogoutServiceBinding(Saml2MessageBinding.POST));
 	}
 
 	private RelyingPartyRegistration.Builder verifying(RelyingPartyRegistration.Builder builder) {
@@ -153,21 +148,17 @@ public class OpenSamlLogoutRequestHandlerTests {
 				new ArrayList<>(), registration.getRegistrationId());
 	}
 
-	private MockHttpServletRequest post(LogoutRequest logoutRequest) {
-		MockHttpServletRequest request = new MockHttpServletRequest();
-		request.setMethod("POST");
-		request.setParameter("SAMLRequest",
-				Saml2Utils.samlEncode(serialize(logoutRequest).getBytes(StandardCharsets.UTF_8)));
-		return request;
+	private Saml2LogoutRequest post(LogoutRequest logoutRequest, RelyingPartyRegistration registration) {
+		return Saml2LogoutRequest.withRelyingPartyRegistration(registration)
+				.samlRequest(Saml2Utils.samlEncode(serialize(logoutRequest).getBytes(StandardCharsets.UTF_8))).build();
 	}
 
-	private MockHttpServletRequest redirect(LogoutRequest logoutRequest, QueryParametersPartial partial) {
+	private Saml2LogoutRequest redirect(LogoutRequest logoutRequest, RelyingPartyRegistration registration,
+			QueryParametersPartial partial) {
 		String serialized = Saml2Utils.samlEncode(Saml2Utils.samlDeflate(serialize(logoutRequest)));
 		Map<String, String> parameters = partial.param("SAMLRequest", serialized).parameters();
-		MockHttpServletRequest request = new MockHttpServletRequest();
-		request.setParameters(parameters);
-		request.setMethod("GET");
-		return request;
+		return Saml2LogoutRequest.withRelyingPartyRegistration(registration).samlRequest(serialized)
+				.parameters((params) -> params.putAll(parameters)).build();
 	}
 
 	private void sign(LogoutRequest logoutRequest, RelyingPartyRegistration registration) {

@@ -14,15 +14,13 @@
  * limitations under the License.
  */
 
-package org.springframework.security.saml2.provider.service.web.authentication.logout;
+package org.springframework.security.saml2.provider.service.authentication.logout;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
-
-import javax.servlet.http.HttpServletRequest;
 
 import net.shibboleth.utilities.java.support.resolver.CriteriaSet;
 import org.opensaml.core.criterion.EntityIdCriterion;
@@ -63,12 +61,14 @@ import org.springframework.web.util.UriUtils;
 
 final class OpenSamlVerificationUtils {
 
-	static VerifierPartial verifySignature(StatusResponseType object, RelyingPartyRegistration registration) {
-		return new VerifierPartial(object, registration);
+	static OpenSamlVerificationUtils.VerifierPartial verifySignature(StatusResponseType object,
+			RelyingPartyRegistration registration) {
+		return new OpenSamlVerificationUtils.VerifierPartial(object, registration);
 	}
 
-	static VerifierPartial verifySignature(RequestAbstractType object, RelyingPartyRegistration registration) {
-		return new VerifierPartial(object, registration);
+	static OpenSamlVerificationUtils.VerifierPartial verifySignature(RequestAbstractType object,
+			RelyingPartyRegistration registration) {
+		return new OpenSamlVerificationUtils.VerifierPartial(object, registration);
 	}
 
 	static class VerifierPartial {
@@ -91,8 +91,15 @@ final class OpenSamlVerificationUtils {
 			this.trustEngine = trustEngine(registration);
 		}
 
-		Saml2ResponseValidatorResult redirect(HttpServletRequest request, String objectParameterName) {
-			RedirectSignature signature = new RedirectSignature(request, objectParameterName);
+		Saml2ResponseValidatorResult redirect(Saml2LogoutRequest request) {
+			return redirect(new OpenSamlVerificationUtils.VerifierPartial.RedirectSignature(request));
+		}
+
+		Saml2ResponseValidatorResult redirect(Saml2LogoutResponse response) {
+			return redirect(new OpenSamlVerificationUtils.VerifierPartial.RedirectSignature(response));
+		}
+
+		Saml2ResponseValidatorResult redirect(OpenSamlVerificationUtils.VerifierPartial.RedirectSignature signature) {
 			if (signature.getAlgorithm() == null) {
 				return Saml2ResponseValidatorResult.failure(new Saml2Error(Saml2ErrorCodes.INVALID_SIGNATURE,
 						"Missing signature algorithm for object [" + this.id + "]"));
@@ -167,44 +174,68 @@ final class OpenSamlVerificationUtils {
 
 		private static class RedirectSignature {
 
-			private final HttpServletRequest request;
+			private final String algorithm;
 
-			private final String objectParameterName;
+			private final byte[] signature;
 
-			RedirectSignature(HttpServletRequest request, String objectParameterName) {
-				this.request = request;
-				this.objectParameterName = objectParameterName;
+			private final byte[] content;
+
+			RedirectSignature(Saml2LogoutRequest request) {
+				this.algorithm = request.getParameter("SigAlg");
+				if (request.getParameter("Signature") != null) {
+					this.signature = Saml2Utils.samlDecode(request.getParameter("Signature"));
+				}
+				else {
+					this.signature = null;
+				}
+				this.content = content(request.getSamlRequest(), "SAMLRequest", request.getRelayState(),
+						request.getParameter("SigAlg"));
 			}
 
-			String getAlgorithm() {
-				return this.request.getParameter("SigAlg");
+			RedirectSignature(Saml2LogoutResponse response) {
+				this.algorithm = response.getParameter("SigAlg");
+				if (response.getParameter("Signature") != null) {
+					this.signature = Saml2Utils.samlDecode(response.getParameter("Signature"));
+				}
+				else {
+					this.signature = null;
+				}
+				this.content = content(response.getSamlResponse(), "SAMLResponse", response.getRelayState(),
+						response.getParameter("SigAlg"));
 			}
 
-			byte[] getContent() {
-				if (this.request.getParameter("RelayState") != null) {
-					return String.format("%s=%s&RelayState=%s&SigAlg=%s", this.objectParameterName,
-							UriUtils.encode(this.request.getParameter(this.objectParameterName),
-									StandardCharsets.ISO_8859_1),
-							UriUtils.encode(this.request.getParameter("RelayState"), StandardCharsets.ISO_8859_1),
-							UriUtils.encode(getAlgorithm(), StandardCharsets.ISO_8859_1))
+			static byte[] content(String samlObject, String objectParameterName, String relayState, String algorithm) {
+				if (relayState != null) {
+					return String
+							.format("%s=%s&RelayState=%s&SigAlg=%s", objectParameterName,
+									UriUtils.encode(samlObject, StandardCharsets.ISO_8859_1),
+									UriUtils.encode(relayState, StandardCharsets.ISO_8859_1),
+									UriUtils.encode(algorithm, StandardCharsets.ISO_8859_1))
 							.getBytes(StandardCharsets.UTF_8);
 				}
 				else {
 					return String
-							.format("%s=%s&SigAlg=%s", this.objectParameterName,
-									UriUtils.encode(this.request.getParameter(this.objectParameterName),
-											StandardCharsets.ISO_8859_1),
-									UriUtils.encode(getAlgorithm(), StandardCharsets.ISO_8859_1))
+							.format("%s=%s&SigAlg=%s", objectParameterName,
+									UriUtils.encode(samlObject, StandardCharsets.ISO_8859_1),
+									UriUtils.encode(algorithm, StandardCharsets.ISO_8859_1))
 							.getBytes(StandardCharsets.UTF_8);
 				}
 			}
 
+			byte[] getContent() {
+				return this.content;
+			}
+
+			String getAlgorithm() {
+				return this.algorithm;
+			}
+
 			byte[] getSignature() {
-				return Saml2Utils.samlDecode(this.request.getParameter("Signature"));
+				return this.signature;
 			}
 
 			boolean hasSignature() {
-				return this.request.getParameter("Signature") != null;
+				return this.signature != null;
 			}
 
 		}

@@ -36,15 +36,13 @@ import org.springframework.security.saml2.Saml2Exception;
 import org.springframework.security.saml2.provider.service.authentication.DefaultSaml2AuthenticatedPrincipal;
 import org.springframework.security.saml2.provider.service.authentication.Saml2Authentication;
 import org.springframework.security.saml2.provider.service.authentication.TestOpenSamlObjects;
+import org.springframework.security.saml2.provider.service.authentication.logout.OpenSamlLogoutRequestAuthentication;
 import org.springframework.security.saml2.provider.service.authentication.logout.Saml2LogoutResponse;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 import org.springframework.security.saml2.provider.service.registration.Saml2MessageBinding;
 import org.springframework.security.saml2.provider.service.registration.TestRelyingPartyRegistrations;
-import org.springframework.security.saml2.provider.service.web.RelyingPartyRegistrationResolver;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.mock;
 
 /**
  * Tests for {@link OpenSamlLogoutResponseResolver}
@@ -53,18 +51,15 @@ import static org.mockito.BDDMockito.mock;
  */
 public class OpenSamlLogoutResponseResolverTests {
 
-	private final RelyingPartyRegistrationResolver resolver = mock(RelyingPartyRegistrationResolver.class);
-
-	private final OpenSamlLogoutResponseResolver logoutResolver = new OpenSamlLogoutResponseResolver(this.resolver);
+	private final OpenSamlLogoutResponseResolver logoutResolver = new OpenSamlLogoutResponseResolver();
 
 	@Test
 	public void resolveRedirectWhenAuthenticatedThenSuccess() {
 		RelyingPartyRegistration registration = TestRelyingPartyRegistrations.full().build();
-		Saml2Authentication authentication = authentication(registration);
 		HttpServletRequest request = new MockHttpServletRequest();
 		LogoutRequest logoutRequest = TestOpenSamlObjects.assertingPartyLogoutRequest(registration);
-		request.setAttribute(LogoutRequest.class.getName(), logoutRequest);
-		given(this.resolver.resolve(request, registration.getRegistrationId())).willReturn(registration);
+		OpenSamlLogoutRequestAuthentication authentication = new OpenSamlLogoutRequestAuthentication(logoutRequest,
+				registration, authentication(registration));
 		Saml2LogoutResponse saml2LogoutResponse = this.logoutResolver.resolveLogoutResponse(request, authentication)
 				.logoutResponse();
 		assertThat(saml2LogoutResponse.getParameter("SigAlg")).isNotNull();
@@ -78,11 +73,11 @@ public class OpenSamlLogoutResponseResolverTests {
 	public void resolvePostWhenAuthenticatedThenSuccess() {
 		RelyingPartyRegistration registration = TestRelyingPartyRegistrations.full()
 				.assertingPartyDetails((party) -> party.singleLogoutServiceBinding(Saml2MessageBinding.POST)).build();
-		Saml2Authentication authentication = authentication(registration);
 		HttpServletRequest request = new MockHttpServletRequest();
 		LogoutRequest logoutRequest = TestOpenSamlObjects.assertingPartyLogoutRequest(registration);
 		request.setAttribute(LogoutRequest.class.getName(), logoutRequest);
-		given(this.resolver.resolve(request, registration.getRegistrationId())).willReturn(registration);
+		OpenSamlLogoutRequestAuthentication authentication = new OpenSamlLogoutRequestAuthentication(logoutRequest,
+				registration, authentication(registration));
 		Saml2LogoutResponse saml2LogoutResponse = this.logoutResolver.resolveLogoutResponse(request, authentication)
 				.logoutResponse();
 		assertThat(saml2LogoutResponse.getParameter("SigAlg")).isNull();
