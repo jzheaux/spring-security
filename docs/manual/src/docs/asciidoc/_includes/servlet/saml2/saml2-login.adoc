@@ -1094,10 +1094,6 @@ RelyingPartyRegistrationRepository registrations() {
 
 @Bean
 SecurityFilterChain web(HttpSecurity http, RelyingPartyRegistrationRepository registrations) throws Exception {
-	RelyingPartyRegistrationResolver registrationResolver = new DefaultRelyingPartyRegistrationResolver(registrations);
-    LogoutHandler logoutResponseHandler = logoutResponseHandler(registrationResolver);
-    LogoutSuccessHandler logoutRequestSuccessHandler = logoutRequestSuccessHandler(registrationResolver);
-
     http
         .authorizeRequests((authorize) -> authorize
             .anyRequest().authenticated()
@@ -1255,78 +1251,70 @@ http
     );
 ----
 
-=== Customizing `<saml2:LogoutRequest>` Validation
+=== Customizing `<saml2:LogoutRequest>` Authentication
 
-To customize validation, you can implement your own `LogoutHandler`.
-At this point, the validation is minimal, so you may be able to first delegate to the default `LogoutHandler` like so:
+To customize validation, you can implement your own `AuthenticationManager`.
+At this point, the validation is minimal, so you may be able to first delegate to the default `AuthenticationManager` like so:
 
 [source,java]
 ----
 @Component
-public class MyOpenSamlLogoutRequestHandler implements LogoutHandler {
-	private final Saml2LogoutRequestHandler delegate;
-
-	public MyOpenSamlLogoutRequestHandler(RelyingPartyRegistrationRepository registrations) {
-		RelyingPartyRegistrationResolver relyingPartyRegistrationResolver =
-            new DefaultRelyingPartyRegistrationResolver(registrations);
-		this.delegate = new OpenSamlLogoutRequestHandler(relyingPartyRegistrationResolver);
-	}
+public class MyOpenSamlLogoutRequestAuthenticationManager implements AuthenticationManager {
+	private final AuthenticationManager delegate = new OpenSamlLogoutRequestAuthenticationManager();
 
 	@Override
     public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
-		delegate.logout(request, response, authentication); // verify signature, issuer, destination, and principal name
+		 // verify signature, issuer, destination, and principal name
+		Authentication result = delegate.authenticate(authentication);
+
 		LogoutRequest logoutRequest = // ... parse using OpenSAML
         // perform custom validation
     }
 }
 ----
 
-Then, you can supply your custom `LogoutHandler` in the DSL as follows:
+Then, you can supply your custom `AuthenticationManager` in the DSL as follows:
 
 [source,java]
 ----
 http
     .saml2Logout((saml2) -> saml2
         .logoutRequest((request) -> request
-            .logoutRequestHandler(myOpenSamlLogoutRequestHandler)
+            .authenticationManager(myOpenSamlLogoutRequestAuthenticationManager)
         )
     );
 ----
 
-=== Customizing `<saml2:LogoutResponse>` Validation
+=== Customizing `<saml2:LogoutResponse>` Authentication
 
-To customize validation, you can implement your own `LogoutHandler`.
-At this point, the validation is minimal, so you may be able to first delegate to the default `LogoutHandler` like so:
+To customize validation, you can implement your own `AuthenticationManager`.
+At this point, the validation is minimal, so you may be able to first delegate to the default `AuthenticationManager` like so:
 
 [source,java]
 ----
 @Component
-public class MyOpenSamlLogoutResponseHandler implements LogoutHandler {
-	private final Saml2LogoutResponseHandler delegate;
-
-	public MyOpenSamlLogoutResponseHandler(RelyingPartyRegistrationRepository registrations) {
-		RelyingPartyRegistrationResolver relyingPartyRegistrationResolver =
-            new DefaultRelyingPartyRegistrationResolver(registrations);
-		this.delegate = new OpenSamlLogoutResponseHandler(relyingPartyRegistrationResolver);
-	}
+public class MyOpenSamlLogoutResponseAuthenticationManager implements AuthenticationManager {
+	private final AuthenticationManager delegate = new OpenSamlLogoutResponseAuthenticationManager();
 
 	@Override
     public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
-		delegate.logout(request, response, authentication); // verify signature, issuer, destination, and status
+		// verify signature, issuer, destination, and status
+		Authentication result = delegate.authenticate(authentication);
+
 		LogoutResponse logoutResponse = // ... parse using OpenSAML
         // perform custom validation
     }
 }
 ----
 
-Then, you can supply your custom `LogoutHandler` in the DSL as follows:
+Then, you can supply your custom `AuthenticationManager` in the DSL as follows:
 
 [source,java]
 ----
 http
     .saml2Logout((saml2) -> saml2
         .logoutResponse((response) -> response
-            .logoutResponseHandler(myOpenSamlLogoutResponseHandler)
+            .authenticationManager(myOpenSamlLogoutResponseAuthenticationManager)
         )
     );
 ----
