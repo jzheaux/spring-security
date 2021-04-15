@@ -25,7 +25,7 @@ import org.springframework.security.saml2.provider.service.registration.RelyingP
  * A contract for resolving a {@link RelyingPartyRegistration} from the HTTP request
  *
  * @author Josh Cummings
- * @since 5.5
+ * @since 5.6
  */
 public interface RelyingPartyRegistrationResolver extends Converter<HttpServletRequest, RelyingPartyRegistration> {
 
