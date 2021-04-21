@@ -22,6 +22,8 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.io.DefaultResourceLoader;
@@ -51,6 +53,26 @@ public class ResourceKeyConverterAdapter<T extends Key> implements Converter<Str
 	 */
 	public ResourceKeyConverterAdapter(Converter<InputStream, T> delegate) {
 		this.delegate = pemInputStreamConverter().andThen(autoclose(delegate));
+	}
+
+	/**
+	 * Construct a {@link ResourceKeyConverterAdapter} for converting a resource to a
+	 * {@link RSAPublicKey}
+	 * @return a {@link ResourceKeyConverterAdapter} for {@link RSAPublicKey}s
+	 */
+	public static ResourceKeyConverterAdapter<RSAPublicKey> x509() {
+		return new ResourceKeyConverterAdapter<RSAPublicKey>(RsaKeyConverters.x509()) {
+		};
+	}
+
+	/**
+	 * Construct a {@link ResourceKeyConverterAdapter} for converting a resource to a
+	 * {@link RSAPublicKey}
+	 * @return a {@link ResourceKeyConverterAdapter} for {@link RSAPublicKey}s
+	 */
+	public static ResourceKeyConverterAdapter<RSAPrivateKey> pkcs8() {
+		return new ResourceKeyConverterAdapter<RSAPrivateKey>(RsaKeyConverters.pkcs8()) {
+		};
 	}
 
 	/**

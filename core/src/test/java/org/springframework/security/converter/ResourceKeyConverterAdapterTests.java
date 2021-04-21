@@ -17,10 +17,12 @@
 package org.springframework.security.converter;
 
 import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 
 import org.junit.Before;
 import org.junit.Test;
 
+import org.springframework.core.convert.support.GenericConversionService;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
@@ -89,6 +91,20 @@ public class ResourceKeyConverterAdapterTests {
 		this.adapter.setResourceLoader(new CustomResourceLoader());
 		RSAPrivateKey key = this.adapter.convert("custom:simple.priv");
 		assertThat(key.getModulus().bitLength()).isEqualTo(2048);
+	}
+
+	@Test
+	public void whenX509ConverterIsRegisteredWithConversionServiceThenConversionToRSAPublicKeyIsPossible() {
+		GenericConversionService conversionService = new GenericConversionService();
+		conversionService.addConverter(ResourceKeyConverterAdapter.x509());
+		assertThat(conversionService.canConvert(String.class, RSAPublicKey.class)).isTrue();
+	}
+
+	@Test
+	public void whenPkcs8ConverterIsRegisteredWithConversionServiceThenConversionToRSAPrivateKeyIsPossible() {
+		GenericConversionService conversionService = new GenericConversionService();
+		conversionService.addConverter(ResourceKeyConverterAdapter.pkcs8());
+		assertThat(conversionService.canConvert(String.class, RSAPrivateKey.class)).isTrue();
 	}
 
 	private static class CustomResourceLoader implements ResourceLoader {

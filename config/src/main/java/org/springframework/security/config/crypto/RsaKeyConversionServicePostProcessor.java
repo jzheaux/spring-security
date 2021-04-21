@@ -44,10 +44,9 @@ public class RsaKeyConversionServicePostProcessor implements BeanFactoryPostProc
 
 	private static final String CONVERSION_SERVICE_BEAN_NAME = "conversionService";
 
-	private ResourceKeyConverterAdapter<RSAPublicKey> x509 = new ResourceKeyConverterAdapter<>(RsaKeyConverters.x509());
+	private ResourceKeyConverterAdapter<RSAPublicKey> x509 = ResourceKeyConverterAdapter.x509();
 
-	private ResourceKeyConverterAdapter<RSAPrivateKey> pkcs8 = new ResourceKeyConverterAdapter<>(
-			RsaKeyConverters.pkcs8());
+	private ResourceKeyConverterAdapter<RSAPrivateKey> pkcs8 = ResourceKeyConverterAdapter.pkcs8();
 
 	public void setResourceLoader(ResourceLoader resourceLoader) {
 		Assert.notNull(resourceLoader, "resourceLoader cannot be null");
@@ -63,8 +62,8 @@ public class RsaKeyConversionServicePostProcessor implements BeanFactoryPostProc
 		ConversionService service = beanFactory.getConversionService();
 		if (service instanceof ConverterRegistry) {
 			ConverterRegistry registry = (ConverterRegistry) service;
-			registry.addConverter(String.class, RSAPrivateKey.class, this.pkcs8);
-			registry.addConverter(String.class, RSAPublicKey.class, this.x509);
+			registry.addConverter(this.pkcs8);
+			registry.addConverter(this.x509);
 		}
 		else {
 			beanFactory.addPropertyEditorRegistrar((registry) -> {
