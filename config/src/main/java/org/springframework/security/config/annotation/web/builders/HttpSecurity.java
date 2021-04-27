@@ -2133,7 +2133,7 @@ public final class HttpSecurity extends AbstractConfiguredSecurityBuilder<Defaul
 	 * <br>
 	 *
 	 * As a prerequisite to using this feature, is that you have a SAML v2.0 Asserting
-	 * Party to sent a logout request to. The representation of the relying party and the
+	 * Party to send a logout request to. The representation of the relying party and the
 	 * asserting party is contained within {@link RelyingPartyRegistration}. <br>
 	 * <br>
 	 *
