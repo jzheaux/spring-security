@@ -1,2 +1,9 @@
-# Normalize line endings to LF.
-* text eol=lf
+# Normalize line endings to auto.
+* text auto
+
+# Ensure the following are treated as binary.
+*.jar      binary
+*.jpeg     binary
+*.jpg      binary
+*.keystore binary
+*.cer      binary
