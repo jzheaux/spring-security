@@ -2,8 +2,13 @@
 * text eol=lf
 
 # Ensure the following are treated as binary.
+*.bat      binary
+*.graffle  binary
 *.jar      binary
 *.jpeg     binary
 *.jpg      binary
 *.keystore binary
+*.odg      binary
+*.otg      binary
+*.png      binary
 *.cer      binary
