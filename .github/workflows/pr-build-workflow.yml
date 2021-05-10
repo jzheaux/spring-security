@@ -23,7 +23,6 @@ jobs:
   check_windows:
     name: Check Windows
     runs-on: windows-latest
-    if: github.repository == 'spring-projects/spring-security'
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK
