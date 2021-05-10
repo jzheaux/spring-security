@@ -1,5 +1,5 @@
 # Normalize line endings to auto.
-* text auto
+* text eol=lf
 
 # Ensure the following are treated as binary.
 *.jar      binary
