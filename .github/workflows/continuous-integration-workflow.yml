@@ -38,7 +38,7 @@ jobs:
           path: job-prerequisites.txt
       - id: continue
         name: Determine if should continue
-        run: echo "::set-output name=runjobs::${RUN_JOBS}"
+        run: echo "::set-output name=runjobs::true"
   build_jdk_11:
     name: Build JDK 11
     needs: [prerequisites]
