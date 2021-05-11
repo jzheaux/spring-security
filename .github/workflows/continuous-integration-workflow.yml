@@ -43,7 +43,7 @@ jobs:
     name: Build JDK 11
     needs: [prerequisites]
     runs-on: ubuntu-latest
-    if: needs.prequisites.outputs.runjobs == 'true'
+    if: needs.prequisites.outputs.runjobs
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK 11
