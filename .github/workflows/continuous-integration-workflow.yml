@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - main
+      - ci-test
   schedule:
     - cron: '0 10 * * *' # Once per day at 10am UTC
   workflow_dispatch: # Manual trigger
@@ -17,7 +17,7 @@ env:
   COMMIT_SHA: ${{ github.sha }}
   ARTIFACTORY_USERNAME: ${{ secrets.ARTIFACTORY_USERNAME }}
   ARTIFACTORY_PASSWORD: ${{ secrets.ARTIFACTORY_PASSWORD }}
-  RUN_JOBS: ${{ github.repository == 'spring-projects/spring-security' }}
+  RUN_JOBS: ${{ github.repository == 'jzheaux/spring-security' }}
 
 jobs:
   prerequisites:
