@@ -77,7 +77,6 @@ jobs:
     name: Check Windows
     needs: [prerequisites]
     runs-on: windows-latest
-    if: needs.prerequisites.outputs.runjobs
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK 11
