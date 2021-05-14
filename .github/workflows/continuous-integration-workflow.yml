@@ -78,10 +78,6 @@ jobs:
     needs: [prerequisites]
     runs-on: windows-latest
     steps:
-      - name: Print Out /etc/hosts
-        run: |
-          cat c:\windows\system32\drivers\etc\hosts
-          dir c:
       - uses: actions/checkout@v2
       - name: Set up JDK 11
         uses: actions/setup-java@v1
@@ -97,7 +93,7 @@ jobs:
           set GRADLE_ENTERPRISE_CACHE_USERNAME="$GRADLE_ENTERPRISE_CACHE_USER"
           set GRADLE_ENTERPRISE_CACHE_PASSWORD="$GRADLE_ENTERPRISE_CACHE_PASSWORD"
           set GRADLE_ENTERPRISE_ACCESS_KEY="$GRADLE_ENTERPRISE_SECRET_ACCESS_KEY"
-          ./gradlew :spring-security-oauth2-client:build -PartifactoryUsername="$ARTIFACTORY_USERNAME" -PartifactoryPassword="$ARTIFACTORY_PASSWORD" --scan
+          ./gradlew :spring-security-oauth2-client:build -PartifactoryUsername="$ARTIFACTORY_USERNAME" -PartifactoryPassword="$ARTIFACTORY_PASSWORD"
   snapshot_tests:
     name: Test against snapshots
     needs: [prerequisites]
