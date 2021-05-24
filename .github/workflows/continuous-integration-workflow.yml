@@ -15,7 +15,7 @@ env:
   COMMIT_SHA: ${{ github.sha }}
   ARTIFACTORY_USERNAME: ${{ secrets.ARTIFACTORY_USERNAME }}
   ARTIFACTORY_PASSWORD: ${{ secrets.ARTIFACTORY_PASSWORD }}
-  RUN_JOBS: ${{ github.repository == 'spring-projects/spring-security' }}
+  RUN_JOBS: ${{ github.repository == 'jzheaux/spring-security' }}
 
 jobs:
   prerequisites:
@@ -220,5 +220,5 @@ jobs:
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
-          channel: '#spring-security-ci'
+          channel: '#spring-security-ci-test'
           name: 'CI Notifier'
