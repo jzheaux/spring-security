@@ -22,11 +22,20 @@ import org.springframework.aop.Pointcut;
 import org.springframework.aop.support.ComposablePointcut;
 import org.springframework.aop.support.Pointcuts;
 import org.springframework.aop.support.annotation.AnnotationMatchingPointcut;
+import org.springframework.security.access.prepost.PostAuthorize;
+import org.springframework.security.access.prepost.PostFilter;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.access.prepost.PreFilter;
 
 /**
  * @author Josh Cummings
+ * @author Evgeniy Cheban
  */
 final class AuthorizationMethodPointcuts {
+
+	static Pointcut forAllAnnotations() {
+		return forAnnotations(PreFilter.class, PreAuthorize.class, PostFilter.class, PostAuthorize.class);
+	}
 
 	@SafeVarargs
 	static Pointcut forAnnotations(Class<? extends Annotation>... annotations) {

@@ -53,6 +53,7 @@ import org.springframework.util.Assert;
  * @author Eleftheria Stein
  * @since 5.0
  */
+@Deprecated
 public class PrePostAdviceReactiveMethodInterceptor implements MethodInterceptor {
 
 	private Authentication anonymous = new AnonymousAuthenticationToken("key", "anonymous",

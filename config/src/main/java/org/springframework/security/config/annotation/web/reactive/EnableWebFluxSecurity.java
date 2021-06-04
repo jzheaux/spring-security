@@ -24,6 +24,7 @@ import java.lang.annotation.Target;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.config.annotation.method.configuration.ReactiveMethodSecuritySelector;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 
 /**
@@ -85,7 +86,7 @@ import org.springframework.security.config.web.server.ServerHttpSecurity;
 @Target(ElementType.TYPE)
 @Documented
 @Import({ ServerHttpSecurityConfiguration.class, WebFluxSecurityConfiguration.class,
-		ReactiveOAuth2ClientImportSelector.class })
+		ReactiveOAuth2ClientImportSelector.class, ReactiveMethodSecuritySelector.class })
 @Configuration
 public @interface EnableWebFluxSecurity {
 
