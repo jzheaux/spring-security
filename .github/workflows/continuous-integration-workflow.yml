@@ -54,11 +54,14 @@ jobs:
           export GRADLE_ENTERPRISE_CACHE_PASSWORD="$GRADLE_ENTERPRISE_CACHE_PASSWORD"
           export GRADLE_ENTERPRISE_ACCESS_KEY="$GRADLE_ENTERPRISE_SECRET_ACCESS_KEY"
           ./gradlew clean build --continue -PartifactoryUsername="$ARTIFACTORY_USERNAME" -PartifactoryPassword="$ARTIFACTORY_PASSWORD"
-  snapshot_tests:
-    name: Test against snapshots
+  sonar_analysis:
+    name: Static Code Analysis
     needs: [prerequisites]
     runs-on: ubuntu-latest
     if: needs.prerequisites.outputs.runjobs
+    env:
+      SONAR_URL: ${{ secrets.SONAR_URL }}
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK
@@ -69,16 +72,25 @@ jobs:
         run: |
           mkdir -p ~/.gradle
           echo 'systemProp.user.name=spring-builds' >> ~/.gradle/gradle.properties
-      - name: Snapshot Tests
+      - name: Run Sonar on given (non-main) branch
+        if: ${{ github.ref != 'refs/heads/main' }}
+        run: |
+          export BRANCH=${GITHUB_REF#refs/heads/}
+          export GRADLE_ENTERPRISE_CACHE_USERNAME="$GRADLE_ENTERPRISE_CACHE_USER"
+          export GRADLE_ENTERPRISE_CACHE_PASSWORD="$GRADLE_ENTERPRISE_CACHE_PASSWORD"
+          export GRADLE_ENTERPRISE_ACCESS_KEY="$GRADLE_ENTERPRISE_SECRET_ACCESS_KEY"
+          ./gradlew sonarqube -PartifactoryUsername="$ARTIFACTORY_USERNAME" -PartifactoryPassword="$ARTIFACTORY_PASSWORD" -PexcludeProjects='**/samples/**' -Dsonar.projectKey="spring-security-${GITHUB_REF#refs/heads/}" -Dsonar.projectName="spring-security-${GITHUB_REF#refs/heads/}" -Dsonar.host.url="$SONAR_URL" -Dsonar.login="$SONAR_TOKEN" --stacktrace
+      - name: Run Sonar on main
+        if: ${{ github.ref == 'refs/heads/main' }}
         run: |
           export GRADLE_ENTERPRISE_CACHE_USERNAME="$GRADLE_ENTERPRISE_CACHE_USER"
           export GRADLE_ENTERPRISE_CACHE_PASSWORD="$GRADLE_ENTERPRISE_CACHE_PASSWORD"
           export GRADLE_ENTERPRISE_ACCESS_KEY="$GRADLE_ENTERPRISE_SECRET_ACCESS_KEY"
-          ./gradlew test --refresh-dependencies -PartifactoryUsername="$ARTIFACTORY_USERNAME" -PartifactoryPassword="$ARTIFACTORY_PASSWORD" -PforceMavenRepositories=snapshot -PspringVersion='5.+' -PreactorVersion='20+' -PspringDataVersion='Neumann-BUILD-SNAPSHOT' -PrsocketVersion=1.1.0-SNAPSHOT -PspringBootVersion=2.4.0-SNAPSHOT -PlocksDisabled --stacktrace
+          ./gradlew sonarqube -PartifactoryUsername="$ARTIFACTORY_USERNAME" -PartifactoryPassword="$ARTIFACTORY_PASSWORD" -PexcludeProjects='**/samples/**' -Dsonar.host.url="$SONAR_URL" -Dsonar.login="$SONAR_TOKEN" --stacktrace
   notify_result:
     name: Check for failures
-    needs: [build_jdk_11, snapshot_tests]
-    if: ${{ needs.prerequisites.runjobs && ( needs.build_jdk_11.result == 'failure' || needs.snapshot_tests.result == 'failure' ) }}
+    needs: [build_jdk_11, sonar_analysis]
+    if: ${{ needs.prerequisites.runjobs && ( needs.build_jdk_11.result == 'failure' || needs.sonar_analysis.result == 'failure' ) }}
     runs-on: ubuntu-latest
     steps:
       - name: Send Slack message
