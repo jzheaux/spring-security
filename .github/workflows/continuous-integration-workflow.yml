@@ -90,9 +90,13 @@ jobs:
   notify_result:
     name: Check for failures
     needs: [build_jdk_11, sonar_analysis]
-    if: ${{ needs.prerequisites.outputs.runjobs && ( needs.build_jdk_11.result == 'failure' || needs.sonar_analysis.result == 'failure' ) }}
     runs-on: ubuntu-latest
     steps:
+      - name: Needs context
+        env:
+          NEEDS_CONTEXT: ${{ toJSON(needs) }}
+        run: |
+          echo "$NEEDS_CONTEXT"
       - name: Send Slack message
         uses: Gamesight/slack-workflow-status@v1.0.1
         with:
