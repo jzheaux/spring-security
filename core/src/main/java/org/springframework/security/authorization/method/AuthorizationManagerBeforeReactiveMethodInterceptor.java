@@ -17,8 +17,10 @@
 package org.springframework.security.authorization.method;
 
 import java.lang.reflect.Method;
-import java.util.Collection;
 
+import kotlin.coroutines.Continuation;
+import kotlinx.coroutines.reactive.AwaitKt;
+import kotlinx.coroutines.reactive.ReactiveFlowKt;
 import org.aopalliance.aop.Advice;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
@@ -36,14 +38,11 @@ import org.springframework.core.MethodParameter;
 import org.springframework.core.Ordered;
 import org.springframework.core.ReactiveAdapter;
 import org.springframework.core.ReactiveAdapterRegistry;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.access.ConfigAttribute;
-import org.springframework.security.access.prepost.PostInvocationAttribute;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.access.prepost.PreInvocationAttribute;
-import org.springframework.security.access.prepost.PrePostAdviceReactiveMethodInterceptor;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authorization.ReactiveAuthorizationManager;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.util.Assert;
@@ -58,11 +57,18 @@ import org.springframework.util.Assert;
 public final class AuthorizationManagerBeforeReactiveMethodInterceptor
 		implements Ordered, MethodInterceptor, PointcutAdvisor, AopInfrastructureBean {
 
+	private Authentication anonymous = new AnonymousAuthenticationToken("key", "anonymous",
+			AuthorityUtils.createAuthorityList("ROLE_ANONYMOUS"));
+
 	private final Pointcut pointcut;
 
 	private final ReactiveAuthorizationManager<MethodInvocation> authorizationManager;
 
 	private int order;
+
+	private static final String COROUTINES_FLOW_CLASS_NAME = "kotlinx.coroutines.flow.Flow";
+
+	private static final int RETURN_TYPE_METHOD_PARAMETER_INDEX = -1;
 
 	/**
 	 * Creates an instance for the {@link PreAuthorize} annotation.
@@ -121,61 +127,41 @@ public final class AuthorizationManagerBeforeReactiveMethodInterceptor
 						+ " must return an instance of org.reactivestreams.Publisher "
 						+ "(i.e. Mono / Flux) or the function must be a Kotlin coroutine "
 						+ "function in order to support Reactor Context");
-		Class<?> targetClass = invocation.getThis().getClass();
 		// @formatter:off
-		Mono<Authentication> toInvoke = ReactiveSecurityContextHolder.getContext()
+		Mono<Authentication> authentication = ReactiveSecurityContextHolder.getContext()
 				.map(SecurityContext::getAuthentication)
-				.defaultIfEmpty(this.anonymous)
-				.filter((auth) -> this.preInvocationAdvice.before(auth, invocation, preAttr))
-				.switchIfEmpty(Mono.defer(() -> Mono.error(new AccessDeniedException("Denied"))));
+				.switchIfEmpty(Mono.just(this.anonymous));
+		Mono<Void> toInvoke = this.authorizationManager.verify(authentication, invocation);
 		// @formatter:on
-		PostInvocationAttribute attr = findPostInvocationAttribute(attributes);
 		if (Mono.class.isAssignableFrom(returnType)) {
-			return toInvoke.flatMap((auth) -> ReactiveMethodInvocationUtils.proceed(invocation).<Mono<?>>proceed(invocation)
-					.map((r) -> (attr != null) ? this.postAdvice.after(auth, invocation, attr, r) : r));
+			return toInvoke.then(Mono.defer(() -> ReactiveMethodInvocationUtils.proceed(invocation)));
 		}
 		if (Flux.class.isAssignableFrom(returnType)) {
-			return toInvoke.flatMapMany((auth) -> PrePostAdviceReactiveMethodInterceptor.<Flux<?>>proceed(invocation)
-					.map((r) -> (attr != null) ? this.postAdvice.after(auth, invocation, attr, r) : r));
+			return toInvoke.thenMany(Flux.defer(() -> ReactiveMethodInvocationUtils.proceed(invocation)));
 		}
 		if (hasFlowReturnType) {
 			Flux<?> response;
 			if (isSuspendingFunction) {
-				response = toInvoke.flatMapMany((auth) -> Flux
-						.from(CoroutinesUtils.invokeSuspendingFunction(invocation.getMethod(), invocation.getThis(),
-								invocation.getArguments()))
-						.map((r) -> (attr != null) ? this.postAdvice.after(auth, invocation, attr, r) : r));
+				response = toInvoke.thenMany(
+						Flux.defer(() -> Flux.from(CoroutinesUtils.invokeSuspendingFunction(invocation.getMethod(),
+								invocation.getThis(), invocation.getArguments()))));
 			}
 			else {
 				ReactiveAdapter adapter = ReactiveAdapterRegistry.getSharedInstance().getAdapter(returnType);
 				Assert.state(adapter != null, () -> "The returnType " + returnType + " on " + method
 						+ " must have a org.springframework.core.ReactiveAdapter registered");
-				response = toInvoke.flatMapMany((auth) -> Flux
-						.from(adapter.toPublisher(PrePostAdviceReactiveMethodInterceptor.flowProceed(invocation)))
-						.map((r) -> (attr != null) ? this.postAdvice.after(auth, invocation, attr, r) : r));
+				response = toInvoke.thenMany(Flux.defer(() -> Flux.from(adapter.toPublisher(flowProceed(invocation)))));
 			}
 			return KotlinDelegate.asFlow(response);
 		}
 		if (isSuspendingFunction) {
-			Mono<?> response = toInvoke.flatMap((auth) -> Mono
-					.from(CoroutinesUtils.invokeSuspendingFunction(invocation.getMethod(), invocation.getThis(),
-							invocation.getArguments()))
-					.map((r) -> (attr != null) ? this.postAdvice.after(auth, invocation, attr, r) : r));
+			Mono<?> response = toInvoke
+					.then(Mono.defer(() -> Mono.from(CoroutinesUtils.invokeSuspendingFunction(invocation.getMethod(),
+							invocation.getThis(), invocation.getArguments()))));
 			return KotlinDelegate.awaitSingleOrNull(response,
 					invocation.getArguments()[invocation.getArguments().length - 1]);
 		}
-		return toInvoke.flatMapMany(
-				(auth) -> Flux.from(PrePostAdviceReactiveMethodInterceptor.<Publisher<?>>proceed(invocation))
-						.map((r) -> (attr != null) ? this.postAdvice.after(auth, invocation, attr, r) : r));
-	}
-
-	private static <T extends Publisher<?>> T proceed(final MethodInvocation invocation) {
-		try {
-			return (T) invocation.proceed();
-		}
-		catch (Throwable throwable) {
-			throw Exceptions.propagate(throwable);
-		}
+		return toInvoke.thenMany(Flux.defer(() -> Flux.from(ReactiveMethodInvocationUtils.proceed(invocation))));
 	}
 
 	private static Object flowProceed(final MethodInvocation invocation) {
@@ -209,6 +195,21 @@ public final class AuthorizationManagerBeforeReactiveMethodInterceptor
 
 	public void setOrder(int order) {
 		this.order = order;
+	}
+
+	/**
+	 * Inner class to avoid a hard dependency on Kotlin at runtime.
+	 */
+	private static class KotlinDelegate {
+
+		private static Object asFlow(Publisher<?> publisher) {
+			return ReactiveFlowKt.asFlow(publisher);
+		}
+
+		private static Object awaitSingleOrNull(Publisher<?> publisher, Object continuation) {
+			return AwaitKt.awaitSingleOrNull(publisher, (Continuation<Object>) continuation);
+		}
+
 	}
 
 }

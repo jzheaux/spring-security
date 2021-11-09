@@ -16,12 +16,7 @@
 
 package org.springframework.security.config.annotation.method.configuration;
 
-import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Role;
-import org.springframework.security.authorization.method.AuthorizationAfterReactiveMethodInterceptor;
-import org.springframework.security.authorization.method.AuthorizationBeforeReactiveMethodInterceptor;
 
 /**
  * @author Evgeniy Cheban
@@ -29,16 +24,20 @@ import org.springframework.security.authorization.method.AuthorizationBeforeReac
 @Configuration(proxyBeanMethods = false)
 final class ReactiveMethodSecurityCommonConfiguration {
 
-	@Bean
-	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-	AuthorizationBeforeReactiveMethodInterceptor authorizationBeforeReactiveMethodInterceptor() {
-		return new AuthorizationBeforeReactiveMethodInterceptor();
-	}
-
-	@Bean
-	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-	AuthorizationAfterReactiveMethodInterceptor authorizationAfterReactiveMethodInterceptor() {
-		return new AuthorizationAfterReactiveMethodInterceptor();
-	}
+	/*
+	 * @Bean
+	 *
+	 * @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+	 * AuthorizationBeforeReactiveMethodInterceptor
+	 * authorizationBeforeReactiveMethodInterceptor() { return new
+	 * AuthorizationBeforeReactiveMethodInterceptor(); }
+	 *
+	 * @Bean
+	 *
+	 * @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+	 * AuthorizationAfterReactiveMethodInterceptor
+	 * authorizationAfterReactiveMethodInterceptor() { return new
+	 * AuthorizationAfterReactiveMethodInterceptor(); }
+	 */
 
 }

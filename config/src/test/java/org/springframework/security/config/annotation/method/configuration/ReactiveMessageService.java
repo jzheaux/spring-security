@@ -34,6 +34,8 @@ public interface ReactiveMessageService {
 
 	Mono<String> monoPostAuthorizeBeanFindById(long id);
 
+	Mono<String> monoPrePostAuthorizeFindById(long id);
+
 	Flux<String> fluxFindById(long id);
 
 	Flux<String> fluxPreAuthorizeHasRoleFindById(long id);
@@ -44,6 +46,8 @@ public interface ReactiveMessageService {
 
 	Flux<String> fluxPostAuthorizeBeanFindById(long id);
 
+	Flux<String> fluxPrePostAuthorizeFindById(long id);
+
 	Publisher<String> publisherFindById(long id);
 
 	Publisher<String> publisherPreAuthorizeHasRoleFindById(long id);
@@ -53,5 +57,7 @@ public interface ReactiveMessageService {
 	Publisher<String> publisherPreAuthorizeBeanFindById(long id);
 
 	Publisher<String> publisherPostAuthorizeBeanFindById(long id);
+
+	Publisher<String> publisherPrePostAuthorizeFindById(long id);
 
 }

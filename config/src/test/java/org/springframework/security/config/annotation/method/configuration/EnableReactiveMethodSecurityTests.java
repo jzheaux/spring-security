@@ -103,6 +103,13 @@ public class EnableReactiveMethodSecurityTests {
 	}
 
 	@Test
+	public void monoPrePostAuthorizeWhenAuthorizedThenSuccess() {
+		given(this.delegate.monoPrePostAuthorizeFindById(1L)).willReturn(Mono.just("admin"));
+		Mono<String> findById = this.messageService.monoPrePostAuthorizeFindById(1L).subscriberContext(this.withAdmin);
+		StepVerifier.create(findById).expectNext("admin").verifyComplete();
+	}
+
+	@Test
 	public void monoPreAuthorizeHasRoleWhenNoAuthenticationThenDenied() {
 		given(this.delegate.monoPreAuthorizeHasRoleFindById(1L)).willReturn(Mono.from(this.result));
 		Mono<String> findById = this.messageService.monoPreAuthorizeHasRoleFindById(1L);
@@ -207,6 +214,13 @@ public class EnableReactiveMethodSecurityTests {
 	}
 
 	@Test
+	public void fluxPrePostAuthorizeWhenAuthorizedThenSuccess() {
+		given(this.delegate.fluxPrePostAuthorizeFindById(1L)).willReturn(Flux.just("admin"));
+		Flux<String> findById = this.messageService.fluxPrePostAuthorizeFindById(1L).subscriberContext(this.withAdmin);
+		StepVerifier.create(findById).expectNext("admin").verifyComplete();
+	}
+
+	@Test
 	public void fluxPreAuthorizeHasRoleWhenNoAuthenticationThenDenied() {
 		given(this.delegate.fluxPreAuthorizeHasRoleFindById(1L)).willReturn(Flux.from(this.result));
 		Flux<String> findById = this.messageService.fluxPreAuthorizeHasRoleFindById(1L);
@@ -308,6 +322,30 @@ public class EnableReactiveMethodSecurityTests {
 		Publisher<String> findById = Flux.from(this.messageService.publisherPreAuthorizeHasRoleFindById(1L))
 				.subscriberContext(this.withAdmin);
 		StepVerifier.create(findById).consumeNextWith((s) -> assertThat(s).isEqualTo("result")).verifyComplete();
+	}
+
+	@Test
+	public void publisherPrePostAuthorizeWhenAuthorizedThenSuccess() {
+		given(this.delegate.publisherPrePostAuthorizeFindById(1L)).willReturn(publisherJust("admin"));
+		Publisher<String> findById = Flux.from(this.messageService.publisherPrePostAuthorizeFindById(1L))
+				.subscriberContext(this.withAdmin);
+		StepVerifier.create(findById).expectNext("admin").verifyComplete();
+	}
+
+	@Test
+	public void publisherPrePostAuthorizeWhenPreRejectsThenDenies() {
+		given(this.delegate.publisherPrePostAuthorizeFindById(1L)).willReturn(publisherJust("result"));
+		Publisher<String> findById = Flux.from(this.messageService.publisherPrePostAuthorizeFindById(1L))
+				.subscriberContext(this.withUser);
+		StepVerifier.create(findById).expectError(AccessDeniedException.class).verify();
+	}
+
+	@Test
+	public void publisherPrePostAuthorizeWhenPostRejectsThenDenies() {
+		given(this.delegate.publisherPrePostAuthorizeFindById(1L)).willReturn(publisherJust("result"));
+		Publisher<String> findById = Flux.from(this.messageService.publisherPrePostAuthorizeFindById(1L))
+				.subscriberContext(this.withAdmin);
+		StepVerifier.create(findById).expectError(AccessDeniedException.class).verify();
 	}
 
 	@Test

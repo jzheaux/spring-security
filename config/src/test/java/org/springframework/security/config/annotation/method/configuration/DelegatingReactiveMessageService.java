@@ -124,4 +124,25 @@ public class DelegatingReactiveMessageService implements ReactiveMessageService 
 		return this.delegate.publisherPostAuthorizeBeanFindById(id);
 	}
 
+	@Override
+	@PreAuthorize("hasRole('ADMIN')")
+	@PostAuthorize("returnObject?.contains(authentication?.name)")
+	public Mono<String> monoPrePostAuthorizeFindById(long id) {
+		return this.delegate.monoPrePostAuthorizeFindById(id);
+	}
+
+	@Override
+	@PreAuthorize("hasRole('ADMIN')")
+	@PostAuthorize("returnObject?.contains(authentication?.name)")
+	public Flux<String> fluxPrePostAuthorizeFindById(long id) {
+		return this.delegate.fluxPrePostAuthorizeFindById(id);
+	}
+
+	@Override
+	@PreAuthorize("hasRole('ADMIN')")
+	@PostAuthorize("returnObject?.contains(authentication?.name)")
+	public Publisher<String> publisherPrePostAuthorizeFindById(long id) {
+		return this.delegate.publisherPrePostAuthorizeFindById(id);
+	}
+
 }
