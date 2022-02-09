@@ -43,6 +43,8 @@ import org.springframework.security.config.annotation.web.WebSecurityConfigurer;
 import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.crypto.RsaKeyConversionServicePostProcessor;
 import org.springframework.security.context.DelegatingApplicationListener;
+import org.springframework.security.core.context.SecurityContextChangedListenersPostProcessor;
+import org.springframework.security.core.context.SecurityContextHolderStrategyBeanPostProcessor;
 import org.springframework.security.web.FilterChainProxy;
 import org.springframework.security.web.FilterInvocation;
 import org.springframework.security.web.SecurityFilterChain;
@@ -187,6 +189,11 @@ public class WebSecurityConfiguration implements ImportAware, BeanClassLoaderAwa
 	@Bean
 	public static BeanFactoryPostProcessor conversionServicePostProcessor() {
 		return new RsaKeyConversionServicePostProcessor();
+	}
+
+	@Bean
+	public static BeanFactoryPostProcessor securityContextChangedListenersPostProcessor() {
+		return new SecurityContextChangedListenersPostProcessor();
 	}
 
 	@Override

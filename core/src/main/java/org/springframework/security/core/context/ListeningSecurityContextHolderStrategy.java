@@ -63,6 +63,19 @@ public final class ListeningSecurityContextHolderStrategy implements SecurityCon
 	private final SecurityContextHolderStrategy delegate;
 
 	/**
+	 * Construct a {@link ListeningSecurityContextHolderStrategy} based on a
+	 * {@link ThreadLocalSecurityContextHolderStrategy}
+	 * @param listeners the listeners that should be notified when the
+	 * {@link SecurityContext} is {@link #setContext(SecurityContext) set} or
+	 * {@link #clearContext() cleared}
+	 * @since 5.7
+	 */
+	public ListeningSecurityContextHolderStrategy(
+			Collection<SecurityContextChangedListener> listeners) {
+		this(new ThreadLocalSecurityContextHolderStrategy(), listeners);
+	}
+
+	/**
 	 * Construct a {@link ListeningSecurityContextHolderStrategy}
 	 * @param listeners the listeners that should be notified when the
 	 * {@link SecurityContext} is {@link #setContext(SecurityContext) set} or

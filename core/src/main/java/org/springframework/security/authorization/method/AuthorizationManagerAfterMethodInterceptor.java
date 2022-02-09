@@ -27,6 +27,7 @@ import org.apache.commons.logging.LogFactory;
 import org.springframework.aop.Pointcut;
 import org.springframework.aop.PointcutAdvisor;
 import org.springframework.aop.framework.AopInfrastructureBean;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.Ordered;
 import org.springframework.core.log.LogMessage;
 import org.springframework.security.access.AccessDeniedException;
@@ -36,6 +37,7 @@ import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.util.Assert;
 
 /**
@@ -63,6 +65,8 @@ public final class AuthorizationManagerAfterMethodInterceptor
 	private final Pointcut pointcut;
 
 	private final AuthorizationManager<MethodInvocationResult> authorizationManager;
+
+	private Supplier<Authentication> authentication = AUTHENTICATION_SUPPLIER;
 
 	private int order;
 
@@ -122,6 +126,18 @@ public final class AuthorizationManagerAfterMethodInterceptor
 		this.order = order;
 	}
 
+	@Autowired(required = false)
+	public void setSecurityContextHolderStrategy(SecurityContextHolderStrategy strategy) {
+		this.authentication = () -> {
+			Authentication authentication = strategy.getContext().getAuthentication();
+			if (authentication == null) {
+				throw new AuthenticationCredentialsNotFoundException(
+						"An Authentication object was not found in the SecurityContext");
+			}
+			return authentication;
+		};
+	}
+
 	/**
 	 * {@inheritDoc}
 	 */
@@ -142,7 +158,7 @@ public final class AuthorizationManagerAfterMethodInterceptor
 
 	private void attemptAuthorization(MethodInvocation mi, Object result) {
 		this.logger.debug(LogMessage.of(() -> "Authorizing method invocation " + mi));
-		AuthorizationDecision decision = this.authorizationManager.check(AUTHENTICATION_SUPPLIER,
+		AuthorizationDecision decision = this.authorizationManager.check(this.authentication,
 				new MethodInvocationResult(mi, result));
 		if (decision != null && !decision.isGranted()) {
 			this.logger.debug(LogMessage.of(() -> "Failed to authorize " + mi + " with authorization manager "
