@@ -94,12 +94,12 @@ final class OpenSamlVerificationUtils {
 			this.trustEngine = trustEngine(registration);
 		}
 
-		Collection<Saml2Error> redirect(Saml2LogoutRequest request) {
-			return redirect(new RedirectSignature(request));
+		Collection<Saml2Error> redirect(Saml2LogoutRequest request, String queryString) {
+			return redirect(new RedirectSignature(request, queryString));
 		}
 
-		Collection<Saml2Error> redirect(Saml2LogoutResponse response) {
-			return redirect(new RedirectSignature(response));
+		Collection<Saml2Error> redirect(Saml2LogoutResponse response, queryString) {
+			return redirect(new RedirectSignature(response, queryString));
 		}
 
 		Collection<Saml2Error> redirect(RedirectSignature signature) {
@@ -183,7 +183,7 @@ final class OpenSamlVerificationUtils {
 
 			private final byte[] content;
 
-			RedirectSignature(Saml2LogoutRequest request) {
+			RedirectSignature(Saml2LogoutRequest request, String queryString) {
 				this.algorithm = request.getParameter(Saml2ParameterNames.SIG_ALG);
 				if (request.getParameter(Saml2ParameterNames.SIGNATURE) != null) {
 					this.signature = Saml2Utils.samlDecode(request.getParameter(Saml2ParameterNames.SIGNATURE));
@@ -191,11 +191,10 @@ final class OpenSamlVerificationUtils {
 				else {
 					this.signature = null;
 				}
-				this.content = content(request.getSamlRequest(), Saml2ParameterNames.SAML_REQUEST,
-						request.getRelayState(), request.getParameter(Saml2ParameterNames.SIG_ALG));
+				this.content = queryString.getBytes(StandardCharsets.UTF_8);
 			}
 
-			RedirectSignature(Saml2LogoutResponse response) {
+			RedirectSignature(Saml2LogoutResponse response, String queryString) {
 				this.algorithm = response.getParameter(Saml2ParameterNames.SIG_ALG);
 				if (response.getParameter(Saml2ParameterNames.SIGNATURE) != null) {
 					this.signature = Saml2Utils.samlDecode(response.getParameter(Saml2ParameterNames.SIGNATURE));
@@ -203,22 +202,7 @@ final class OpenSamlVerificationUtils {
 				else {
 					this.signature = null;
 				}
-				this.content = content(response.getSamlResponse(), Saml2ParameterNames.SAML_RESPONSE,
-						response.getRelayState(), response.getParameter(Saml2ParameterNames.SIG_ALG));
-			}
-
-			static byte[] content(String samlObject, String objectParameterName, String relayState, String algorithm) {
-				if (relayState != null) {
-					return String.format("%s=%s&%s=%s&%s=%s", objectParameterName,
-							UriUtils.encode(samlObject, StandardCharsets.ISO_8859_1), Saml2ParameterNames.RELAY_STATE,
-							UriUtils.encode(relayState, StandardCharsets.ISO_8859_1), Saml2ParameterNames.SIG_ALG,
-							UriUtils.encode(algorithm, StandardCharsets.ISO_8859_1)).getBytes(StandardCharsets.UTF_8);
-				}
-				else {
-					return String.format("%s=%s&%s=%s", objectParameterName,
-							UriUtils.encode(samlObject, StandardCharsets.ISO_8859_1), Saml2ParameterNames.SIG_ALG,
-							UriUtils.encode(algorithm, StandardCharsets.ISO_8859_1)).getBytes(StandardCharsets.UTF_8);
-				}
+				this.content = queryString.getBytes(StandardCharsets.UTF_8);
 			}
 
 			byte[] getContent() {

@@ -77,9 +77,10 @@ public final class OpenSamlLogoutRequestValidator implements Saml2LogoutRequestV
 		Saml2LogoutRequest request = parameters.getLogoutRequest();
 		RelyingPartyRegistration registration = parameters.getRelyingPartyRegistration();
 		Authentication authentication = parameters.getAuthentication();
+		String queryString = parameters.getQueryString();
 		byte[] b = Saml2Utils.samlDecode(request.getSamlRequest());
 		LogoutRequest logoutRequest = parse(inflateIfRequired(request, b));
-		return Saml2LogoutValidatorResult.withErrors().errors(verifySignature(request, logoutRequest, registration))
+		return Saml2LogoutValidatorResult.withErrors().errors(verifySignature(request, logoutRequest, registration, queryString))
 				.errors(validateRequest(logoutRequest, registration, authentication)).build();
 	}
 
@@ -103,14 +104,14 @@ public final class OpenSamlLogoutRequestValidator implements Saml2LogoutRequestV
 	}
 
 	private Consumer<Collection<Saml2Error>> verifySignature(Saml2LogoutRequest request, LogoutRequest logoutRequest,
-			RelyingPartyRegistration registration) {
+			RelyingPartyRegistration registration, String queryString) {
 		return (errors) -> {
 			VerifierPartial partial = OpenSamlVerificationUtils.verifySignature(logoutRequest, registration);
 			if (logoutRequest.isSigned()) {
 				errors.addAll(partial.post(logoutRequest.getSignature()));
 			}
 			else {
-				errors.addAll(partial.redirect(request));
+				errors.addAll(partial.redirect(request, queryString));
 			}
 		};
 	}

@@ -16,8 +16,12 @@
 
 package org.springframework.security.saml2.provider.service.authentication.logout;
 
+import java.nio.charset.StandardCharsets;
+
 import org.springframework.security.core.Authentication;
+import org.springframework.security.saml2.core.Saml2ParameterNames;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
+import org.springframework.web.util.UriUtils;
 
 /**
  * A holder of the parameters needed to invoke {@link Saml2LogoutRequestValidator}
@@ -33,6 +37,8 @@ public class Saml2LogoutRequestValidatorParameters {
 
 	private final Authentication authentication;
 
+	private final String queryString;
+
 	/**
 	 * Construct a {@link Saml2LogoutRequestValidatorParameters}
 	 * @param request the SAML 2.0 Logout Request received from the asserting party
@@ -44,6 +50,29 @@ public class Saml2LogoutRequestValidatorParameters {
 		this.request = request;
 		this.registration = registration;
 		this.authentication = authentication;
+		this.queryString = computeQueryString(request);
+	}
+
+	public Saml2LogoutRequestValidatorParameters(Saml2LogoutRequest request, RelyingPartyRegistration registration,
+			Authentication authentication, String queryString) {
+		this.request = request;
+		this.registration = registration;
+		this.authentication = authentication;
+		this.queryString = queryString;
+	}
+
+	private static String computeQueryString(Saml2LogoutRequest request) {
+		if (request.getRelayState() != null) {
+			return String.format("%s=%s&%s=%s&%s=%s", Saml2ParameterNames.SAML_REQUEST,
+					UriUtils.encode(request.getSamlRequest(), StandardCharsets.ISO_8859_1), Saml2ParameterNames.RELAY_STATE,
+					UriUtils.encode(request.getRelayState(), StandardCharsets.ISO_8859_1), Saml2ParameterNames.SIG_ALG,
+					UriUtils.encode(request.getParameter(Saml2ParameterNames.SIG_ALG), StandardCharsets.ISO_8859_1)).getBytes(StandardCharsets.UTF_8);
+		}
+		else {
+			return String.format("%s=%s&%s=%s", Saml2ParameterNames.SAML_REQUEST,
+					UriUtils.encode(request.getSamlRequest(), StandardCharsets.ISO_8859_1), Saml2ParameterNames.SIG_ALG,
+					UriUtils.encode(request.getParameter(Saml2ParameterNames.SIG_ALG), StandardCharsets.ISO_8859_1)).getBytes(StandardCharsets.UTF_8);
+		}
 	}
 
 	/**
@@ -70,4 +99,7 @@ public class Saml2LogoutRequestValidatorParameters {
 		return this.authentication;
 	}
 
+	public String getQueryString() {
+		return this.queryString;
+	}
 }
