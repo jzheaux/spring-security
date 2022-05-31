@@ -34,7 +34,9 @@ import org.springframework.util.ClassUtils;
  *
  * @author Rob Winch
  * @since 3.2
+ * @deprecated Use {@link MethodSecuritySelector} instead
  */
+@Deprecated
 final class GlobalMethodSecuritySelector implements ImportSelector {
 
 	@Override

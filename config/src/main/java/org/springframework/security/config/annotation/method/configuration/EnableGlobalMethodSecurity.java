@@ -43,7 +43,9 @@ import org.springframework.security.config.annotation.authentication.configurati
  *
  * @author Rob Winch
  * @since 3.2
+ * @deprecated Use {@link EnableMethodSecurity} instead
  */
+@Deprecated
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 @Documented
