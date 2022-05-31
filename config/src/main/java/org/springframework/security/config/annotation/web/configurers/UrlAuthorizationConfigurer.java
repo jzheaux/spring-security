@@ -85,7 +85,9 @@ import org.springframework.util.Assert;
  * @author Rob Winch
  * @since 3.2
  * @see ExpressionUrlAuthorizationConfigurer
+ * @deprecated Use {@link AuthorizeHttpRequestsConfigurer} instead
  */
+@Deprecated
 public final class UrlAuthorizationConfigurer<H extends HttpSecurityBuilder<H>>
 		extends AbstractInterceptUrlConfigurer<UrlAuthorizationConfigurer<H>, H> {
 

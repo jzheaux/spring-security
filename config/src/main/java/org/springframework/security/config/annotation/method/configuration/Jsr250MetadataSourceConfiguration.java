@@ -24,6 +24,7 @@ import org.springframework.security.access.annotation.Jsr250MethodSecurityMetada
 
 @Configuration(proxyBeanMethods = false)
 @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+@Deprecated
 class Jsr250MetadataSourceConfiguration {
 
 	@Bean

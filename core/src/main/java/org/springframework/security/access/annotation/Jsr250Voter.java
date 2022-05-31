@@ -28,7 +28,9 @@ import org.springframework.security.core.GrantedAuthority;
  *
  * @author Ryan Heaton
  * @since 2.0
+ * @deprecated Use {@link org.springframework.security.authorization.method.Jsr250AuthorizationManager} instead
  */
+@Deprecated
 public class Jsr250Voter implements AccessDecisionVoter<Object> {
 
 	/**

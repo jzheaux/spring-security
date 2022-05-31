@@ -89,7 +89,9 @@ import org.springframework.util.xml.DomUtils;
  * @author Luke Taylor
  * @author Rob Winch
  * @since 2.0
+ * @deprecated Use {@link MethodSecurityBeanDefinitionParser} instead
  */
+@Deprecated
 public class GlobalMethodSecurityBeanDefinitionParser implements BeanDefinitionParser {
 
 	private final Log logger = LogFactory.getLog(getClass());

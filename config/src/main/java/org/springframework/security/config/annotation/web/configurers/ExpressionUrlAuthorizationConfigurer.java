@@ -79,7 +79,9 @@ import org.springframework.util.StringUtils;
  * @author Yanming Zhou
  * @since 3.2
  * @see org.springframework.security.config.annotation.web.builders.HttpSecurity#authorizeRequests()
+ * @deprecated Use {@link AuthorizeHttpRequestsConfigurer} instead
  */
+@Deprecated
 public final class ExpressionUrlAuthorizationConfigurer<H extends HttpSecurityBuilder<H>>
 		extends AbstractInterceptUrlConfigurer<ExpressionUrlAuthorizationConfigurer<H>, H> {
 

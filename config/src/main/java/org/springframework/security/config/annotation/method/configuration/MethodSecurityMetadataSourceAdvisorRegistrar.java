@@ -32,7 +32,9 @@ import org.springframework.util.MultiValueMap;
  * @author Rob Winch
  * @since 4.0.2
  * @see GlobalMethodSecuritySelector
+ * @deprecated Use {@link MethodSecuritySelector} instead
  */
+@Deprecated
 class MethodSecurityMetadataSourceAdvisorRegistrar implements ImportBeanDefinitionRegistrar {
 
 	/**

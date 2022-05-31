@@ -38,7 +38,10 @@ import org.springframework.security.core.Authentication;
  *
  * @author Luke Taylor
  * @since 3.0
+ * @deprecated Use {@link org.springframework.security.authorization.method.AuthorizationManagerBeforeMethodInterceptor}
+ * instead
  */
+@Deprecated
 public class PreInvocationAuthorizationAdviceVoter implements AccessDecisionVoter<MethodInvocation> {
 
 	protected final Log logger = LogFactory.getLog(getClass());

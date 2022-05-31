@@ -35,7 +35,9 @@ import org.springframework.util.Assert;
  *
  * @author Luke Taylor
  * @since 3.0
+ * @deprecated Use {@link WebExpressionAuthorizationManager} instead
  */
+@Deprecated
 public class WebExpressionVoter implements AccessDecisionVoter<FilterInvocation> {
 
 	private final Log logger = LogFactory.getLog(getClass());
