@@ -161,7 +161,7 @@ class HttpConfigurationBuilder {
 
 	private BeanDefinition forceEagerSessionCreationFilter;
 
-	private BeanReference holderStrategyRef;
+	private BeanMetadataElement holderStrategyRef;
 
 	private BeanReference contextRepoRef;
 
@@ -302,7 +302,7 @@ class HttpConfigurationBuilder {
 		return lowerCase ? path.toLowerCase() : path;
 	}
 
-	BeanReference getSecurityContextHolderStrategyForAuthenticationFilters() {
+	BeanMetadataElement getSecurityContextHolderStrategyForAuthenticationFilters() {
 		return this.holderStrategyRef;
 	}
 
@@ -351,13 +351,12 @@ class HttpConfigurationBuilder {
 
 	private void createSecurityContextHolderStrategy() {
 		String holderStrategyRef = this.httpElt.getAttribute(ATT_SECURITY_CONTEXT_HOLDER_STRATEGY);
-		if (!StringUtils.hasText(holderStrategyRef)) {
-			BeanDefinition holderStrategyBean = BeanDefinitionBuilder
-					.rootBeanDefinition(SecurityContextHolderStrategyFactory.class).getBeanDefinition();
-			holderStrategyRef = this.pc.getReaderContext().generateBeanName(holderStrategyBean);
-			this.pc.registerBeanComponent(new BeanComponentDefinition(holderStrategyBean, holderStrategyRef));
+		if (StringUtils.hasText(holderStrategyRef)) {
+			this.holderStrategyRef = new RuntimeBeanReference(holderStrategyRef);
+			return;
 		}
-		this.holderStrategyRef = new RuntimeBeanReference(holderStrategyRef);
+		this.holderStrategyRef = BeanDefinitionBuilder.rootBeanDefinition(SecurityContextHolderStrategyFactory.class)
+				.getBeanDefinition();
 	}
 
 	private void createSecurityContextRepository() {

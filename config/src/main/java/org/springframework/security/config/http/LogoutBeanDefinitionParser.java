@@ -20,7 +20,6 @@ import org.w3c.dom.Element;
 
 import org.springframework.beans.BeanMetadataElement;
 import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.beans.factory.config.BeanReference;
 import org.springframework.beans.factory.config.RuntimeBeanReference;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.support.ManagedList;
@@ -62,10 +61,10 @@ class LogoutBeanDefinitionParser implements BeanDefinitionParser {
 
 	private BeanMetadataElement logoutSuccessHandler;
 
-	private BeanReference authenticationFilterSecurityContextHolderStrategyRef;
+	private BeanMetadataElement authenticationFilterSecurityContextHolderStrategyRef;
 
 	LogoutBeanDefinitionParser(String loginPageUrl, String rememberMeServices, BeanMetadataElement csrfLogoutHandler,
-			BeanReference authenticationFilterSecurityContextHolderStrategyRef) {
+			BeanMetadataElement authenticationFilterSecurityContextHolderStrategyRef) {
 		this.defaultLogoutUrl = loginPageUrl + "?logout";
 		this.rememberMeServices = rememberMeServices;
 		this.csrfEnabled = csrfLogoutHandler != null;
