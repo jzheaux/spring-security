@@ -52,6 +52,11 @@ public class MethodSecurityServiceImpl implements MethodSecurityService {
 	}
 
 	@Override
+	public String jsr250RolesAllowed() {
+		return null;
+	}
+
+	@Override
 	public Authentication runAs() {
 		return SecurityContextHolder.getContext().getAuthentication();
 	}
@@ -86,6 +91,16 @@ public class MethodSecurityServiceImpl implements MethodSecurityService {
 	@Override
 	public String postAnnotation(String object) {
 		return null;
+	}
+
+	@Override
+	public List<String> preFilterByUsername(List<String> array) {
+		return array;
+	}
+
+	@Override
+	public List<String> postFilterByUsername(List<String> array) {
+		return array;
 	}
 
 	@Override
