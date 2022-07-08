@@ -122,6 +122,7 @@ public class NamespaceGlobalMethodSecurityTests {
 				Class.forName("org.springframework.security.access.intercept.aspectj.aspect.AnnotationSecurityAspect")))
 						.isNotNull();
 		assertThat(this.spring.getContext().getBean(AspectJMethodSecurityInterceptor.class)).isNotNull();
+		this.service.secured();
 		// TODO diagnose why aspectj isn't weaving method security advice around
 		// MethodSecurityServiceImpl
 	}
