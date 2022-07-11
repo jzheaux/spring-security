@@ -36,7 +36,9 @@ import org.springframework.core.type.AnnotationMetadata;
  *
  * @author Rob Winch
  * @since 3.2
+ * @deprecated Use {@link EnableMethodSecurity} instead
  */
+@Deprecated
 class GlobalMethodSecurityAspectJAutoProxyRegistrar implements ImportBeanDefinitionRegistrar {
 
 	/**
