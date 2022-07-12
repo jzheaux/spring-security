@@ -630,6 +630,17 @@
                   <xs:attributeGroup ref="security:ref"/>
                </xs:complexType>
             </xs:element>
+            <xs:element minOccurs="0" maxOccurs="unbounded" name="protect-pointcut">
+               <xs:annotation>
+                  <xs:documentation>Defines a protected pointcut and the access control configuration attributes that apply to
+                it. Every bean registered in the Spring application context that provides a method that
+                matches the pointcut will receive security authorization.
+                </xs:documentation>
+               </xs:annotation>
+               <xs:complexType>
+                  <xs:attributeGroup ref="security:protect-pointcut.attlist"/>
+               </xs:complexType>
+            </xs:element>
          </xs:sequence>
          <xs:attributeGroup ref="security:method-security.attlist"/>
       </xs:complexType>
