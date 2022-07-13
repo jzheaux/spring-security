@@ -23,7 +23,9 @@ import org.springframework.security.authorization.AuthorizationDecision;
  *
  * @author Marcus Da Coregio
  * @since 5.6
- * @deprecated Use {@link org.springframework.security.authorization.ExpressionAuthorizationDecision} instead
+ * @deprecated Use
+ * {@link org.springframework.security.authorization.ExpressionAuthorizationDecision}
+ * instead
  */
 @Deprecated
 public class ExpressionAttributeAuthorizationDecision extends AuthorizationDecision {
