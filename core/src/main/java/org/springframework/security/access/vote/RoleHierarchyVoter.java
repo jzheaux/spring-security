@@ -29,7 +29,11 @@ import org.springframework.util.Assert;
  *
  * @author Luke Taylor
  * @since 2.0.4
+ * @deprecated Use
+ * {@link org.springframework.security.authorization.AuthorityAuthorizationManager#setRoleHierarchy}
+ * instead
  */
+@Deprecated
 public class RoleHierarchyVoter extends RoleVoter {
 
 	private RoleHierarchy roleHierarchy = null;

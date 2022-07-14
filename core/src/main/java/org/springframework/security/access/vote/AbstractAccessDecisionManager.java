@@ -40,6 +40,7 @@ import org.springframework.util.Assert;
  * Handles configuration of a bean context defined list of {@link AccessDecisionVoter}s
  * and the access control behaviour if all voters abstain from voting (defaults to deny
  * access).
+ *
  * @deprecated Use {@link AuthorizationManager} instead
  */
 @Deprecated

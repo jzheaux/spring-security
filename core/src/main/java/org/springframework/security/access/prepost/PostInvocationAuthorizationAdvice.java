@@ -27,7 +27,11 @@ import org.springframework.security.core.Authentication;
  *
  * @author Luke Taylor
  * @since 3.0
+ * @deprecated Use
+ * {@link org.springframework.security.authorization.method.AuthorizationManagerAfterMethodInterceptor}
+ * instead
  */
+@Deprecated
 public interface PostInvocationAuthorizationAdvice extends AopInfrastructureBean {
 
 	Object after(Authentication authentication, MethodInvocation mi, PostInvocationAttribute pia, Object returnedObject)

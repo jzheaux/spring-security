@@ -32,7 +32,11 @@ import org.springframework.security.core.Authentication;
 /**
  * @author Luke Taylor
  * @since 3.0
+ * @deprecated Use
+ * {@link org.springframework.security.authorization.method.AuthorizationManagerAfterMethodInterceptor}
+ * instead
  */
+@Deprecated
 public class ExpressionBasedPostInvocationAdvice implements PostInvocationAuthorizationAdvice {
 
 	protected final Log logger = LogFactory.getLog(getClass());

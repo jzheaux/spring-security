@@ -38,7 +38,9 @@ import org.springframework.web.context.ServletContextAware;
  * @author Ben Alex
  * @author Luke Taylor
  * @since 3.0
+ * @deprecated Use {@link AuthorizationManagerWebInvocationPrivilegeEvaluator} instead
  */
+@Deprecated
 public class DefaultWebInvocationPrivilegeEvaluator implements WebInvocationPrivilegeEvaluator, ServletContextAware {
 
 	protected static final Log logger = LogFactory.getLog(DefaultWebInvocationPrivilegeEvaluator.class);

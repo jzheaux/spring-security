@@ -32,7 +32,10 @@ import org.springframework.util.Assert;
  *
  * @author Luke Taylor
  * @since 3.0
+ * @deprecated Use {@link org.springframework.security.authorization.AuthorizationManager}
+ * interceptors instead
  */
+@Deprecated
 abstract class AbstractExpressionBasedMethodConfigAttribute implements ConfigAttribute {
 
 	private final Expression filterExpression;

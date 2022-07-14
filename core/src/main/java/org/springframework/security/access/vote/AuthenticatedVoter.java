@@ -45,7 +45,9 @@ import org.springframework.util.Assert;
  * All comparisons and prefixes are case sensitive.
  *
  * @author Ben Alex
- * @deprecated Use {@link org.springframework.security.authorization.AuthorityAuthorizationManager} instead
+ * @deprecated Use
+ * {@link org.springframework.security.authorization.AuthorityAuthorizationManager}
+ * instead
  */
 @Deprecated
 public class AuthenticatedVoter implements AccessDecisionVoter<Object> {

@@ -36,7 +36,10 @@ import org.springframework.util.xml.DomUtils;
 /**
  * @author Luke Taylor
  * @since 3.1
+ * @deprecated Use {@code <intercept-methods>}, {@code <method-security>}, or
+ * {@code @EnableMethodSecurity}
  */
+@Deprecated
 public class MethodSecurityMetadataSourceBeanDefinitionParser extends AbstractBeanDefinitionParser {
 
 	static final String ATT_METHOD = "method";

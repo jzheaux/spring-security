@@ -86,8 +86,9 @@ import org.springframework.util.Assert;
  * @author Eddú Meléndez
  * @since 3.2
  * @see EnableGlobalMethodSecurity
- * @deprecated Use {@link PrePostMethodSecurityConfiguration}, {@link SecuredMethodSecurityConfiguration},
- * or {@link Jsr250MethodSecurityConfiguration} instead
+ * @deprecated Use {@link PrePostMethodSecurityConfiguration},
+ * {@link SecuredMethodSecurityConfiguration}, or
+ * {@link Jsr250MethodSecurityConfiguration} instead
  */
 @Deprecated
 @Configuration(proxyBeanMethods = false)

@@ -35,7 +35,8 @@ import org.springframework.security.access.method.AbstractFallbackMethodSecurity
  *
  * @author Ben Alex
  * @since 2.0
- * @deprecated Use {@link org.springframework.security.authorization.method.Jsr250AuthorizationManager}
+ * @deprecated Use
+ * {@link org.springframework.security.authorization.method.Jsr250AuthorizationManager}
  * instead
  */
 @Deprecated

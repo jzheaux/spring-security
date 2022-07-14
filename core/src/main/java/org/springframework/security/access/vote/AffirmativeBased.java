@@ -29,6 +29,7 @@ import org.springframework.security.core.Authentication;
  * Simple concrete implementation of
  * {@link org.springframework.security.access.AccessDecisionManager} that grants access if
  * any <code>AccessDecisionVoter</code> returns an affirmative response.
+ *
  * @deprecated Use {@link AuthorizationManager} instead
  */
 @Deprecated

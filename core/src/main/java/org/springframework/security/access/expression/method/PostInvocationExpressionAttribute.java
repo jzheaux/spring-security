@@ -23,7 +23,11 @@ import org.springframework.security.access.prepost.PostInvocationAttribute;
 /**
  * @author Luke Taylor
  * @since 3.0
+ * @deprecated Use
+ * {@link org.springframework.security.authorization.method.AuthorizationManagerAfterMethodInterceptor}
+ * instead
  */
+@Deprecated
 class PostInvocationExpressionAttribute extends AbstractExpressionBasedMethodConfigAttribute
 		implements PostInvocationAttribute {
 

@@ -48,8 +48,11 @@ import org.springframework.util.ClassUtils;
  * @author Luke Taylor
  * @since 3.0
  * @see PreInvocationAuthorizationAdviceVoter
- * @deprecated Use {@link org.springframework.security.authorization.method.PreAuthorizeAuthorizationManager} and
- * {@link org.springframework.security.authorization.method.PostAuthorizeAuthorizationManager} instead
+ * @deprecated Use
+ * {@link org.springframework.security.authorization.method.PreAuthorizeAuthorizationManager}
+ * and
+ * {@link org.springframework.security.authorization.method.PostAuthorizeAuthorizationManager}
+ * instead
  */
 @Deprecated
 public class PrePostAnnotationSecurityMetadataSource extends AbstractMethodSecurityMetadataSource {

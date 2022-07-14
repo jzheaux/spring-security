@@ -23,7 +23,11 @@ import org.springframework.security.access.prepost.PreInvocationAttribute;
 /**
  * @author Luke Taylor
  * @since 3.0
+ * @deprecated Use
+ * {@link org.springframework.security.authorization.method.AuthorizationManagerBeforeMethodInterceptor}
+ * instead
  */
+@Deprecated
 class PreInvocationExpressionAttribute extends AbstractExpressionBasedMethodConfigAttribute
 		implements PreInvocationAttribute {
 

@@ -26,7 +26,11 @@ import org.springframework.security.access.ConfigAttribute;
  *
  * @author Luke Taylor
  * @since 3.0
+ * @deprecated Use
+ * {@link org.springframework.security.authorization.method.AuthorizationManagerAfterMethodInterceptor}
+ * instead
  */
+@Deprecated
 public interface PostInvocationAttribute extends ConfigAttribute {
 
 }

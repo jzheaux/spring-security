@@ -20,13 +20,16 @@ import javax.annotation.security.DenyAll;
 import javax.annotation.security.PermitAll;
 
 import org.springframework.security.access.SecurityConfig;
+import org.springframework.security.authorization.method.AuthorizationManagerBeforeMethodInterceptor;
 
 /**
  * Security config applicable as a JSR 250 annotation attribute.
  *
  * @author Ryan Heaton
  * @since 2.0
+ * @deprecated Use {@link AuthorizationManagerBeforeMethodInterceptor#jsr250()} instead
  */
+@Deprecated
 public class Jsr250SecurityConfig extends SecurityConfig {
 
 	public static final Jsr250SecurityConfig PERMIT_ALL_ATTRIBUTE = new Jsr250SecurityConfig(PermitAll.class.getName());

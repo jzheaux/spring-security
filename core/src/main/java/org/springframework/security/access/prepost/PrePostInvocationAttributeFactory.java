@@ -17,10 +17,14 @@
 package org.springframework.security.access.prepost;
 
 import org.springframework.aop.framework.AopInfrastructureBean;
+import org.springframework.security.authorization.AuthorizationManager;
 
 /**
  * @author Luke Taylor
  * @since 3.0
+ * @see org.springframework.security.authorization.method.AuthorizationManagerBeforeMethodInterceptor
+ * @see org.springframework.security.authorization.method.AuthorizationManagerAfterMethodInterceptor
+ * @deprecated Use delegation with {@link AuthorizationManager}
  */
 public interface PrePostInvocationAttributeFactory extends AopInfrastructureBean {
 

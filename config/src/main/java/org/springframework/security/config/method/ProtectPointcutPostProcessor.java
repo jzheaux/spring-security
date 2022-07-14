@@ -63,7 +63,9 @@ import org.springframework.util.StringUtils;
  *
  * @author Ben Alex
  * @since 2.0
+ * @deprecated Use {@code use-authorization-manager} flag instead
  */
+@Deprecated
 final class ProtectPointcutPostProcessor implements BeanPostProcessor {
 
 	private static final Log logger = LogFactory.getLog(ProtectPointcutPostProcessor.class);

@@ -36,7 +36,11 @@ import org.springframework.security.core.Authentication;
  * @author Luke Taylor
  * @author Alexander Furer
  * @since 3.0
+ * @deprecated Use
+ * {@link org.springframework.security.authorization.method.AuthorizationManagerAfterMethodInterceptor}
+ * instead
  */
+@Deprecated
 public class PostInvocationAdviceProvider implements AfterInvocationProvider {
 
 	protected final Log logger = LogFactory.getLog(getClass());

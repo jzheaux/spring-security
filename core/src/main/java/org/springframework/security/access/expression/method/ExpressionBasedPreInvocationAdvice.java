@@ -33,7 +33,11 @@ import org.springframework.util.Assert;
  *
  * @author Luke Taylor
  * @since 3.0
+ * @deprecated Use
+ * {@link org.springframework.security.authorization.method.AuthorizationManagerAfterMethodInterceptor}
+ * instead
  */
+@Deprecated
 public class ExpressionBasedPreInvocationAdvice implements PreInvocationAuthorizationAdvice {
 
 	private MethodSecurityExpressionHandler expressionHandler = new DefaultMethodSecurityExpressionHandler();

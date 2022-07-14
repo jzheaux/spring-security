@@ -30,6 +30,7 @@ import org.springframework.security.core.Authentication;
  * Simple concrete implementation of
  * {@link org.springframework.security.access.AccessDecisionManager} that requires all
  * voters to abstain or grant access.
+ *
  * @deprecated Use {@link AuthorizationManager} instead
  */
 @Deprecated

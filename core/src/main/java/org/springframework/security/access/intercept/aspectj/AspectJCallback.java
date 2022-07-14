@@ -22,7 +22,9 @@ package org.springframework.security.access.intercept.aspectj;
  * simple <code>return proceed();</code> statement.
  *
  * @author Ben Alex
+ * @deprecated Support moved to spring-security-aspects
  */
+@Deprecated
 public interface AspectJCallback {
 
 	Object proceedWithObject();

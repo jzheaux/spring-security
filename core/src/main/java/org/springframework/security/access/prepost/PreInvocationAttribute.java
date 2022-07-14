@@ -26,7 +26,11 @@ import org.springframework.security.access.ConfigAttribute;
  *
  * @author Luke Taylor
  * @since 3.0
+ * @deprecated Use
+ * {@link org.springframework.security.authorization.method.AuthorizationManagerBeforeMethodInterceptor}
+ * instead
  */
+@Deprecated
 public interface PreInvocationAttribute extends ConfigAttribute {
 
 }

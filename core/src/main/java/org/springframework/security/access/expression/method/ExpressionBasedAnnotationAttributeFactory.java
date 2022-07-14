@@ -30,7 +30,10 @@ import org.springframework.security.access.prepost.PrePostInvocationAttributeFac
  * @author Luke Taylor
  * @author Rob Winch
  * @since 3.0
+ * @deprecated Use {@link org.springframework.security.authorization.AuthorizationManager}
+ * interceptors instead
  */
+@Deprecated
 public class ExpressionBasedAnnotationAttributeFactory implements PrePostInvocationAttributeFactory {
 
 	private final Object parserLock = new Object();

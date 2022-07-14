@@ -34,7 +34,9 @@ import org.springframework.util.Assert;
  * AfterInvocationManager}.
  *
  * @author Ben Alex
- * @deprecated Use {@link org.springframework.security.authorization.event.AuthorizationDeniedEvent} instead
+ * @deprecated Use
+ * {@link org.springframework.security.authorization.event.AuthorizationDeniedEvent}
+ * instead
  */
 @Deprecated
 public class AuthorizationFailureEvent extends AbstractAuthorizationEvent {

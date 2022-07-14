@@ -33,7 +33,10 @@ import org.springframework.security.access.intercept.aopalliance.MethodSecurityI
  * @author Luke Taylor
  * @author Rob Winch
  * @since 3.0.3
+ * @deprecated Use {@code <method-security>}, {@code <intercept-methods>}, or
+ * {@code EnableMethodSecurity#mode}
  */
+@Deprecated
 public final class AspectJMethodSecurityInterceptor extends MethodSecurityInterceptor {
 
 	/**
