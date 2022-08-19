@@ -24,6 +24,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.security.authentication.AuthenticationDetailsSource;
+import org.springframework.security.authentication.AuthenticationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationManagerResolver;
 import org.springframework.security.authentication.AuthenticationServiceException;
@@ -78,7 +79,8 @@ public final class BearerTokenAuthenticationFilter extends OncePerRequestFilter 
 		Assert.notNull(authenticationManagerResolver, "authenticationManagerResolver cannot be null");
 		AuthenticationFilter authenticationFilter = new AuthenticationFilter(authenticationManagerResolver,
 				new BearerTokenAuthenticationConverter());
-		authenticationFilter.setSuccessHandler((request, response, chain) -> {});
+		authenticationFilter.setSuccessHandler((request, response, chain) -> {
+		});
 		authenticationFilter.setFailureHandler((request, response, exception) -> {
 			if (exception instanceof AuthenticationServiceException) {
 				throw exception;
@@ -96,7 +98,8 @@ public final class BearerTokenAuthenticationFilter extends OncePerRequestFilter 
 		Assert.notNull(authenticationManager, "authenticationManager cannot be null");
 		AuthenticationFilter authenticationFilter = new AuthenticationFilter(authenticationManager,
 				new BearerTokenAuthenticationConverter());
-		authenticationFilter.setSuccessHandler((request, response, chain) -> {});
+		authenticationFilter.setSuccessHandler((request, response, chain) -> {
+		});
 		authenticationFilter.setFailureHandler((request, response, exception) -> {
 			if (exception instanceof AuthenticationServiceException) {
 				throw exception;
@@ -143,6 +146,10 @@ public final class BearerTokenAuthenticationFilter extends OncePerRequestFilter 
 	public void setSecurityContextRepository(SecurityContextRepository securityContextRepository) {
 		Assert.notNull(securityContextRepository, "securityContextRepository cannot be null");
 		this.authenticationFilter.setSecurityContextRepository(securityContextRepository);
+	}
+
+	public void setAuthenticationEventPublisher(AuthenticationEventPublisher authenticationEventPublisher) {
+		this.authenticationFilter.setAuthenticationEventPublisher(authenticationEventPublisher);
 	}
 
 	/**
@@ -201,5 +208,7 @@ public final class BearerTokenAuthenticationFilter extends OncePerRequestFilter 
 			authentication.setDetails(details);
 			return authentication;
 		}
+
 	}
+
 }
