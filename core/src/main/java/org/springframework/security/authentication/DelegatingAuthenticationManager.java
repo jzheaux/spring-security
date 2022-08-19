@@ -23,6 +23,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.util.Assert;
 
 public class DelegatingAuthenticationManager implements AuthenticationManager {
+
 	private final List<AuthenticationManager> delegates;
 
 	public DelegatingAuthenticationManager(AuthenticationManager... delegates) {
@@ -44,4 +45,5 @@ public class DelegatingAuthenticationManager implements AuthenticationManager {
 		}
 		return null;
 	}
+
 }
