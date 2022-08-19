@@ -24,9 +24,9 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.springframework.core.log.LogMessage;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
+import org.springframework.security.authentication.AuthenticationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -35,9 +35,10 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.authentication.AuthenticationConverter;
+import org.springframework.security.web.authentication.AuthenticationFilter;
 import org.springframework.security.web.authentication.NullRememberMeServices;
 import org.springframework.security.web.authentication.RememberMeServices;
-import org.springframework.security.web.context.NullSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.util.Assert;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -94,6 +95,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
  */
 public class BasicAuthenticationFilter extends OncePerRequestFilter {
 
+	private AuthenticationFilter authenticationFilter;
+
 	private SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder
 			.getContextHolderStrategy();
 
@@ -107,9 +110,7 @@ public class BasicAuthenticationFilter extends OncePerRequestFilter {
 
 	private String credentialsCharset = "UTF-8";
 
-	private BasicAuthenticationConverter authenticationConverter = new BasicAuthenticationConverter();
-
-	private SecurityContextRepository securityContextRepository = new NullSecurityContextRepository();
+	private ReauthenticationBasicAuthenticationConverter authenticationConverter = new ReauthenticationBasicAuthenticationConverter();
 
 	/**
 	 * Creates an instance which will authenticate against the supplied
@@ -121,6 +122,18 @@ public class BasicAuthenticationFilter extends OncePerRequestFilter {
 		Assert.notNull(authenticationManager, "authenticationManager cannot be null");
 		this.authenticationManager = authenticationManager;
 		this.ignoreFailure = true;
+		AuthenticationFilter authenticationFilter = new AuthenticationFilter(authenticationManager,
+				this.authenticationConverter);
+		authenticationFilter.setSuccessHandler((request, response, authentication) -> {
+			this.rememberMeServices.loginSuccess(request, response, authentication);
+			onSuccessfulAuthentication(request, response, authentication);
+		});
+		authenticationFilter.setFailureHandler((request, response, ex) -> {
+			this.rememberMeServices.loginFail(request, response);
+			onUnsuccessfulAuthentication(request, response, ex);
+			throw ex;
+		});
+		this.authenticationFilter = authenticationFilter;
 	}
 
 	/**
@@ -137,6 +150,18 @@ public class BasicAuthenticationFilter extends OncePerRequestFilter {
 		Assert.notNull(authenticationEntryPoint, "authenticationEntryPoint cannot be null");
 		this.authenticationManager = authenticationManager;
 		this.authenticationEntryPoint = authenticationEntryPoint;
+		AuthenticationFilter authenticationFilter = new AuthenticationFilter(authenticationManager,
+				this.authenticationConverter);
+		authenticationFilter.setSuccessHandler((request, response, authentication) -> {
+			this.rememberMeServices.loginSuccess(request, response, authentication);
+			onSuccessfulAuthentication(request, response, authentication);
+		});
+		authenticationFilter.setFailureHandler((request, response, ex) -> {
+			this.rememberMeServices.loginFail(request, response);
+			onUnsuccessfulAuthentication(request, response, ex);
+			authenticationEntryPoint.commence(request, response, ex);
+		});
+		this.authenticationFilter = authenticationFilter;
 	}
 
 	/**
@@ -148,7 +173,11 @@ public class BasicAuthenticationFilter extends OncePerRequestFilter {
 	 */
 	public void setSecurityContextRepository(SecurityContextRepository securityContextRepository) {
 		Assert.notNull(securityContextRepository, "securityContextRepository cannot be null");
-		this.securityContextRepository = securityContextRepository;
+		this.authenticationFilter.setSecurityContextRepository(securityContextRepository);
+	}
+
+	public void setAuthenticationEventPublisher(AuthenticationEventPublisher authenticationEventPublisher) {
+		this.authenticationFilter.setAuthenticationEventPublisher(authenticationEventPublisher);
 	}
 
 	@Override
@@ -163,67 +192,15 @@ public class BasicAuthenticationFilter extends OncePerRequestFilter {
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
 			throws IOException, ServletException {
 		try {
-			UsernamePasswordAuthenticationToken authRequest = this.authenticationConverter.convert(request);
-			if (authRequest == null) {
-				this.logger.trace("Did not process authentication request since failed to find "
-						+ "username and password in Basic Authorization header");
+			this.authenticationFilter.doFilter(request, response, chain);
+		}
+		catch (AuthenticationException ex) {
+			if (this.ignoreFailure) {
 				chain.doFilter(request, response);
 				return;
 			}
-			String username = authRequest.getName();
-			this.logger.trace(LogMessage.format("Found username '%s' in Basic Authorization header", username));
-			if (authenticationIsRequired(username)) {
-				Authentication authResult = this.authenticationManager.authenticate(authRequest);
-				SecurityContext context = this.securityContextHolderStrategy.createEmptyContext();
-				context.setAuthentication(authResult);
-				this.securityContextHolderStrategy.setContext(context);
-				if (this.logger.isDebugEnabled()) {
-					this.logger.debug(LogMessage.format("Set SecurityContextHolder to %s", authResult));
-				}
-				this.rememberMeServices.loginSuccess(request, response, authResult);
-				this.securityContextRepository.saveContext(context, request, response);
-				onSuccessfulAuthentication(request, response, authResult);
-			}
+			throw ex;
 		}
-		catch (AuthenticationException ex) {
-			this.securityContextHolderStrategy.clearContext();
-			this.logger.debug("Failed to process authentication request", ex);
-			this.rememberMeServices.loginFail(request, response);
-			onUnsuccessfulAuthentication(request, response, ex);
-			if (this.ignoreFailure) {
-				chain.doFilter(request, response);
-			}
-			else {
-				this.authenticationEntryPoint.commence(request, response, ex);
-			}
-			return;
-		}
-
-		chain.doFilter(request, response);
-	}
-
-	private boolean authenticationIsRequired(String username) {
-		// Only reauthenticate if username doesn't match SecurityContextHolder and user
-		// isn't authenticated (see SEC-53)
-		Authentication existingAuth = this.securityContextHolderStrategy.getContext().getAuthentication();
-		if (existingAuth == null || !existingAuth.isAuthenticated()) {
-			return true;
-		}
-		// Limit username comparison to providers which use usernames (ie
-		// UsernamePasswordAuthenticationToken) (see SEC-348)
-		if (existingAuth instanceof UsernamePasswordAuthenticationToken && !existingAuth.getName().equals(username)) {
-			return true;
-		}
-		// Handle unusual condition where an AnonymousAuthenticationToken is already
-		// present. This shouldn't happen very often, as BasicProcessingFitler is meant to
-		// be earlier in the filter chain than AnonymousAuthenticationFilter.
-		// Nevertheless, presence of both an AnonymousAuthenticationToken together with a
-		// BASIC authentication request header should indicate reauthentication using the
-		// BASIC protocol is desirable. This behaviour is also consistent with that
-		// provided by form and digest, both of which force re-authentication if the
-		// respective header is detected (and in doing so replace/ any existing
-		// AnonymousAuthenticationToken). See SEC-610.
-		return (existingAuth instanceof AnonymousAuthenticationToken);
 	}
 
 	protected void onSuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response,
@@ -254,6 +231,7 @@ public class BasicAuthenticationFilter extends OncePerRequestFilter {
 	 */
 	public void setSecurityContextHolderStrategy(SecurityContextHolderStrategy securityContextHolderStrategy) {
 		Assert.notNull(securityContextHolderStrategy, "securityContextHolderStrategy cannot be null");
+		this.authenticationFilter.setSecurityContextHolderStrategy(securityContextHolderStrategy);
 		this.securityContextHolderStrategy = securityContextHolderStrategy;
 	}
 
@@ -275,6 +253,57 @@ public class BasicAuthenticationFilter extends OncePerRequestFilter {
 
 	protected String getCredentialsCharset(HttpServletRequest httpRequest) {
 		return this.credentialsCharset;
+	}
+
+	private final class ReauthenticationBasicAuthenticationConverter implements AuthenticationConverter {
+
+		private final BasicAuthenticationConverter authenticationConverter = new BasicAuthenticationConverter();
+
+		@Override
+		public Authentication convert(HttpServletRequest request) {
+			Authentication token = this.authenticationConverter.convert(request);
+			if (token == null) {
+				return null;
+			}
+			Authentication existingAuth = BasicAuthenticationFilter.this.securityContextHolderStrategy.getContext()
+					.getAuthentication();
+			if (existingAuth == null || !existingAuth.isAuthenticated()) {
+				return token;
+			}
+			// Limit username comparison to providers which use usernames (ie
+			// UsernamePasswordAuthenticationToken) (see SEC-348)
+			if (existingAuth instanceof UsernamePasswordAuthenticationToken
+					&& !existingAuth.getName().equals(token.getName())) {
+				return token;
+			}
+			// Handle unusual condition where an AnonymousAuthenticationToken is already
+			// present. This shouldn't happen very often, as BasicProcessingFitler is
+			// meant to
+			// be earlier in the filter chain than AnonymousAuthenticationFilter.
+			// Nevertheless, presence of both an AnonymousAuthenticationToken together
+			// with a
+			// BASIC authentication request header should indicate reauthentication using
+			// the
+			// BASIC protocol is desirable. This behaviour is also consistent with that
+			// provided by form and digest, both of which force re-authentication if the
+			// respective header is detected (and in doing so replace/ any existing
+			// AnonymousAuthenticationToken). See SEC-610.
+			if (existingAuth instanceof AnonymousAuthenticationToken) {
+				return token;
+			}
+			return null;
+		}
+
+		void setAuthenticationDetailsSource(
+				AuthenticationDetailsSource<HttpServletRequest, ?> authenticationDetailsSource) {
+			this.authenticationConverter.setAuthenticationDetailsSource(authenticationDetailsSource);
+		}
+
+		void setCredentialsCharset(Charset charset) {
+			Assert.notNull(charset, "charset cannot be null or empty");
+			this.authenticationConverter.setCredentialsCharset(charset);
+		}
+
 	}
 
 }
