@@ -37,6 +37,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationManagerResolver;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.core.context.SecurityContextImpl;
@@ -90,6 +91,8 @@ public class BearerTokenAuthenticationFilterTests {
 
 	MockFilterChain filterChain;
 
+	Authentication result = new TestingAuthenticationToken("user", "pass");
+
 	@BeforeEach
 	public void httpMocks() {
 		this.request = new MockHttpServletRequest();
@@ -100,6 +103,7 @@ public class BearerTokenAuthenticationFilterTests {
 	@Test
 	public void doFilterWhenBearerTokenPresentThenAuthenticates() throws ServletException, IOException {
 		given(this.bearerTokenResolver.resolve(this.request)).willReturn("token");
+		given(this.authenticationManager.authenticate(any())).willReturn(this.result);
 		BearerTokenAuthenticationFilter filter = addMocks(
 				new BearerTokenAuthenticationFilter(this.authenticationManager));
 		filter.doFilter(this.request, this.response, this.filterChain);
@@ -114,8 +118,7 @@ public class BearerTokenAuthenticationFilterTests {
 		SecurityContextRepository securityContextRepository = mock(SecurityContextRepository.class);
 		String token = "token";
 		given(this.bearerTokenResolver.resolve(this.request)).willReturn(token);
-		TestingAuthenticationToken expectedAuthentication = new TestingAuthenticationToken("test", "password");
-		given(this.authenticationManager.authenticate(any())).willReturn(expectedAuthentication);
+		given(this.authenticationManager.authenticate(any())).willReturn(this.result);
 		BearerTokenAuthenticationFilter filter = addMocks(
 				new BearerTokenAuthenticationFilter(this.authenticationManager));
 		filter.setSecurityContextRepository(securityContextRepository);
@@ -126,7 +129,7 @@ public class BearerTokenAuthenticationFilterTests {
 		assertThat(captor.getValue().getPrincipal()).isEqualTo(token);
 		ArgumentCaptor<SecurityContext> contextArg = ArgumentCaptor.forClass(SecurityContext.class);
 		verify(securityContextRepository).saveContext(contextArg.capture(), eq(this.request), eq(this.response));
-		assertThat(contextArg.getValue().getAuthentication().getName()).isEqualTo(expectedAuthentication.getName());
+		assertThat(contextArg.getValue().getAuthentication().getName()).isEqualTo(this.result.getName());
 	}
 
 	@Test
@@ -135,6 +138,7 @@ public class BearerTokenAuthenticationFilterTests {
 				new BearerTokenAuthenticationFilter(this.authenticationManagerResolver));
 		given(this.bearerTokenResolver.resolve(this.request)).willReturn("token");
 		given(this.authenticationManagerResolver.resolve(any())).willReturn(this.authenticationManager);
+		given(this.authenticationManager.authenticate(any())).willReturn(this.result);
 		filter.doFilter(this.request, this.response, this.filterChain);
 		ArgumentCaptor<BearerTokenAuthenticationToken> captor = ArgumentCaptor
 				.forClass(BearerTokenAuthenticationToken.class);
@@ -201,6 +205,7 @@ public class BearerTokenAuthenticationFilterTests {
 	@Test
 	public void doFilterWhenCustomAuthenticationDetailsSourceThenUses() throws ServletException, IOException {
 		given(this.bearerTokenResolver.resolve(this.request)).willReturn("token");
+		given(this.authenticationManager.authenticate(any())).willReturn(this.result);
 		BearerTokenAuthenticationFilter filter = addMocks(
 				new BearerTokenAuthenticationFilter(this.authenticationManager));
 		filter.doFilter(this.request, this.response, this.filterChain);
@@ -210,6 +215,7 @@ public class BearerTokenAuthenticationFilterTests {
 	@Test
 	public void doFilterWhenCustomSecurityContextHolderStrategyThenUses() throws ServletException, IOException {
 		given(this.bearerTokenResolver.resolve(this.request)).willReturn("token");
+		given(this.authenticationManager.authenticate(any())).willReturn(this.result);
 		BearerTokenAuthenticationFilter filter = addMocks(
 				new BearerTokenAuthenticationFilter(this.authenticationManager));
 		SecurityContextHolderStrategy strategy = mock(SecurityContextHolderStrategy.class);
