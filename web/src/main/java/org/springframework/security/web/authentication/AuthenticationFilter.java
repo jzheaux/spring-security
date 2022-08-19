@@ -188,7 +188,8 @@ public class AuthenticationFilter extends OncePerRequestFilter {
 		Authentication authenticationRequest;
 		try {
 			authenticationRequest = this.authenticationConverter.convert(request);
-		} catch (AuthenticationException ex) {
+		}
+		catch (AuthenticationException ex) {
 			unsuccessfulAuthentication(request, response, ex);
 			return;
 		}
@@ -254,5 +255,7 @@ public class AuthenticationFilter extends OncePerRequestFilter {
 		public void publishAuthenticationFailure(AuthenticationException exception, Authentication authentication) {
 
 		}
+
 	}
+
 }
