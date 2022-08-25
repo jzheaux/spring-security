@@ -28,7 +28,9 @@ import org.springframework.security.web.authentication.preauth.AbstractPreAuthen
  *
  * @author Ruud Senden
  * @since 2.0
+ * @deprecated Use {@link org.springframework.security.web.authentication.AuthenticationFilter} instead
  */
+@Deprecated
 public class WebSpherePreAuthenticatedProcessingFilter extends AbstractPreAuthenticatedProcessingFilter {
 
 	private final WASUsernameAndGroupsExtractor wasHelper;

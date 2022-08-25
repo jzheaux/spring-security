@@ -19,6 +19,7 @@ package org.springframework.security.config.annotation.web.configurers;
 import java.util.HashSet;
 import java.util.Set;
 
+import javax.servlet.Filter;
 import javax.servlet.http.HttpServletRequest;
 
 import org.springframework.security.authentication.AuthenticationManager;
@@ -28,10 +29,12 @@ import org.springframework.security.core.authority.mapping.SimpleMappableAttribu
 import org.springframework.security.core.userdetails.AuthenticationUserDetailsService;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.authentication.AuthenticationFilter;
 import org.springframework.security.web.authentication.Http403ForbiddenEntryPoint;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationProvider;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedGrantedAuthoritiesUserDetailsService;
+import org.springframework.security.web.authentication.preauth.j2ee.J2eeAuthenticationConverter;
 import org.springframework.security.web.authentication.preauth.j2ee.J2eeBasedPreAuthenticatedWebAuthenticationDetailsSource;
 import org.springframework.security.web.authentication.preauth.j2ee.J2eePreAuthenticatedProcessingFilter;
 
@@ -70,6 +73,8 @@ import org.springframework.security.web.authentication.preauth.j2ee.J2eePreAuthe
 public final class JeeConfigurer<H extends HttpSecurityBuilder<H>> extends AbstractHttpConfigurer<JeeConfigurer<H>, H> {
 
 	private J2eePreAuthenticatedProcessingFilter j2eePreAuthenticatedProcessingFilter;
+
+	private AuthenticationManager authenticationManager;
 
 	private AuthenticationUserDetailsService<PreAuthenticatedAuthenticationToken> authenticationUserDetailsService;
 
@@ -189,6 +194,9 @@ public final class JeeConfigurer<H extends HttpSecurityBuilder<H>> extends Abstr
 	 */
 	@Override
 	public void init(H http) {
+		if (this.authenticationManager != null) {
+			return;
+		}
 		PreAuthenticatedAuthenticationProvider authenticationProvider = new PreAuthenticatedAuthenticationProvider();
 		authenticationProvider.setPreAuthenticatedUserDetailsService(getUserDetailsService());
 		authenticationProvider = postProcess(authenticationProvider);
@@ -198,9 +206,27 @@ public final class JeeConfigurer<H extends HttpSecurityBuilder<H>> extends Abstr
 
 	@Override
 	public void configure(H http) {
-		J2eePreAuthenticatedProcessingFilter filter = getFilter(http.getSharedObject(AuthenticationManager.class),
-				http);
-		http.addFilter(filter);
+		if (http instanceof HttpSecurity) {
+			((HttpSecurity) http).addFilterAt(getFilter(http), J2eePreAuthenticatedProcessingFilter.class);
+		} else {
+			http.addFilter(getFilter(http));
+		}
+	}
+
+	private Filter getFilter(H http) {
+		if (this.j2eePreAuthenticatedProcessingFilter != null) {
+			return this.j2eePreAuthenticatedProcessingFilter;
+		}
+		if (this.authenticationManager != null) {
+			J2eeAuthenticationConverter authenticationConverter = new J2eeAuthenticationConverter();
+			authenticationConverter.setAuthenticationDetailsSource(createWebAuthenticationDetailsSource());
+			AuthenticationFilter filter = new AuthenticationFilter(this.authenticationManager, authenticationConverter);
+			filter.setSuccessHandler((request, response, authentication) -> {});
+			filter.setFailureHandler((request, response, authentication) -> {});
+			filter.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
+			return filter;
+		}
+		return getFilter(http.getSharedObject(AuthenticationManager.class), http);
 	}
 
 	/**
@@ -247,5 +273,4 @@ public final class JeeConfigurer<H extends HttpSecurityBuilder<H>> extends Abstr
 		detailsSource = postProcess(detailsSource);
 		return detailsSource;
 	}
-
 }

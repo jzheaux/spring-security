@@ -42,6 +42,7 @@ import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestHeaderRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.util.Assert;
 import org.springframework.web.accept.ContentNegotiationStrategy;
 import org.springframework.web.accept.HeaderContentNegotiationStrategy;
 
@@ -90,6 +91,8 @@ public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>>
 	private AuthenticationDetailsSource<HttpServletRequest, ?> authenticationDetailsSource;
 
 	private BasicAuthenticationEntryPoint basicAuthEntryPoint = new BasicAuthenticationEntryPoint();
+
+	private AuthenticationManager authenticationManager;
 
 	/**
 	 * Creates a new instance
@@ -142,6 +145,12 @@ public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>>
 		return this;
 	}
 
+	public HttpBasicConfigurer<B> authenticationManager(AuthenticationManager authenticationManager) {
+		Assert.notNull(authenticationManager, "authenticationManager cannot be null");
+		this.authenticationManager = authenticationManager;
+		return this;
+	}
+
 	@Override
 	public void init(B http) {
 		registerDefaults(http);
@@ -189,7 +198,7 @@ public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>>
 
 	@Override
 	public void configure(B http) {
-		AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
+		AuthenticationManager authenticationManager = getAuthenticationManager(http);
 		BasicAuthenticationFilter basicAuthenticationFilter = new BasicAuthenticationFilter(authenticationManager,
 				this.authenticationEntryPoint);
 		if (this.authenticationDetailsSource != null) {
@@ -202,6 +211,13 @@ public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>>
 		basicAuthenticationFilter.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
 		basicAuthenticationFilter = postProcess(basicAuthenticationFilter);
 		http.addFilter(basicAuthenticationFilter);
+	}
+
+	private AuthenticationManager getAuthenticationManager(B http) {
+		if (this.authenticationManager != null) {
+			return this.authenticationManager;
+		}
+		return http.getSharedObject(AuthenticationManager.class);
 	}
 
 }

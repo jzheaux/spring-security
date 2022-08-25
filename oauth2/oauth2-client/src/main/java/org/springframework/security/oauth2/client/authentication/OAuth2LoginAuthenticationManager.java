@@ -19,6 +19,7 @@ package org.springframework.security.oauth2.client.authentication;
 import java.util.Collection;
 import java.util.Map;
 
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -63,12 +64,10 @@ import org.springframework.util.Assert;
  * @see <a target="_blank" href=
  * "https://tools.ietf.org/html/rfc6749#section-4.1.4">Section 4.1.4 Access Token
  * Response</a>
- * @deprecated Use {@link OAuth2LoginAuthenticationManager} instead
  */
-@Deprecated
-public class OAuth2LoginAuthenticationProvider implements AuthenticationProvider {
+public final class OAuth2LoginAuthenticationManager implements AuthenticationManager {
 
-	private final OAuth2AuthorizationCodeAuthenticationProvider authorizationCodeAuthenticationProvider;
+	private final OAuth2AuthorizationCodeAuthenticationManager authorizationCodeAuthenticationManager;
 
 	private final OAuth2UserService<OAuth2UserRequest, OAuth2User> userService;
 
@@ -82,17 +81,20 @@ public class OAuth2LoginAuthenticationProvider implements AuthenticationProvider
 	 * @param userService the service used for obtaining the user attributes of the
 	 * End-User from the UserInfo Endpoint
 	 */
-	public OAuth2LoginAuthenticationProvider(
+	public OAuth2LoginAuthenticationManager(
 			OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> accessTokenResponseClient,
 			OAuth2UserService<OAuth2UserRequest, OAuth2User> userService) {
 		Assert.notNull(userService, "userService cannot be null");
-		this.authorizationCodeAuthenticationProvider = new OAuth2AuthorizationCodeAuthenticationProvider(
+		this.authorizationCodeAuthenticationManager = new OAuth2AuthorizationCodeAuthenticationManager(
 				accessTokenResponseClient);
 		this.userService = userService;
 	}
 
 	@Override
 	public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+		if (!(authentication instanceof OAuth2LoginAuthenticationToken)) {
+			return null;
+		}
 		OAuth2LoginAuthenticationToken loginAuthenticationToken = (OAuth2LoginAuthenticationToken) authentication;
 		// Section 3.1.2.1 Authentication Request -
 		// https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest scope
@@ -105,7 +107,7 @@ public class OAuth2LoginAuthenticationProvider implements AuthenticationProvider
 		}
 		OAuth2AuthorizationCodeAuthenticationToken authorizationCodeAuthenticationToken;
 		try {
-			authorizationCodeAuthenticationToken = (OAuth2AuthorizationCodeAuthenticationToken) this.authorizationCodeAuthenticationProvider
+			authorizationCodeAuthenticationToken = (OAuth2AuthorizationCodeAuthenticationToken) this.authorizationCodeAuthenticationManager
 					.authenticate(new OAuth2AuthorizationCodeAuthenticationToken(
 							loginAuthenticationToken.getClientRegistration(),
 							loginAuthenticationToken.getAuthorizationExchange()));
@@ -137,11 +139,6 @@ public class OAuth2LoginAuthenticationProvider implements AuthenticationProvider
 	public final void setAuthoritiesMapper(GrantedAuthoritiesMapper authoritiesMapper) {
 		Assert.notNull(authoritiesMapper, "authoritiesMapper cannot be null");
 		this.authoritiesMapper = authoritiesMapper;
-	}
-
-	@Override
-	public boolean supports(Class<?> authentication) {
-		return OAuth2LoginAuthenticationToken.class.isAssignableFrom(authentication);
 	}
 
 }

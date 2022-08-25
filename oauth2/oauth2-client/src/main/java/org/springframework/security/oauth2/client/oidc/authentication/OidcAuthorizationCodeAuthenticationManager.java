@@ -23,6 +23,7 @@ import java.util.Base64;
 import java.util.Collection;
 import java.util.Map;
 
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -82,10 +83,8 @@ import org.springframework.util.Assert;
  * @see <a target="_blank" href=
  * "https://openid.net/specs/openid-connect-core-1_0.html#TokenResponse">Section 3.1.3.3
  * Token Response</a>
- * @deprecated Use {@link OidcAuthorizationCodeAuthenticationManager} instead
  */
-@Deprecated
-public class OidcAuthorizationCodeAuthenticationProvider implements AuthenticationProvider {
+public final class OidcAuthorizationCodeAuthenticationManager implements AuthenticationManager {
 
 	private static final String INVALID_STATE_PARAMETER_ERROR_CODE = "invalid_state_parameter";
 
@@ -109,7 +108,7 @@ public class OidcAuthorizationCodeAuthenticationProvider implements Authenticati
 	 * @param userService the service used for obtaining the user attributes of the
 	 * End-User from the UserInfo Endpoint
 	 */
-	public OidcAuthorizationCodeAuthenticationProvider(
+	public OidcAuthorizationCodeAuthenticationManager(
 			OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> accessTokenResponseClient,
 			OAuth2UserService<OidcUserRequest, OidcUser> userService) {
 		Assert.notNull(accessTokenResponseClient, "accessTokenResponseClient cannot be null");
@@ -120,6 +119,9 @@ public class OidcAuthorizationCodeAuthenticationProvider implements Authenticati
 
 	@Override
 	public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+		if (!(authentication instanceof OAuth2LoginAuthenticationToken)) {
+			return null;
+		}
 		OAuth2LoginAuthenticationToken authorizationCodeAuthentication = (OAuth2LoginAuthenticationToken) authentication;
 		// Section 3.1.2.1 Authentication Request -
 		// https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
@@ -225,11 +227,6 @@ public class OidcAuthorizationCodeAuthenticationProvider implements Authenticati
 	public final void setAuthoritiesMapper(GrantedAuthoritiesMapper authoritiesMapper) {
 		Assert.notNull(authoritiesMapper, "authoritiesMapper cannot be null");
 		this.authoritiesMapper = authoritiesMapper;
-	}
-
-	@Override
-	public boolean supports(Class<?> authentication) {
-		return OAuth2LoginAuthenticationToken.class.isAssignableFrom(authentication);
 	}
 
 	private OidcIdToken createOidcToken(ClientRegistration clientRegistration,

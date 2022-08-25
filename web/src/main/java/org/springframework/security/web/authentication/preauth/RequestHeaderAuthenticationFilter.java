@@ -42,7 +42,9 @@ import org.springframework.util.Assert;
  *
  * @author Luke Taylor
  * @since 2.0
+ * @deprecated Use {@link PreAuthenticatedRequestAuthenticationConverter} with {@link org.springframework.security.web.authentication.AuthenticationFilter}
  */
+@Deprecated
 public class RequestHeaderAuthenticationFilter extends AbstractPreAuthenticatedProcessingFilter {
 
 	private String principalRequestHeader = "SM_USER";

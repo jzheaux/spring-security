@@ -16,6 +16,7 @@
 
 package org.springframework.security.oauth2.client.authentication;
 
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -49,10 +50,8 @@ import org.springframework.util.Assert;
  * @see <a target="_blank" href=
  * "https://tools.ietf.org/html/rfc6749#section-4.1.4">Section 4.1.4 Access Token
  * Response</a>
- * @deprecated Use {@link OAuth2AuthorizationCodeAuthenticationManager} instead
  */
-@Deprecated
-public class OAuth2AuthorizationCodeAuthenticationProvider implements AuthenticationProvider {
+public final class OAuth2AuthorizationCodeAuthenticationManager implements AuthenticationManager {
 
 	private static final String INVALID_STATE_PARAMETER_ERROR_CODE = "invalid_state_parameter";
 
@@ -64,7 +63,7 @@ public class OAuth2AuthorizationCodeAuthenticationProvider implements Authentica
 	 * @param accessTokenResponseClient the client used for requesting the access token
 	 * credential from the Token Endpoint
 	 */
-	public OAuth2AuthorizationCodeAuthenticationProvider(
+	public OAuth2AuthorizationCodeAuthenticationManager(
 			OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> accessTokenResponseClient) {
 		Assert.notNull(accessTokenResponseClient, "accessTokenResponseClient cannot be null");
 		this.accessTokenResponseClient = accessTokenResponseClient;
@@ -72,6 +71,9 @@ public class OAuth2AuthorizationCodeAuthenticationProvider implements Authentica
 
 	@Override
 	public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+		if (!(authentication instanceof OAuth2AuthorizationCodeAuthenticationToken)) {
+			return null;
+		}
 		OAuth2AuthorizationCodeAuthenticationToken authorizationCodeAuthentication = (OAuth2AuthorizationCodeAuthenticationToken) authentication;
 		OAuth2AuthorizationResponse authorizationResponse = authorizationCodeAuthentication.getAuthorizationExchange()
 				.getAuthorizationResponse();
@@ -93,11 +95,6 @@ public class OAuth2AuthorizationCodeAuthenticationProvider implements Authentica
 				accessTokenResponse.getRefreshToken(), accessTokenResponse.getAdditionalParameters());
 		authenticationResult.setDetails(authorizationCodeAuthentication.getDetails());
 		return authenticationResult;
-	}
-
-	@Override
-	public boolean supports(Class<?> authentication) {
-		return OAuth2AuthorizationCodeAuthenticationToken.class.isAssignableFrom(authentication);
 	}
 
 }

@@ -85,7 +85,9 @@ import org.springframework.web.filter.GenericFilterBean;
  * @author Rob Winch
  * @author Tadaya Tsuyukubo
  * @since 2.0
+ * @deprecated Use {@link org.springframework.security.web.authentication.AuthenticationFilter} instead
  */
+@Deprecated
 public abstract class AbstractPreAuthenticatedProcessingFilter extends GenericFilterBean
 		implements ApplicationEventPublisherAware {
 

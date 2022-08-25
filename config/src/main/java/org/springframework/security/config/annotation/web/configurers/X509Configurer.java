@@ -16,6 +16,7 @@
 
 package org.springframework.security.config.annotation.web.configurers;
 
+import javax.servlet.Filter;
 import javax.servlet.http.HttpServletRequest;
 
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
@@ -29,11 +30,15 @@ import org.springframework.security.core.userdetails.AuthenticationUserDetailsSe
 import org.springframework.security.core.userdetails.UserDetailsByNameServiceWrapper;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.authentication.AuthenticationFilter;
 import org.springframework.security.web.authentication.Http403ForbiddenEntryPoint;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationFilter;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationProvider;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedGrantedAuthoritiesWebAuthenticationDetails;
 import org.springframework.security.web.authentication.preauth.x509.SubjectDnX509PrincipalExtractor;
+import org.springframework.security.web.authentication.preauth.x509.X509AuthenticationConverter;
 import org.springframework.security.web.authentication.preauth.x509.X509AuthenticationFilter;
 import org.springframework.security.web.authentication.preauth.x509.X509PrincipalExtractor;
 
@@ -80,11 +85,13 @@ public final class X509Configurer<H extends HttpSecurityBuilder<H>>
 
 	private X509AuthenticationFilter x509AuthenticationFilter;
 
-	private X509PrincipalExtractor x509PrincipalExtractor;
+	private X509PrincipalExtractor x509PrincipalExtractor = new SubjectDnX509PrincipalExtractor();
 
 	private AuthenticationUserDetailsService<PreAuthenticatedAuthenticationToken> authenticationUserDetailsService;
 
-	private AuthenticationDetailsSource<HttpServletRequest, PreAuthenticatedGrantedAuthoritiesWebAuthenticationDetails> authenticationDetailsSource;
+	private AuthenticationDetailsSource<HttpServletRequest, ?> authenticationDetailsSource = new WebAuthenticationDetailsSource();
+
+	private AuthenticationManager authenticationManager;
 
 	/**
 	 * Creates a new instance
@@ -113,6 +120,11 @@ public final class X509Configurer<H extends HttpSecurityBuilder<H>>
 	 */
 	public X509Configurer<H> x509PrincipalExtractor(X509PrincipalExtractor x509PrincipalExtractor) {
 		this.x509PrincipalExtractor = x509PrincipalExtractor;
+		return this;
+	}
+
+	public X509Configurer<H> authenticationManager(AuthenticationManager authenticationManager) {
+		this.authenticationManager = authenticationManager;
 		return this;
 	}
 
@@ -170,6 +182,9 @@ public final class X509Configurer<H extends HttpSecurityBuilder<H>>
 
 	@Override
 	public void init(H http) {
+		if (this.authenticationManager != null) {
+			return;
+		}
 		PreAuthenticatedAuthenticationProvider authenticationProvider = new PreAuthenticatedAuthenticationProvider();
 		authenticationProvider.setPreAuthenticatedUserDetailsService(getAuthenticationUserDetailsService(http));
 		http.authenticationProvider(authenticationProvider).setSharedObject(AuthenticationEntryPoint.class,
@@ -178,8 +193,27 @@ public final class X509Configurer<H extends HttpSecurityBuilder<H>>
 
 	@Override
 	public void configure(H http) {
-		X509AuthenticationFilter filter = getFilter(http.getSharedObject(AuthenticationManager.class), http);
-		http.addFilter(filter);
+		Filter filter = getFilter(http);
+		if (http instanceof HttpSecurity) {
+			((HttpSecurity) http).addFilterAt(filter, X509AuthenticationFilter.class);
+		} else {
+			http.addFilter(filter);
+		}
+	}
+
+	private Filter getFilter(H http) {
+		if (this.x509AuthenticationFilter != null) {
+			return this.x509AuthenticationFilter;
+		}
+		if (this.authenticationManager != null) {
+			X509AuthenticationConverter authenticationConverter = new X509AuthenticationConverter();
+			authenticationConverter.setPrincipalExtractor(this.x509PrincipalExtractor);
+			authenticationConverter.setAuthenticationDetailsSource(this.authenticationDetailsSource);
+			AuthenticationFilter filter = new PreAuthenticatedAuthenticationFilter(this.authenticationManager, authenticationConverter);
+			filter.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
+			return filter;
+		}
+		return getFilter(http.getSharedObject(AuthenticationManager.class), http);
 	}
 
 	private X509AuthenticationFilter getFilter(AuthenticationManager authenticationManager, H http) {
@@ -227,5 +261,4 @@ public final class X509Configurer<H extends HttpSecurityBuilder<H>>
 			return null;
 		}
 	}
-
 }

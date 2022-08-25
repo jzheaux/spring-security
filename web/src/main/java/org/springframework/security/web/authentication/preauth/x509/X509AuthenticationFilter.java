@@ -25,7 +25,9 @@ import org.springframework.security.web.authentication.preauth.AbstractPreAuthen
 
 /**
  * @author Luke Taylor
+ * @deprecated Use {@link org.springframework.security.web.authentication.AuthenticationFilter} with {@link X509AuthenticationConverter} instead
  */
+@Deprecated
 public class X509AuthenticationFilter extends AbstractPreAuthenticatedProcessingFilter {
 
 	private X509PrincipalExtractor principalExtractor = new SubjectDnX509PrincipalExtractor();

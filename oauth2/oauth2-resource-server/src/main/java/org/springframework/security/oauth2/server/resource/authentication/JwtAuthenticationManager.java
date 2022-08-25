@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import org.apache.commons.logging.LogFactory;
 
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.core.Authentication;
@@ -57,21 +58,18 @@ import org.springframework.util.Assert;
  *
  * @author Josh Cummings
  * @author Joe Grandja
- * @since 5.1
+ * @since 5.8
  * @see AuthenticationProvider
  * @see JwtDecoder
- * @deprecated Use {@link JwtAuthenticationManager} instead
  */
-@Deprecated
-public final class JwtAuthenticationProvider implements AuthenticationProvider {
-
+public class JwtAuthenticationManager implements AuthenticationManager {
 	private final Log logger = LogFactory.getLog(getClass());
 
 	private final JwtDecoder jwtDecoder;
 
 	private Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthenticationConverter = new JwtAuthenticationConverter();
 
-	public JwtAuthenticationProvider(JwtDecoder jwtDecoder) {
+	public JwtAuthenticationManager(JwtDecoder jwtDecoder) {
 		Assert.notNull(jwtDecoder, "jwtDecoder cannot be null");
 		this.jwtDecoder = jwtDecoder;
 	}
@@ -86,6 +84,9 @@ public final class JwtAuthenticationProvider implements AuthenticationProvider {
 	 */
 	@Override
 	public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+		if (!(authentication instanceof BearerTokenAuthenticationToken)) {
+			return null;
+		}
 		BearerTokenAuthenticationToken bearer = (BearerTokenAuthenticationToken) authentication;
 		Jwt jwt = getJwt(bearer);
 		AbstractAuthenticationToken token = this.jwtAuthenticationConverter.convert(jwt);
@@ -107,15 +108,9 @@ public final class JwtAuthenticationProvider implements AuthenticationProvider {
 		}
 	}
 
-	@Override
-	public boolean supports(Class<?> authentication) {
-		return BearerTokenAuthenticationToken.class.isAssignableFrom(authentication);
-	}
-
 	public void setJwtAuthenticationConverter(
 			Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthenticationConverter) {
 		Assert.notNull(jwtAuthenticationConverter, "jwtAuthenticationConverter cannot be null");
 		this.jwtAuthenticationConverter = jwtAuthenticationConverter;
 	}
-
 }

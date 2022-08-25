@@ -316,6 +316,10 @@ public final class OAuth2LoginConfigurer<B extends HttpSecurityBuilder<B>>
 				super.init(http);
 			}
 		}
+		this.initDefaultLoginFilter(http);
+		if (getAuthenticationManager() != null) {
+			return;
+		}
 		OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> accessTokenResponseClient = this.tokenEndpointConfig.accessTokenResponseClient;
 		if (accessTokenResponseClient == null) {
 			accessTokenResponseClient = new DefaultAuthorizationCodeTokenResponseClient();
@@ -346,7 +350,7 @@ public final class OAuth2LoginConfigurer<B extends HttpSecurityBuilder<B>>
 		else {
 			http.authenticationProvider(new OidcAuthenticationRequestChecker());
 		}
-		this.initDefaultLoginFilter(http);
+
 	}
 
 	@Override

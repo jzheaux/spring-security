@@ -28,7 +28,9 @@ import org.springframework.security.web.authentication.preauth.AbstractPreAuthen
  *
  * @author Ruud Senden
  * @since 2.0
+ * @deprecated Use {@link org.springframework.security.web.authentication.AuthenticationFilter} instead
  */
+@Deprecated
 public class J2eePreAuthenticatedProcessingFilter extends AbstractPreAuthenticatedProcessingFilter {
 
 	/**

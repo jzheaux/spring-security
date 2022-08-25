@@ -45,6 +45,7 @@ import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
 import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestHeaderRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.util.Assert;
 import org.springframework.web.accept.ContentNegotiationStrategy;
 import org.springframework.web.accept.HeaderContentNegotiationStrategy;
 
@@ -66,6 +67,8 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 	private F authFilter;
 
 	private AuthenticationDetailsSource<HttpServletRequest, ?> authenticationDetailsSource;
+
+	private AuthenticationManager authenticationManager;
 
 	private SavedRequestAwareAuthenticationSuccessHandler defaultSuccessHandler = new SavedRequestAwareAuthenticationSuccessHandler();
 
@@ -169,6 +172,12 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 	public final T authenticationDetailsSource(
 			AuthenticationDetailsSource<HttpServletRequest, ?> authenticationDetailsSource) {
 		this.authenticationDetailsSource = authenticationDetailsSource;
+		return getSelf();
+	}
+
+	public T authenticationManager(AuthenticationManager authenticationManager) {
+		Assert.notNull(authenticationManager, "authenticationManager cannot be null");
+		this.authenticationManager = authenticationManager;
 		return getSelf();
 	}
 
@@ -278,7 +287,7 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		if (requestCache != null) {
 			this.defaultSuccessHandler.setRequestCache(requestCache);
 		}
-		this.authFilter.setAuthenticationManager(http.getSharedObject(AuthenticationManager.class));
+		this.authFilter.setAuthenticationManager(getAuthenticationManager(http));
 		this.authFilter.setAuthenticationSuccessHandler(this.successHandler);
 		this.authFilter.setAuthenticationFailureHandler(this.failureHandler);
 		if (this.authenticationDetailsSource != null) {
@@ -380,6 +389,10 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		return this.failureUrl;
 	}
 
+	protected final AuthenticationManager getAuthenticationManager() {
+		return this.authenticationManager;
+	}
+
 	/**
 	 * Updates the default values for authentication.
 	 * @throws Exception
@@ -420,4 +433,10 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		return (T) this;
 	}
 
+	private AuthenticationManager getAuthenticationManager(B http) {
+		if (this.authenticationManager != null) {
+			return this.authenticationManager;
+		}
+		return http.getSharedObject(AuthenticationManager.class);
+	}
 }

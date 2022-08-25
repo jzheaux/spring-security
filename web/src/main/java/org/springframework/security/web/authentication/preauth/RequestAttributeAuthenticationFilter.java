@@ -41,7 +41,9 @@ import org.springframework.util.Assert;
  *
  * @author Milan Sevcik
  * @since 4.2
+ * @deprecated Use {@link PreAuthenticatedRequestAuthenticationConverter} with {@link org.springframework.security.web.authentication.AuthenticationFilter}
  */
+@Deprecated
 public class RequestAttributeAuthenticationFilter extends AbstractPreAuthenticatedProcessingFilter {
 
 	private String principalEnvironmentVariable = "REMOTE_USER";
