@@ -265,6 +265,7 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 		BearerTokenAuthenticationFilter filter = new BearerTokenAuthenticationFilter(resolver);
 		filter.setBearerTokenResolver(bearerTokenResolver);
 		filter.setAuthenticationEntryPoint(this.authenticationEntryPoint);
+		filter.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
 		filter = postProcess(filter);
 		http.addFilter(filter);
 	}
