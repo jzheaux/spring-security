@@ -70,13 +70,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationManagerResolver;
 import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.config.http.OAuth2ResourceServerBeanDefinitionParser.JwtBeanDefinitionParser;
 import org.springframework.security.config.http.OAuth2ResourceServerBeanDefinitionParser.OpaqueTokenBeanDefinitionParser;
 import org.springframework.security.config.test.SpringTestContext;
 import org.springframework.security.config.test.SpringTestContextExtension;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.oauth2.core.OAuth2AuthenticatedPrincipal;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
@@ -654,13 +653,13 @@ public class OAuth2ResourceServerBeanDefinitionParserTests {
 		this.spring.configLocations(xml("OpaqueTokenRestOperations"), xml("OpaqueTokenAndAuthenticationConverter"))
 				.autowire();
 		mockRestOperations(json("Active"));
+		OpaqueTokenAuthenticationConverter converter = bean(OpaqueTokenAuthenticationConverter.class);
+		given(converter.convert(any(), any())).willReturn(new TestingAuthenticationToken("user", "pass"));
 		// @formatter:off
 		this.mvc.perform(get("/authenticated").header("Authorization", "Bearer token"))
 				.andExpect(status().isNotFound());
-
-		this.mvc.perform(get("/authenticated").header("Authorization", "Bearer invalidToken"))
-				.andExpect(status().isUnauthorized());
 		// @formatter:on
+		verify(converter).convert(any(), any());
 	}
 
 	@Test
@@ -1093,41 +1092,6 @@ public class OAuth2ResourceServerBeanDefinitionParserTests {
 
 		public void setMillis(long millis) {
 			this.clock = Clock.fixed(Instant.ofEpochMilli(millis), ZoneId.systemDefault());
-		}
-
-	}
-
-	public static class TestAuthentication extends AbstractAuthenticationToken {
-
-		private final String introspectedToken;
-
-		public TestAuthentication(String introspectedToken, Collection<? extends GrantedAuthority> authorities) {
-			super(authorities);
-			this.introspectedToken = introspectedToken;
-		}
-
-		@Override
-		public Object getCredentials() {
-			return this.introspectedToken;
-		}
-
-		@Override
-		public Object getPrincipal() {
-			return this.introspectedToken;
-		}
-
-		@Override
-		public boolean isAuthenticated() {
-			return "token".equals(this.introspectedToken);
-		}
-
-	}
-
-	public static class TestOpaqueTokenAuthenticationConverter implements OpaqueTokenAuthenticationConverter {
-
-		@Override
-		public Authentication convert(String introspectedToken, OAuth2AuthenticatedPrincipal authenticatedPrincipal) {
-			return new TestAuthentication(introspectedToken, Collections.emptyList());
 		}
 
 	}
