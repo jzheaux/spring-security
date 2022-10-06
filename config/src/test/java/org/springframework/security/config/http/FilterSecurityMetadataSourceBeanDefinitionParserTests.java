@@ -105,7 +105,7 @@ public class FilterSecurityMetadataSourceBeanDefinitionParserTests {
 	@Test
 	public void parsingWithinFilterSecurityInterceptorIsSuccessful() {
 		// @formatter:off
-		setContext("<http auto-config='true' use-expressions='false'/>"
+		setContext("<http auto-config='true' use-expressions='false' use-authorization-manager='false'/>"
 				+ "<b:bean id='fsi' class='org.springframework.security.web.access.intercept.FilterSecurityInterceptor' autowire='byType'>"
 				+ "   <b:property name='securityMetadataSource'>"
 				+ "       <filter-security-metadata-source use-expressions='false'>"
