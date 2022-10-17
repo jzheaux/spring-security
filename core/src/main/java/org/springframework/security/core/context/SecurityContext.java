@@ -47,4 +47,12 @@ public interface SecurityContext extends Serializable {
 	 */
 	void setAuthentication(Authentication authentication);
 
+	/**
+	 * TODO
+	 * @return
+	 */
+	default boolean isGenerated() {
+		return false;
+	}
+
 }
