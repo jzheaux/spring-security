@@ -21,7 +21,9 @@ import java.util.function.Supplier;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.springframework.security.core.context.DeferredSecurityContext;
 import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.function.SingletonSupplier;
 
 /**
@@ -75,9 +77,15 @@ public interface SecurityContextRepository {
 	 * @return a {@link Supplier} that returns the {@link SecurityContext} which cannot be
 	 * null.
 	 * @since 5.7
+	 * @deprecated Use {@link #loadDeferredContext(HttpServletRequest)} instead
 	 */
+	@Deprecated
 	default Supplier<SecurityContext> loadContext(HttpServletRequest request) {
 		return SingletonSupplier.of(() -> loadContext(new HttpRequestResponseHolder(request, null)));
+	}
+
+	default DeferredSecurityContext loadDeferredContext(HttpServletRequest request) {
+		return new SupplierDeferredSecurityContext(loadContext(request), SecurityContextHolder.getContextHolderStrategy());
 	}
 
 	/**

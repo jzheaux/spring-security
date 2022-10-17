@@ -16,6 +16,8 @@
 
 package org.springframework.security.web.context;
 
+import java.util.function.Supplier;
+
 import javax.servlet.AsyncContext;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -33,6 +35,7 @@ import org.springframework.security.authentication.AuthenticationTrustResolver;
 import org.springframework.security.authentication.AuthenticationTrustResolverImpl;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.Transient;
+import org.springframework.security.core.context.DeferredSecurityContext;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
@@ -134,6 +137,19 @@ public class HttpSessionSecurityContextRepository implements SecurityContextRepo
 			requestResponseHolder.setRequest(new SaveToSessionRequestWrapper(request, wrappedResponse));
 		}
 		return context;
+	}
+
+	@Override
+	public Supplier<SecurityContext> loadContext(HttpServletRequest request) {
+		return loadDeferredContext(request);
+	}
+
+	@Override
+	public DeferredSecurityContext loadDeferredContext(HttpServletRequest request) {
+		return new SupplierDeferredSecurityContext(() -> {
+			HttpSession session = request.getSession(false);
+			return readSecurityContextFromSession(session);
+		}, this.securityContextHolderStrategy);
 	}
 
 	@Override

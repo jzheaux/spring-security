@@ -23,13 +23,15 @@ import java.util.function.Supplier;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.springframework.security.core.context.DeferredSecurityContext;
 import org.springframework.security.core.context.SecurityContext;
 
 /**
  * @author Steve Riesenberg
+ * @author Josh Cummings
  * @since 5.8
  */
-class DelegatingSecurityContextRepository implements SecurityContextRepository {
+public final class DelegatingSecurityContextRepository implements SecurityContextRepository {
 
 	private final List<SecurityContextRepository> delegates;
 
@@ -48,13 +50,18 @@ class DelegatingSecurityContextRepository implements SecurityContextRepository {
 
 	@Override
 	public Supplier<SecurityContext> loadContext(HttpServletRequest request) {
-		Supplier<SecurityContext> supplier = null;
+		return loadDeferredContext(request);
+	}
+
+	@Override
+	public DeferredSecurityContext loadDeferredContext(HttpServletRequest request) {
+		DeferredSecurityContext supplier = null;
 		for (SecurityContextRepository delegate : this.delegates) {
 			if (supplier == null) {
-				supplier = delegate.loadContext(request);
+				supplier = delegate.loadDeferredContext(request);
 			}
 			else {
-				Supplier<SecurityContext> current = delegate.loadContext(request);
+				DeferredSecurityContext current = delegate.loadDeferredContext(request);
 				supplier = new DelegatingSupplier(current, supplier);
 			}
 		}
@@ -76,13 +83,13 @@ class DelegatingSecurityContextRepository implements SecurityContextRepository {
 		return false;
 	}
 
-	static class DelegatingSupplier implements Supplier<SecurityContext> {
+	static class DelegatingSupplier implements DeferredSecurityContext {
 
 		private final Supplier<SecurityContext> current;
 
 		private final Supplier<SecurityContext> previous;
 
-		DelegatingSupplier(Supplier<SecurityContext> current, Supplier<SecurityContext> previous) {
+		DelegatingSupplier(DeferredSecurityContext current, DeferredSecurityContext previous) {
 			this.current = current;
 			this.previous = previous;
 		}
@@ -94,6 +101,11 @@ class DelegatingSecurityContextRepository implements SecurityContextRepository {
 				return securityContext;
 			}
 			return this.current.get();
+		}
+
+		@Override
+		public boolean isGenerated() {
+			throw new UnsupportedOperationException("unsupported");
 		}
 	}
 
