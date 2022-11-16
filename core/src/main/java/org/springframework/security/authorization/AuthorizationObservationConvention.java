@@ -29,7 +29,7 @@ import io.micrometer.observation.ObservationConvention;
 public final class AuthorizationObservationConvention
 		implements ObservationConvention<AuthorizationObservationContext<?>> {
 
-	static final String OBSERVATION_NAME = "spring.security.authorizations";
+	static final String OBSERVATION_NAME = "authorizations";
 
 	/**
 	 * {@inheritDoc}

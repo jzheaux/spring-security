@@ -33,7 +33,7 @@ import org.springframework.lang.NonNull;
 public final class AuthenticationObservationConvention
 		implements ObservationConvention<AuthenticationObservationContext> {
 
-	static final String OBSERVATION_NAME = "spring.security.authentications";
+	static final String OBSERVATION_NAME = "authentications";
 
 	/**
 	 * {@inheritDoc}

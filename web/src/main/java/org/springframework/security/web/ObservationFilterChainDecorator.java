@@ -40,8 +40,8 @@ import org.springframework.core.log.LogMessage;
 import org.springframework.security.web.util.UrlUtils;
 
 /**
- * A {@link org.springframework.security.web.server.FilterChainProxy.FilterChainDecorator}
- * that wraps the chain in before and after observations
+ * A {@link org.springframework.security.web.FilterChainProxy.FilterChainDecorator} that
+ * wraps the chain in before and after observations
  *
  * @author Josh Cummings
  * @since 6.0
@@ -52,9 +52,9 @@ public final class ObservationFilterChainDecorator implements FilterChainProxy.F
 
 	private static final String ATTRIBUTE = ObservationFilterChainDecorator.class + ".observation";
 
-	static final String UNSECURED_OBSERVATION_NAME = "spring.security.http.unsecured.requests";
+	static final String UNSECURED_OBSERVATION_NAME = "http.server.requests.unsecured";
 
-	static final String SECURED_OBSERVATION_NAME = "spring.security.http.secured.requests";
+	static final String SECURED_OBSERVATION_NAME = "http.server.requests.secured";
 
 	private final ObservationRegistry registry;
 
@@ -74,7 +74,7 @@ public final class ObservationFilterChainDecorator implements FilterChainProxy.F
 
 	private FilterChain wrapSecured(FilterChain original) {
 		return (req, res) -> {
-			AroundFilterObservation parent = observation((HttpServletRequest) req);
+			AroundFilterObservation parent = parentObservation((HttpServletRequest) req);
 			Observation observation = Observation.createNotStarted(SECURED_OBSERVATION_NAME, this.registry);
 			parent.wrap(FilterObservation.create(observation).wrap(original)).doFilter(req, res);
 		};
@@ -98,7 +98,7 @@ public final class ObservationFilterChainDecorator implements FilterChainProxy.F
 		return observableFilters;
 	}
 
-	static AroundFilterObservation observation(HttpServletRequest request) {
+	static AroundFilterObservation parentObservation(HttpServletRequest request) {
 		return (AroundFilterObservation) request.getAttribute(ATTRIBUTE);
 	}
 
@@ -141,6 +141,8 @@ public final class ObservationFilterChainDecorator implements FilterChainProxy.F
 
 		private final FilterChainObservationConvention convention = new FilterChainObservationConvention();
 
+		private final FilterObservationConvention fConvention = new FilterObservationConvention();
+
 		private final Filter filter;
 
 		private final String name;
@@ -175,13 +177,24 @@ public final class ObservationFilterChainDecorator implements FilterChainProxy.F
 
 		private void wrapFilter(ServletRequest request, ServletResponse response, FilterChain chain)
 				throws IOException, ServletException {
-			AroundFilterObservation parent = observation((HttpServletRequest) request);
+			AroundFilterObservation parent = parentObservation((HttpServletRequest) request);
 			FilterChainObservationContext parentBefore = (FilterChainObservationContext) parent.before().getContext();
 			parentBefore.setChainSize(this.size);
 			parentBefore.setFilterName(this.name);
 			parentBefore.setChainPosition(this.position);
-			this.filter.doFilter(request, response, chain);
-			parent.start();
+			FilterObservationContext beforeContext = FilterObservationContext.before(this.name);
+			FilterObservationContext afterContext = FilterObservationContext.after(this.name);
+			Observation before = Observation.createNotStarted(this.fConvention, () -> beforeContext, this.registry)
+					.parentObservation(parent.before());
+			Observation after = Observation.createNotStarted(this.fConvention, () -> afterContext, this.registry)
+					.parentObservation(parent.after());
+			AroundFilterObservation forFilter = AroundFilterObservation.create(before, after);
+			try {
+				forFilter.wrap(this.filter).doFilter(request, response, forFilter.wrap(chain));
+			}
+			finally {
+				parent.start();
+			}
 			FilterChainObservationContext parentAfter = (FilterChainObservationContext) parent.after().getContext();
 			parentAfter.setChainSize(this.size);
 			parentAfter.setFilterName(this.name);
@@ -409,7 +422,7 @@ public final class ObservationFilterChainDecorator implements FilterChainProxy.F
 
 	static final class FilterChainObservationContext extends Observation.Context {
 
-		private final ServletRequest request;
+		private final HttpServletRequest request;
 
 		private final String filterSection;
 
@@ -419,16 +432,16 @@ public final class ObservationFilterChainDecorator implements FilterChainProxy.F
 
 		private int chainSize;
 
-		private FilterChainObservationContext(ServletRequest request, String filterSection) {
+		private FilterChainObservationContext(HttpServletRequest request, String filterSection) {
 			this.filterSection = filterSection;
 			this.request = request;
 		}
 
-		static FilterChainObservationContext before(ServletRequest request) {
+		static FilterChainObservationContext before(HttpServletRequest request) {
 			return new FilterChainObservationContext(request, "before");
 		}
 
-		static FilterChainObservationContext after(ServletRequest request) {
+		static FilterChainObservationContext after(HttpServletRequest request) {
 			return new FilterChainObservationContext(request, "after");
 		}
 
@@ -440,8 +453,12 @@ public final class ObservationFilterChainDecorator implements FilterChainProxy.F
 			}
 		}
 
-		String getRequestLine() {
-			return requestLine((HttpServletRequest) this.request);
+		String getMethod() {
+			return this.request.getMethod();
+		}
+
+		String getRoute() {
+			return UrlUtils.buildRequestUrl(this.request);
 		}
 
 		String getFilterSection() {
@@ -472,22 +489,20 @@ public final class ObservationFilterChainDecorator implements FilterChainProxy.F
 			this.chainSize = chainSize;
 		}
 
-		private static String requestLine(HttpServletRequest request) {
-			return request.getMethod() + " " + UrlUtils.buildRequestUrl(request);
-		}
-
 	}
 
 	static final class FilterChainObservationConvention
 			implements ObservationConvention<FilterChainObservationContext> {
 
-		static final String CHAIN_OBSERVATION_NAME = "spring.security.http.chains";
+		static final String CHAIN_OBSERVATION_NAME = "http.server.security.filterchains";
 
-		private static final String REQUEST_LINE_NAME = "request.line";
+		private static final String HTTP_METHOD_NAME = "http.method";
 
-		private static final String CHAIN_POSITION_NAME = "chain.position";
+		private static final String HTTP_ROUTE_NAME = "http.route";
 
-		private static final String CHAIN_SIZE_NAME = "chain.size";
+		private static final String CHAIN_POSITION_NAME = "filterchain.position";
+
+		private static final String CHAIN_SIZE_NAME = "filterchain.size";
 
 		private static final String FILTER_SECTION_NAME = "filter.section";
 
@@ -511,13 +526,80 @@ public final class ObservationFilterChainDecorator implements FilterChainProxy.F
 
 		@Override
 		public KeyValues getHighCardinalityKeyValues(FilterChainObservationContext context) {
-			String requestLine = context.getRequestLine();
-			return KeyValues.of(REQUEST_LINE_NAME, requestLine);
+			String method = context.getMethod();
+			String route = context.getRoute();
+			return KeyValues.of(HTTP_METHOD_NAME, method).and(HTTP_ROUTE_NAME, route);
 		}
 
 		@Override
 		public boolean supportsContext(Observation.Context context) {
 			return context instanceof FilterChainObservationContext;
+		}
+
+	}
+
+	static final class FilterObservationContext extends Observation.Context {
+
+		private final String filterSection;
+
+		private final String filterName;
+
+		private FilterObservationContext(String filterName, String filterSection) {
+			this.filterName = filterName;
+			this.filterSection = filterSection;
+		}
+
+		static FilterObservationContext before(String name) {
+			return new FilterObservationContext(name, "before");
+		}
+
+		static FilterObservationContext after(String name) {
+			return new FilterObservationContext(name, "after");
+		}
+
+		@Override
+		public void setName(String name) {
+			super.setName(name);
+			if (name != null) {
+				setContextualName(name + "." + this.filterSection);
+			}
+		}
+
+		String getFilterSection() {
+			return this.filterSection;
+		}
+
+		String getFilterName() {
+			return this.filterName;
+		}
+
+	}
+
+	static final class FilterObservationConvention implements ObservationConvention<FilterObservationContext> {
+
+		static final String CHAIN_OBSERVATION_NAME = "http.server.security.filters";
+
+		private static final String FILTER_SECTION_NAME = "filter.section";
+
+		private static final String FILTER_NAME = "filter.name";
+
+		@Override
+		public String getName() {
+			return CHAIN_OBSERVATION_NAME;
+		}
+
+		@Override
+		public KeyValues getLowCardinalityKeyValues(FilterObservationContext context) {
+			KeyValues kv = KeyValues.of(FILTER_SECTION_NAME, context.getFilterSection());
+			if (context.getFilterName() != null) {
+				kv = kv.and(FILTER_NAME, context.getFilterName());
+			}
+			return kv;
+		}
+
+		@Override
+		public boolean supportsContext(Observation.Context context) {
+			return context instanceof FilterObservationContext;
 		}
 
 	}

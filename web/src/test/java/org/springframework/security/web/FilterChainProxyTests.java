@@ -300,13 +300,15 @@ public class FilterChainProxyTests {
 				.create(Observation.createNotStarted("wrap", registry)).wrap(fcp);
 		filter.doFilter(this.request, this.response, this.chain);
 		ArgumentCaptor<Observation.Context> captor = ArgumentCaptor.forClass(Observation.Context.class);
-		verify(handler, times(4)).onStart(captor.capture());
-		verify(handler, times(4)).onStop(any());
+		verify(handler, times(6)).onStart(captor.capture());
+		verify(handler, times(6)).onStop(any());
 		Iterator<Observation.Context> contexts = captor.getAllValues().iterator();
 		assertThat(contexts.next().getName()).isEqualTo("wrap");
 		assertFilterChainObservation(contexts.next(), "before", 1);
+		assertFilterObservation(contexts.next(), "before", this.filter.getClass().getSimpleName());
 		assertThat(contexts.next().getName()).isEqualTo(ObservationFilterChainDecorator.SECURED_OBSERVATION_NAME);
 		assertFilterChainObservation(contexts.next(), "after", 1);
+		assertFilterObservation(contexts.next(), "after", this.filter.getClass().getSimpleName());
 	}
 
 	@Test
@@ -326,13 +328,19 @@ public class FilterChainProxyTests {
 				.create(Observation.createNotStarted("wrap", registry)).wrap(fcp);
 		filter.doFilter(this.request, this.response, this.chain);
 		ArgumentCaptor<Observation.Context> captor = ArgumentCaptor.forClass(Observation.Context.class);
-		verify(handler, times(4)).onStart(captor.capture());
-		verify(handler, times(4)).onStop(any());
+		verify(handler, times(10)).onStart(captor.capture());
+		verify(handler, times(10)).onStop(any());
 		Iterator<Observation.Context> contexts = captor.getAllValues().iterator();
 		assertThat(contexts.next().getName()).isEqualTo("wrap");
 		assertFilterChainObservation(contexts.next(), "before", 3);
+		assertFilterObservation(contexts.next(), "before", one.getClass().getSimpleName());
+		assertFilterObservation(contexts.next(), "before", two.getClass().getSimpleName());
+		assertFilterObservation(contexts.next(), "before", three.getClass().getSimpleName());
 		assertThat(contexts.next().getName()).isEqualTo(ObservationFilterChainDecorator.SECURED_OBSERVATION_NAME);
 		assertFilterChainObservation(contexts.next(), "after", 3);
+		assertFilterObservation(contexts.next(), "after", one.getClass().getSimpleName());
+		assertFilterObservation(contexts.next(), "after", two.getClass().getSimpleName());
+		assertFilterObservation(contexts.next(), "after", three.getClass().getSimpleName());
 	}
 
 	@Test
@@ -371,12 +379,14 @@ public class FilterChainProxyTests {
 		assertThatExceptionOfType(IllegalStateException.class)
 				.isThrownBy(() -> filter.doFilter(this.request, this.response, this.chain));
 		ArgumentCaptor<Observation.Context> captor = ArgumentCaptor.forClass(Observation.Context.class);
-		verify(handler, times(2)).onStart(captor.capture());
-		verify(handler, times(2)).onStop(any());
+		verify(handler, times(4)).onStart(captor.capture());
+		verify(handler, times(4)).onStop(any());
 		verify(handler, atLeastOnce()).onError(any());
 		Iterator<Observation.Context> contexts = captor.getAllValues().iterator();
 		assertThat(contexts.next().getName()).isEqualTo("wrap");
 		assertFilterChainObservation(contexts.next(), "before", 1);
+		assertFilterObservation(contexts.next(), "before", this.filter.getClass().getSimpleName());
+		assertFilterChainObservation(contexts.next(), "after", 0);
 	}
 
 	@Test
@@ -398,11 +408,15 @@ public class FilterChainProxyTests {
 		assertThatExceptionOfType(IllegalStateException.class)
 				.isThrownBy(() -> filter.doFilter(this.request, this.response, this.chain));
 		ArgumentCaptor<Observation.Context> captor = ArgumentCaptor.forClass(Observation.Context.class);
-		verify(handler, times(2)).onStart(captor.capture());
-		verify(handler, times(2)).onStop(any());
+		verify(handler, times(6)).onStart(captor.capture());
+		verify(handler, times(6)).onStop(any());
 		Iterator<Observation.Context> contexts = captor.getAllValues().iterator();
 		assertThat(contexts.next().getName()).isEqualTo("wrap");
 		assertFilterChainObservation(contexts.next(), "before", 2);
+		assertFilterObservation(contexts.next(), "before", one.getClass().getSimpleName());
+		assertFilterObservation(contexts.next(), "before", two.getClass().getSimpleName());
+		assertFilterChainObservation(contexts.next(), "after", 0);
+		assertFilterObservation(contexts.next(), "after", one.getClass().getSimpleName());
 	}
 
 	@Test
@@ -422,12 +436,15 @@ public class FilterChainProxyTests {
 				.create(Observation.createNotStarted("wrap", registry)).wrap(fcp);
 		filter.doFilter(this.request, this.response, this.chain);
 		ArgumentCaptor<Observation.Context> captor = ArgumentCaptor.forClass(Observation.Context.class);
-		verify(handler, times(3)).onStart(captor.capture());
-		verify(handler, times(3)).onStop(any());
+		verify(handler, times(6)).onStart(captor.capture());
+		verify(handler, times(6)).onStop(any());
 		Iterator<Observation.Context> contexts = captor.getAllValues().iterator();
 		assertThat(contexts.next().getName()).isEqualTo("wrap");
 		assertFilterChainObservation(contexts.next(), "before", 2);
+		assertFilterObservation(contexts.next(), "before", one.getClass().getSimpleName());
+		assertFilterObservation(contexts.next(), "before", two.getClass().getSimpleName());
 		assertFilterChainObservation(contexts.next(), "after", 3);
+		assertFilterObservation(contexts.next(), "after", one.getClass().getSimpleName());
 	}
 
 	static void assertFilterChainObservation(Observation.Context context, String filterSection, int chainPosition) {
@@ -437,6 +454,15 @@ public class FilterChainProxyTests {
 				.isEqualTo(ObservationFilterChainDecorator.FilterChainObservationConvention.CHAIN_OBSERVATION_NAME);
 		assertThat(context.getContextualName()).endsWith(filterSection);
 		assertThat(filterChainObservationContext.getChainPosition()).isEqualTo(chainPosition);
+	}
+
+	static void assertFilterObservation(Observation.Context context, String filterSection, String filterName) {
+		assertThat(context).isInstanceOf(ObservationFilterChainDecorator.FilterObservationContext.class);
+		ObservationFilterChainDecorator.FilterObservationContext filterObservationContext = (ObservationFilterChainDecorator.FilterObservationContext) context;
+		assertThat(context.getName())
+				.isEqualTo(ObservationFilterChainDecorator.FilterObservationConvention.CHAIN_OBSERVATION_NAME);
+		assertThat(context.getContextualName()).endsWith(filterSection);
+		assertThat(filterObservationContext.getFilterName()).isEqualTo(filterName);
 	}
 
 	static Filter mockFilter() throws Exception {

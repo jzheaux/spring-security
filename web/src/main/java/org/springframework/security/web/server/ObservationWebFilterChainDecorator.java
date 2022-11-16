@@ -48,9 +48,9 @@ public final class ObservationWebFilterChainDecorator implements WebFilterChainP
 
 	private static final String ATTRIBUTE = ObservationWebFilterChainDecorator.class + ".observation";
 
-	static final String UNSECURED_OBSERVATION_NAME = "spring.security.http.unsecured.requests";
+	static final String UNSECURED_OBSERVATION_NAME = "http.server.requests.unsecured";
 
-	static final String SECURED_OBSERVATION_NAME = "spring.security.http.secured.requests";
+	static final String SECURED_OBSERVATION_NAME = "http.server.requests.secured";
 
 	private final ObservationRegistry registry;
 
@@ -450,7 +450,11 @@ public final class ObservationWebFilterChainDecorator implements WebFilterChainP
 			}
 		}
 
-		String getRequestLine() {
+		String getMethod() {
+			return this.exchange.getRequest().getMethod().toString();
+		}
+
+		String getRoute() {
 			return this.exchange.getRequest().getPath().toString();
 		}
 
@@ -487,17 +491,19 @@ public final class ObservationWebFilterChainDecorator implements WebFilterChainP
 	static final class WebFilterChainObservationConvention
 			implements ObservationConvention<WebFilterChainObservationContext> {
 
-		static final String CHAIN_OBSERVATION_NAME = "spring.security.http.chains";
+		static final String CHAIN_OBSERVATION_NAME = "http.server.security.filterchains";
 
-		private static final String REQUEST_LINE_NAME = "request.line";
+		private static final String HTTP_METHOD_NAME = "http.method";
 
-		private static final String CHAIN_POSITION_NAME = "chain.position";
+		private static final String HTTP_ROUTE_NAME = "http.route";
 
-		private static final String CHAIN_SIZE_NAME = "chain.size";
+		private static final String CHAIN_POSITION_NAME = "http.security.filterchain.position";
 
-		private static final String FILTER_SECTION_NAME = "filter.section";
+		private static final String CHAIN_SIZE_NAME = "http.security.filterchain.size";
 
-		private static final String FILTER_NAME = "current.filter.name";
+		private static final String FILTER_SECTION_NAME = "http.security.filterchain.section";
+
+		private static final String FILTER_NAME = "http.security.current.filter.name";
 
 		@Override
 		public String getName() {
@@ -517,8 +523,9 @@ public final class ObservationWebFilterChainDecorator implements WebFilterChainP
 
 		@Override
 		public KeyValues getHighCardinalityKeyValues(WebFilterChainObservationContext context) {
-			String requestLine = context.getRequestLine();
-			return KeyValues.of(REQUEST_LINE_NAME, requestLine);
+			String method = context.getMethod();
+			String route = context.getRoute();
+			return KeyValues.of(HTTP_METHOD_NAME, method).and(HTTP_ROUTE_NAME, route);
 		}
 
 		@Override
