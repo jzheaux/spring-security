@@ -1,35 +1,30 @@
+/*
+ * Copyright 2002-2023 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.springframework.security.oauth2.client.oidc.authentication.logout;
 
-import java.util.Collection;
+import java.util.Set;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
-
-import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.core.oidc.OidcIdToken;
+import org.springframework.security.core.session.SessionInformation;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
-import org.springframework.security.web.authentication.session.SessionAuthenticationException;
-import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 
-public interface OidcProviderSessionRegistry extends SessionAuthenticationStrategy {
+public interface OidcProviderSessionRegistry {
 
-	@Override
-	default void onAuthentication(Authentication authentication, HttpServletRequest request, HttpServletResponse response) throws SessionAuthenticationException {
-		HttpSession session = request.getSession(false);
-		if (session == null) {
-			return;
-		}
-		if (authentication == null) {
-			return;
-		}
-		if (!(authentication.getPrincipal() instanceof OidcUser)) {
-			return;
-		}
-		mapClientSession(((OidcUser) authentication.getPrincipal()).getIdToken(), session.getId());
-	}
+	SessionInformation register(OidcUser principal, String clientSessionId);
 
-	void mapClientSession(OidcIdToken token, String clientSessionId);
+	Set<SessionInformation> unregister(OidcLogoutToken token);
 
-	Collection<String> getClientSessions(OidcLogoutToken token);
 }
