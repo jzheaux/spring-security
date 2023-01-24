@@ -18,10 +18,14 @@ package org.springframework.security.oauth2.client.oidc.authentication.logout;
 
 import java.util.Set;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
 
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.session.SessionInformation;
+import org.springframework.security.oauth2.client.oidc.web.authentication.session.InMemoryOidcProviderSessionRegistry;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.TestOidcIdTokens;
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
@@ -35,9 +39,11 @@ public class InMemoryOidcProviderSessionRegistryTests {
 	@Test
 	public void registerWhenDefaultsThenStoresSessionInformation() {
 		InMemoryOidcProviderSessionRegistry registry = new InMemoryOidcProviderSessionRegistry();
+		MockHttpServletRequest request = new MockHttpServletRequest();
+		request.setSession(new MockHttpSession(null, "client"));
 		String sessionId = "client";
 		OidcUser user = TestOidcUsers.create();
-		SessionInformation info = registry.register(user, sessionId);
+		SessionInformation info = registry.register(request, user);
 		assertThat(info.getSessionId()).isSameAs(sessionId);
 		assertThat(info.getPrincipal()).isSameAs(user);
 		Set<SessionInformation> infos = registry.unregister(TestOidcLogoutTokens.withUser(user).build());
@@ -47,9 +53,11 @@ public class InMemoryOidcProviderSessionRegistryTests {
 	@Test
 	public void registerWhenIdTokenHasSessionIdThenStoresSessionInformation() {
 		InMemoryOidcProviderSessionRegistry registry = new InMemoryOidcProviderSessionRegistry();
+		MockHttpServletRequest request = new MockHttpServletRequest();
+		request.setSession(new MockHttpSession(null, "client"));
 		OidcIdToken token = TestOidcIdTokens.idToken().claim("sid", "provider").build();
 		OidcUser user = new DefaultOidcUser(AuthorityUtils.NO_AUTHORITIES, token);
-		SessionInformation info = registry.register(user, "client");
+		SessionInformation info = registry.register(request, user);
 		OidcLogoutToken logoutToken = TestOidcLogoutTokens.withSessionId(token.getIssuer().toString(), "provider")
 				.build();
 		Set<SessionInformation> infos = registry.unregister(logoutToken);
@@ -61,13 +69,13 @@ public class InMemoryOidcProviderSessionRegistryTests {
 		InMemoryOidcProviderSessionRegistry registry = new InMemoryOidcProviderSessionRegistry();
 		OidcIdToken token = TestOidcIdTokens.idToken().claim("sid", "providerOne").subject("otheruser").build();
 		OidcUser user = new DefaultOidcUser(AuthorityUtils.NO_AUTHORITIES, token);
-		SessionInformation one = registry.register(user, "clientOne");
+		SessionInformation one = registry.register(havingSessionId("clientOne"), user);
 		token = TestOidcIdTokens.idToken().claim("sid", "providerTwo").build();
 		user = new DefaultOidcUser(AuthorityUtils.NO_AUTHORITIES, token);
-		SessionInformation two = registry.register(user, "clientTwo");
+		SessionInformation two = registry.register(havingSessionId("clientTwo"), user);
 		token = TestOidcIdTokens.idToken().claim("sid", "providerThree").build();
 		user = new DefaultOidcUser(AuthorityUtils.NO_AUTHORITIES, token);
-		SessionInformation three = registry.register(user, "clientThree");
+		SessionInformation three = registry.register(havingSessionId("clientThree"), user);
 		OidcLogoutToken logoutToken = TestOidcLogoutTokens.withSubject(token.getIssuer().toString(), token.getSubject())
 				.build();
 		Set<SessionInformation> infos = registry.unregister(logoutToken);
@@ -82,7 +90,7 @@ public class InMemoryOidcProviderSessionRegistryTests {
 		InMemoryOidcProviderSessionRegistry registry = new InMemoryOidcProviderSessionRegistry();
 		OidcIdToken token = TestOidcIdTokens.idToken().claim("sid", "provider").build();
 		OidcUser user = new DefaultOidcUser(AuthorityUtils.NO_AUTHORITIES, token);
-		registry.register(user, "client");
+		registry.register(havingSessionId("client"), user);
 		OidcLogoutToken logoutToken = TestOidcLogoutTokens.withSessionId(token.getIssuer().toString(), "wrong").build();
 		Set<SessionInformation> infos = registry.unregister(logoutToken);
 		assertThat(infos).isNotNull();
@@ -91,6 +99,12 @@ public class InMemoryOidcProviderSessionRegistryTests {
 		infos = registry.unregister(logoutToken);
 		assertThat(infos).isNotNull();
 		assertThat(infos).isEmpty();
+	}
+
+	private static HttpServletRequest havingSessionId(String sessionId) {
+		MockHttpServletRequest request = new MockHttpServletRequest();
+		request.setSession(new MockHttpSession(null, sessionId));
+		return request;
 	}
 
 }

@@ -21,8 +21,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.client.oidc.authentication.logout.InMemoryOidcProviderSessionRegistry;
-import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcProviderSessionRegistry;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.web.authentication.session.SessionAuthenticationException;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
@@ -44,7 +42,7 @@ public final class OidcProviderSessionAuthenticationStrategy implements SessionA
 		if (!(authentication.getPrincipal() instanceof OidcUser user)) {
 			return;
 		}
-		this.providerSessionRegistry.register(user, session.getId());
+		this.providerSessionRegistry.register(request, user);
 	}
 
 	public void setProviderSessionRegistry(OidcProviderSessionRegistry providerSessionRegistry) {

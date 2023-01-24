@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package org.springframework.security.oauth2.client.oidc.authentication.logout;
+package org.springframework.security.oauth2.client.oidc.web.authentication.session;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Objects;
@@ -24,16 +25,29 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.Predicate;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
+
 import org.springframework.security.core.session.SessionInformation;
+import org.springframework.security.oauth2.client.oidc.authentication.logout.LogoutTokenClaimNames;
+import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
+import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.security.web.csrf.DefaultCsrfToken;
 
 public final class InMemoryOidcProviderSessionRegistry implements OidcProviderSessionRegistry {
 
 	private final Set<OidcSessionInformation> sessions = new CopyOnWriteArraySet<>();
 
 	@Override
-	public SessionInformation register(OidcUser user, String clientSessionId) {
-		OidcSessionInformation info = new OidcSessionInformation(user, clientSessionId);
+	public SessionInformation register(HttpServletRequest request, OidcUser user) {
+		HttpSession session = request.getSession(false);
+		if (session == null) {
+			throw new IllegalArgumentException("cannot register OP session since client session is null");
+		}
+		String clientSessionId = session.getId();
+		CsrfToken token = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
+		OidcSessionInformation info = new OidcSessionInformation(user, clientSessionId, token);
 		this.sessions.add(info);
 		return info;
 	}
@@ -72,11 +86,19 @@ public final class InMemoryOidcProviderSessionRegistry implements OidcProviderSe
 
 		private final String providerSessionId;
 
-		private OidcSessionInformation(OidcUser user, String clientSessionId) {
-			super(user, clientSessionId, Date.from(Instant.now()));
+		private OidcSessionInformation(OidcUser user, String clientSessionId, CsrfToken token) {
+			super(user, clientSessionId, Date.from(Instant.now()),
+					Collections.singletonMap(CsrfToken.class.getName(), extract(token)));
 			this.issuer = user.getIssuer().toString();
 			this.subject = user.getSubject();
 			this.providerSessionId = user.getClaimAsString(LogoutTokenClaimNames.SID);
+		}
+
+		private static CsrfToken extract(CsrfToken token) {
+			if (token == null) {
+				return null;
+			}
+			return new DefaultCsrfToken(token.getHeaderName(), token.getParameterName(), token.getToken());
 		}
 
 		@Override

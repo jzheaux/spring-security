@@ -16,11 +16,14 @@
 
 package org.springframework.security.web.session;
 
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.session.SessionInformation;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.util.Assert;
 import org.springframework.web.client.RestOperations;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 public final class BackchannelSessionInformationExpiredStrategy implements SessionInformationExpiredStrategy {
 
@@ -34,8 +37,16 @@ public final class BackchannelSessionInformationExpiredStrategy implements Sessi
 	public void onExpiredSessionDetected(SessionInformationExpiredEvent event) {
 		SessionInformation information = event.getSessionInformation();
 		HttpHeaders headers = new HttpHeaders();
-		headers.add("Cookie", this.clientSessionCookieName + "=" + information.getSessionId());
-		this.rest.postForEntity(this.logoutEndpointName, headers, Object.class);
+		headers.add(HttpHeaders.COOKIE, this.clientSessionCookieName + "=" + information.getSessionId());
+		CsrfToken token = information.getAttribute(CsrfToken.class.getName());
+		if (token != null) {
+			headers.add(token.getHeaderName(), token.getToken());
+		}
+		String url = event.getRequest().getRequestURL().toString();
+		String logout = UriComponentsBuilder.fromHttpUrl(url).replacePath(this.logoutEndpointName).build()
+				.toUriString();
+		HttpEntity<?> entity = new HttpEntity<>(null, headers);
+		this.rest.postForEntity(logout, entity, Object.class);
 	}
 
 	public void setRestOperations(RestOperations rest) {

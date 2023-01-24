@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,16 +22,16 @@ import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.SessionManagementConfigurer;
-import org.springframework.security.oauth2.client.oidc.authentication.logout.InMemoryOidcProviderSessionRegistry;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.NimbusLogoutTokenDecoderFactory;
-import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcProviderSessionRegistry;
 import org.springframework.security.oauth2.client.oidc.web.authentication.logout.OidcBackchannelLogoutFilter;
+import org.springframework.security.oauth2.client.oidc.web.authentication.session.InMemoryOidcProviderSessionRegistry;
 import org.springframework.security.oauth2.client.oidc.web.authentication.session.OidcProviderSessionAuthenticationStrategy;
+import org.springframework.security.oauth2.client.oidc.web.authentication.session.OidcProviderSessionRegistry;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.jwt.JwtDecoderFactory;
-import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
+import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.session.BackchannelSessionInformationExpiredStrategy;
 import org.springframework.security.web.session.SessionInformationExpiredStrategy;
 import org.springframework.util.Assert;
@@ -58,6 +58,7 @@ import org.springframework.util.Assert;
  *
  * <ul>
  * <li>{@link ClientRegistrationRepository}</li>
+ * </ul>
  *
  * @author Josh Cummings
  * @since 6.1
@@ -149,7 +150,7 @@ public final class OAuth2LogoutConfigurer<B extends HttpSecurityBuilder<B>>
 			filter.setProviderSessionRegistry(oidcProviderSessionRegistry());
 			SessionInformationExpiredStrategy expiredStrategy = expiredStrategy();
 			filter.setExpiredStrategy(expiredStrategy);
-			http.addFilterAfter(filter, LogoutFilter.class);
+			http.addFilterBefore(filter, CsrfFilter.class);
 			SessionManagementConfigurer<B> sessionConfigurer = http.getConfigurer(SessionManagementConfigurer.class);
 			if (sessionConfigurer != null) {
 				sessionConfigurer.addSessionAuthenticationStrategy(sessionAuthenticationStrategy());

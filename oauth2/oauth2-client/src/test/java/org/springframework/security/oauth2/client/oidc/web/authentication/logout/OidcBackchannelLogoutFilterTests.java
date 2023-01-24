@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.session.SessionInformation;
-import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcProviderSessionRegistry;
+import org.springframework.security.oauth2.client.oidc.web.authentication.session.OidcProviderSessionRegistry;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.TestClientRegistrations;
