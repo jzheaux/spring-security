@@ -14,20 +14,18 @@
  * limitations under the License.
  */
 
-package org.springframework.security.oauth2.client.oidc.web.authentication.session;
+package org.springframework.security.oauth2.client.oidc.authentication.session;
 
 import java.util.Set;
 
-import jakarta.servlet.http.HttpServletRequest;
-
-import org.springframework.security.core.session.SessionInformation;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
-import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 
 public interface OidcProviderSessionRegistry {
 
-	SessionInformation register(HttpServletRequest request, OidcUser principal);
+	void register(OidcProviderSessionRegistrationDetails details);
 
-	Set<SessionInformation> unregister(OidcLogoutToken token);
+	OidcProviderSessionRegistrationDetails deregister(String clientSessionId);
+
+	Set<OidcProviderSessionRegistrationDetails> deregister(OidcLogoutToken logoutToken);
 
 }

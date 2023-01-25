@@ -18,15 +18,22 @@ package org.springframework.security.config.annotation.web.configurers.oauth2.cl
 
 import java.util.function.Consumer;
 
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationListener;
+import org.springframework.context.event.GenericApplicationListenerAdapter;
+import org.springframework.context.event.SmartApplicationListener;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.SessionManagementConfigurer;
+import org.springframework.security.context.DelegatingApplicationListener;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.NimbusLogoutTokenDecoderFactory;
+import org.springframework.security.oauth2.client.oidc.authentication.session.OidcClientSessionEventListener;
 import org.springframework.security.oauth2.client.oidc.web.authentication.logout.OidcBackchannelLogoutFilter;
-import org.springframework.security.oauth2.client.oidc.web.authentication.session.InMemoryOidcProviderSessionRegistry;
+import org.springframework.security.oauth2.client.oidc.authentication.session.InMemoryOidcProviderSessionRegistry;
 import org.springframework.security.oauth2.client.oidc.web.authentication.session.OidcProviderSessionAuthenticationStrategy;
-import org.springframework.security.oauth2.client.oidc.web.authentication.session.OidcProviderSessionRegistry;
+import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistry;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.jwt.JwtDecoderFactory;
@@ -95,6 +102,28 @@ public final class OAuth2LogoutConfigurer<B extends HttpSecurityBuilder<B>>
 		}
 	}
 
+	private void registerDelegateApplicationListener(ApplicationListener<?> delegate) {
+		DelegatingApplicationListener delegating = getBeanOrNull(DelegatingApplicationListener.class);
+		if (delegating == null) {
+			return;
+		}
+		SmartApplicationListener smartListener = new GenericApplicationListenerAdapter(delegate);
+		delegating.addListener(smartListener);
+	}
+
+	private <T> T getBeanOrNull(Class<T> type) {
+		ApplicationContext context = getBuilder().getSharedObject(ApplicationContext.class);
+		if (context == null) {
+			return null;
+		}
+		try {
+			return context.getBean(type);
+		}
+		catch (NoSuchBeanDefinitionException ex) {
+			return null;
+		}
+	}
+
 	public final class BackchannelLogoutConfigurer {
 
 		private SessionInformationExpiredStrategy expiredStrategy = new BackchannelSessionInformationExpiredStrategy();
@@ -155,6 +184,9 @@ public final class OAuth2LogoutConfigurer<B extends HttpSecurityBuilder<B>>
 			if (sessionConfigurer != null) {
 				sessionConfigurer.addSessionAuthenticationStrategy(sessionAuthenticationStrategy());
 			}
+			OidcClientSessionEventListener listener = new OidcClientSessionEventListener();
+			listener.setProviderSessionRegistry(this.providerSessionRegistry);
+			registerDelegateApplicationListener(listener);
 		}
 
 	}

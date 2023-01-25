@@ -21,9 +21,13 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.client.oidc.authentication.session.InMemoryOidcProviderSessionRegistry;
+import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistration;
+import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistry;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.web.authentication.session.SessionAuthenticationException;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.util.Assert;
 
 public final class OidcProviderSessionAuthenticationStrategy implements SessionAuthenticationStrategy {
@@ -42,7 +46,10 @@ public final class OidcProviderSessionAuthenticationStrategy implements SessionA
 		if (!(authentication.getPrincipal() instanceof OidcUser user)) {
 			return;
 		}
-		this.providerSessionRegistry.register(request, user);
+		String sessionId = session.getId();
+		CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
+		OidcProviderSessionRegistration registration = new OidcProviderSessionRegistration(sessionId, csrfToken, user);
+		this.providerSessionRegistry.register(registration);
 	}
 
 	public void setProviderSessionRegistry(OidcProviderSessionRegistry providerSessionRegistry) {

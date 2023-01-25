@@ -16,7 +16,6 @@
 
 package org.springframework.security.oauth2.client.oidc.web.authentication.logout;
 
-import java.util.Date;
 import java.util.Set;
 
 import jakarta.servlet.FilterChain;
@@ -24,11 +23,14 @@ import org.junit.jupiter.api.Test;
 
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.security.core.session.SessionInformation;
-import org.springframework.security.oauth2.client.oidc.web.authentication.session.OidcProviderSessionRegistry;
+import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
+import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistration;
+import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistrationDetails;
+import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistry;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.TestClientRegistrations;
+import org.springframework.security.oauth2.core.oidc.user.TestOidcUsers;
 import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -100,9 +102,10 @@ public class OidcBackchannelLogoutFilterTests {
 		Jwt jwt = TestJwts.jwt().claim("sid", "provider").build();
 		given(jwtDecoder.decode(any())).willReturn(jwt);
 		OidcProviderSessionRegistry registry = mock(OidcProviderSessionRegistry.class);
-		Set<SessionInformation> infos = Set.of(new SessionInformation(new Object(), "clientOne", new Date()),
-				new SessionInformation(new Object(), "clientTwo", new Date()));
-		given(registry.unregister(any())).willReturn(infos);
+		Set<OidcProviderSessionRegistrationDetails> infos = Set.of(
+				new OidcProviderSessionRegistration("clientOne", null, TestOidcUsers.create()),
+				new OidcProviderSessionRegistration("clientTwo", null, TestOidcUsers.create()));
+		given(registry.deregister(any(OidcLogoutToken.class))).willReturn(infos);
 		SessionInformationExpiredStrategy strategy = mock(SessionInformationExpiredStrategy.class);
 		OidcBackchannelLogoutFilter filter = new OidcBackchannelLogoutFilter(clients, factory);
 		filter.setProviderSessionRegistry(registry);
@@ -129,9 +132,10 @@ public class OidcBackchannelLogoutFilterTests {
 		given(factory.createDecoder(any())).willReturn(jwtDecoder);
 		given(jwtDecoder.decode(any())).willThrow(new BadJwtException("bad"));
 		OidcProviderSessionRegistry registry = mock(OidcProviderSessionRegistry.class);
-		Set<SessionInformation> infos = Set.of(new SessionInformation(new Object(), "clientOne", new Date()),
-				new SessionInformation(new Object(), "clientTwo", new Date()));
-		given(registry.unregister(any())).willReturn(infos);
+		Set<OidcProviderSessionRegistrationDetails> infos = Set.of(
+				new OidcProviderSessionRegistration("clientOne", null, TestOidcUsers.create()),
+				new OidcProviderSessionRegistration("clientTwo", null, TestOidcUsers.create()));
+		given(registry.deregister(any(OidcLogoutToken.class))).willReturn(infos);
 		SessionInformationExpiredStrategy strategy = mock(SessionInformationExpiredStrategy.class);
 		OidcBackchannelLogoutFilter filter = new OidcBackchannelLogoutFilter(clients, factory);
 		filter.setProviderSessionRegistry(registry);

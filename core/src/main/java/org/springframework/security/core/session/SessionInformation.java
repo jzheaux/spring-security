@@ -53,6 +53,10 @@ public class SessionInformation implements Serializable {
 
 	private boolean expired = false;
 
+	public SessionInformation(Object principal, String sessionId) {
+		this(principal, sessionId, new Date());
+	}
+
 	public SessionInformation(Object principal, String sessionId, Date lastRequest) {
 		this(principal, sessionId, lastRequest, Collections.emptyMap());
 	}

@@ -26,8 +26,9 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.security.core.session.SessionInformation;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
-import org.springframework.security.oauth2.client.oidc.web.authentication.session.InMemoryOidcProviderSessionRegistry;
-import org.springframework.security.oauth2.client.oidc.web.authentication.session.OidcProviderSessionRegistry;
+import org.springframework.security.oauth2.client.oidc.authentication.session.InMemoryOidcProviderSessionRegistry;
+import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistrationDetails;
+import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistry;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.jwt.BadJwtException;
@@ -84,8 +85,10 @@ public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 			JwtDecoder logoutTokenDecoder = this.logoutTokenDecoderFactory.createDecoder(registration);
 			OidcLogoutToken logoutToken = OidcLogoutToken.withTokenValue(token)
 					.claims((claims) -> claims.putAll(logoutTokenDecoder.decode(token).getClaims())).build();
-			Collection<SessionInformation> sessions = this.providerSessionRegistry.unregister(logoutToken);
-			for (SessionInformation info : sessions) {
+			Collection<OidcProviderSessionRegistrationDetails> sessions = this.providerSessionRegistry
+					.deregister(logoutToken);
+			for (OidcProviderSessionRegistrationDetails session : sessions) {
+				SessionInformation info = new SessionInformation(session.getPrincipal(), session.getClientSessionId());
 				SessionInformationExpiredEvent event = new SessionInformationExpiredEvent(info, request, response);
 				this.expiredStrategy.onExpiredSessionDetected(event);
 			}
