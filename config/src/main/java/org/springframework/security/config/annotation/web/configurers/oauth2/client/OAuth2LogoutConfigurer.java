@@ -28,7 +28,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.SessionManagementConfigurer;
 import org.springframework.security.context.DelegatingApplicationListener;
-import org.springframework.security.oauth2.client.oidc.authentication.logout.NimbusLogoutTokenDecoderFactory;
+import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutTokenDecoderFactory;
 import org.springframework.security.oauth2.client.oidc.authentication.session.InMemoryOidcProviderSessionRegistry;
 import org.springframework.security.oauth2.client.oidc.authentication.session.OidcClientSessionEventListener;
 import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistry;
@@ -128,7 +128,7 @@ public final class OAuth2LogoutConfigurer<B extends HttpSecurityBuilder<B>>
 
 		private LogoutHandler logoutHandler = new BackchannelLogoutHandler();
 
-		private JwtDecoderFactory<ClientRegistration> logoutTokenDecoderFactory = new NimbusLogoutTokenDecoderFactory();
+		private JwtDecoderFactory<ClientRegistration> logoutTokenDecoderFactory = new OidcLogoutTokenDecoderFactory();
 
 		private OidcProviderSessionRegistry providerSessionRegistry = new InMemoryOidcProviderSessionRegistry();
 

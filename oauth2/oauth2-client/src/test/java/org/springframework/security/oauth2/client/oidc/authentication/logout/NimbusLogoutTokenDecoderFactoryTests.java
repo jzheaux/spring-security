@@ -31,7 +31,7 @@ public class NimbusLogoutTokenDecoderFactoryTests {
 			.scope("openid");
 	// @formatter:on
 
-	NimbusLogoutTokenDecoderFactory factory = new NimbusLogoutTokenDecoderFactory();
+	OidcLogoutTokenDecoderFactory factory = new OidcLogoutTokenDecoderFactory();
 
 	@Test
 	public void createDecoderWhenClientRegistrationValidThenReturnDecoder() {

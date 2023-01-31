@@ -38,7 +38,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
  * "https://openid.net/specs/openid-connect-backchannel-1_0.html#LogoutToken">Logout
  * Token</a>
  */
-public final class NimbusLogoutTokenDecoderFactory implements JwtDecoderFactory<ClientRegistration> {
+public final class OidcLogoutTokenDecoderFactory implements JwtDecoderFactory<ClientRegistration> {
 
 	private final Map<String, JwtDecoder> jwtDecoderByRegistrationId = new ConcurrentHashMap<>();
 
