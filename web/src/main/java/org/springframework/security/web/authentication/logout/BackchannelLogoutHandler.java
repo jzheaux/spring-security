@@ -14,18 +14,21 @@
  * limitations under the License.
  */
 
-package org.springframework.security.web.session;
+package org.springframework.security.web.authentication.logout;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
-import org.springframework.security.core.session.SessionInformation;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.util.Assert;
 import org.springframework.web.client.RestOperations;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
-public final class BackchannelSessionInformationExpiredStrategy implements SessionInformationExpiredStrategy {
+public final class BackchannelLogoutHandler implements LogoutHandler {
 
 	private RestOperations rest = new RestTemplate();
 
@@ -34,15 +37,17 @@ public final class BackchannelSessionInformationExpiredStrategy implements Sessi
 	private String clientSessionCookieName = "JSESSIONID";
 
 	@Override
-	public void onExpiredSessionDetected(SessionInformationExpiredEvent event) {
-		SessionInformation information = event.getSessionInformation();
-		HttpHeaders headers = new HttpHeaders();
-		headers.add(HttpHeaders.COOKIE, this.clientSessionCookieName + "=" + information.getSessionId());
-		CsrfToken token = (CsrfToken) event.getRequest().getAttribute(CsrfToken.class.getName());
-		if (token != null) {
-			headers.add(token.getHeaderName(), token.getToken());
+	public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
+		if (!(authentication instanceof BackchannelLogoutAuthentication token)) {
+			return;
 		}
-		String url = event.getRequest().getRequestURL().toString();
+		HttpHeaders headers = new HttpHeaders();
+		headers.add(HttpHeaders.COOKIE, this.clientSessionCookieName + "=" + token.getSessionId());
+		CsrfToken csrfToken = token.getCsrfToken();
+		if (csrfToken != null) {
+			headers.add(csrfToken.getHeaderName(), csrfToken.getToken());
+		}
+		String url = request.getRequestURL().toString();
 		String logout = UriComponentsBuilder.fromHttpUrl(url).replacePath(this.logoutEndpointName).build()
 				.toUriString();
 		HttpEntity<?> entity = new HttpEntity<>(null, headers);

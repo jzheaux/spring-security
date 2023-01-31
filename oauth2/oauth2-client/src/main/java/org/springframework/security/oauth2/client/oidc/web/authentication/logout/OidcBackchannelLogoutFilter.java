@@ -17,14 +17,13 @@
 package org.springframework.security.oauth2.client.oidc.web.authentication.logout;
 
 import java.io.IOException;
-import java.util.Collection;
+import java.util.Iterator;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import org.springframework.security.core.session.SessionInformation;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
 import org.springframework.security.oauth2.client.oidc.authentication.session.InMemoryOidcProviderSessionRegistry;
 import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistrationDetails;
@@ -34,10 +33,9 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtDecoderFactory;
-import org.springframework.security.web.csrf.CsrfToken;
-import org.springframework.security.web.session.BackchannelSessionInformationExpiredStrategy;
-import org.springframework.security.web.session.SessionInformationExpiredEvent;
-import org.springframework.security.web.session.SessionInformationExpiredStrategy;
+import org.springframework.security.web.authentication.logout.BackchannelLogoutAuthentication;
+import org.springframework.security.web.authentication.logout.BackchannelLogoutHandler;
+import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
@@ -64,7 +62,7 @@ public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 
 	private OidcProviderSessionRegistry providerSessionRegistry = new InMemoryOidcProviderSessionRegistry();
 
-	private SessionInformationExpiredStrategy expiredStrategy = new BackchannelSessionInformationExpiredStrategy();
+	private LogoutHandler logoutHandler = new BackchannelLogoutHandler();
 
 	/**
 	 * Construct an {@link OidcBackchannelLogoutFilter}
@@ -90,8 +88,8 @@ public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 			chain.doFilter(request, response);
 			return;
 		}
-		String token = request.getParameter("logout_token");
-		if (token == null) {
+		String logoutToken = request.getParameter("logout_token");
+		if (logoutToken == null) {
 			chain.doFilter(request, response);
 			return;
 		}
@@ -103,15 +101,14 @@ public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 		}
 		try {
 			JwtDecoder logoutTokenDecoder = this.logoutTokenDecoderFactory.createDecoder(registration);
-			OidcLogoutToken logoutToken = OidcLogoutToken.withTokenValue(token)
-					.claims((claims) -> claims.putAll(logoutTokenDecoder.decode(token).getClaims())).build();
-			Collection<OidcProviderSessionRegistrationDetails> sessions = this.providerSessionRegistry
-					.deregister(logoutToken);
-			for (OidcProviderSessionRegistrationDetails session : sessions) {
-				SessionInformation info = new SessionInformation(session.getPrincipal(), session.getClientSessionId());
-				request.setAttribute(CsrfToken.class.getName(), session.getCsrfToken());
-				SessionInformationExpiredEvent event = new SessionInformationExpiredEvent(info, request, response);
-				this.expiredStrategy.onExpiredSessionDetected(event);
+			OidcLogoutToken token = OidcLogoutToken.withTokenValue(logoutToken)
+					.claims((claims) -> claims.putAll(logoutTokenDecoder.decode(logoutToken).getClaims())).build();
+			Iterator<OidcProviderSessionRegistrationDetails> sessions = this.providerSessionRegistry.deregister(token);
+			while (sessions.hasNext()) {
+				OidcProviderSessionRegistrationDetails session = sessions.next();
+				BackchannelLogoutAuthentication authentication = new BackchannelLogoutAuthentication(
+						session.getClientSessionId(), session.getCsrfToken());
+				this.logoutHandler.logout(request, response, authentication);
 			}
 		}
 		catch (BadJwtException ex) {
@@ -139,12 +136,13 @@ public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 	}
 
 	/**
-	 * The strategy for expiring each Client session indicated by the logout request
-	 * @param expiredStrategy the {@link SessionInformationExpiredStrategy} to use
+	 * The strategy for expiring each Client session indicated by the logout request.
+	 * Defaults to {@link BackchannelLogoutHandler}.
+	 * @param logoutHandler the {@link LogoutHandler} to use
 	 */
-	public void setExpiredStrategy(SessionInformationExpiredStrategy expiredStrategy) {
-		Assert.notNull(expiredStrategy, "expiredStrategy cannot be null");
-		this.expiredStrategy = expiredStrategy;
+	public void setLogoutHandler(LogoutHandler logoutHandler) {
+		Assert.notNull(logoutHandler, "logoutHandler cannot be null");
+		this.logoutHandler = logoutHandler;
 	}
 
 }

@@ -16,6 +16,7 @@
 
 package org.springframework.security.oauth2.client.oidc.web.authentication.logout;
 
+import java.util.Iterator;
 import java.util.Set;
 
 import jakarta.servlet.FilterChain;
@@ -36,7 +37,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtDecoderFactory;
 import org.springframework.security.oauth2.jwt.TestJwts;
-import org.springframework.security.web.session.SessionInformationExpiredStrategy;
+import org.springframework.security.web.authentication.logout.LogoutHandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -102,14 +103,15 @@ public class OidcBackchannelLogoutFilterTests {
 		Jwt jwt = TestJwts.jwt().claim("sid", "provider").build();
 		given(jwtDecoder.decode(any())).willReturn(jwt);
 		OidcProviderSessionRegistry registry = mock(OidcProviderSessionRegistry.class);
-		Set<OidcProviderSessionRegistrationDetails> infos = Set.of(
-				new OidcProviderSessionRegistration("clientOne", null, TestOidcUsers.create()),
-				new OidcProviderSessionRegistration("clientTwo", null, TestOidcUsers.create()));
+		Iterator<OidcProviderSessionRegistrationDetails> infos = Set.of(
+				(OidcProviderSessionRegistrationDetails) new OidcProviderSessionRegistration("clientOne", null,
+						TestOidcUsers.create()),
+				new OidcProviderSessionRegistration("clientTwo", null, TestOidcUsers.create())).iterator();
 		given(registry.deregister(any(OidcLogoutToken.class))).willReturn(infos);
-		SessionInformationExpiredStrategy strategy = mock(SessionInformationExpiredStrategy.class);
+		LogoutHandler logoutHandler = mock(LogoutHandler.class);
 		OidcBackchannelLogoutFilter filter = new OidcBackchannelLogoutFilter(clients, factory);
 		filter.setProviderSessionRegistry(registry);
-		filter.setExpiredStrategy(strategy);
+		filter.setLogoutHandler(logoutHandler);
 		MockHttpServletRequest request = new MockHttpServletRequest("POST",
 				"/oauth2/" + registration.getRegistrationId() + "/logout");
 		request.setServletPath("/oauth2/id/logout");
@@ -117,7 +119,7 @@ public class OidcBackchannelLogoutFilterTests {
 		MockHttpServletResponse response = new MockHttpServletResponse();
 		FilterChain chain = mock(FilterChain.class);
 		filter.doFilter(request, response, chain);
-		verify(strategy, times(2)).onExpiredSessionDetected(any());
+		verify(logoutHandler, times(2)).logout(any(), any(), any());
 		verifyNoInteractions(chain);
 		assertThat(response.getStatus()).isEqualTo(200);
 	}
@@ -132,14 +134,15 @@ public class OidcBackchannelLogoutFilterTests {
 		given(factory.createDecoder(any())).willReturn(jwtDecoder);
 		given(jwtDecoder.decode(any())).willThrow(new BadJwtException("bad"));
 		OidcProviderSessionRegistry registry = mock(OidcProviderSessionRegistry.class);
-		Set<OidcProviderSessionRegistrationDetails> infos = Set.of(
-				new OidcProviderSessionRegistration("clientOne", null, TestOidcUsers.create()),
-				new OidcProviderSessionRegistration("clientTwo", null, TestOidcUsers.create()));
+		Iterator<OidcProviderSessionRegistrationDetails> infos = Set.of(
+				(OidcProviderSessionRegistrationDetails) new OidcProviderSessionRegistration("clientOne", null,
+						TestOidcUsers.create()),
+				new OidcProviderSessionRegistration("clientTwo", null, TestOidcUsers.create())).iterator();
 		given(registry.deregister(any(OidcLogoutToken.class))).willReturn(infos);
-		SessionInformationExpiredStrategy strategy = mock(SessionInformationExpiredStrategy.class);
+		LogoutHandler logoutHandler = mock(LogoutHandler.class);
 		OidcBackchannelLogoutFilter filter = new OidcBackchannelLogoutFilter(clients, factory);
 		filter.setProviderSessionRegistry(registry);
-		filter.setExpiredStrategy(strategy);
+		filter.setLogoutHandler(logoutHandler);
 		MockHttpServletRequest request = new MockHttpServletRequest("POST",
 				"/oauth2/" + registration.getRegistrationId() + "/logout");
 		request.setServletPath("/oauth2/id/logout");
@@ -147,7 +150,7 @@ public class OidcBackchannelLogoutFilterTests {
 		MockHttpServletResponse response = new MockHttpServletResponse();
 		FilterChain chain = mock(FilterChain.class);
 		filter.doFilter(request, response, chain);
-		verifyNoInteractions(registry, strategy, chain);
+		verifyNoInteractions(registry, logoutHandler, chain);
 		assertThat(response.getStatus()).isEqualTo(400);
 		assertThat(response.getErrorMessage()).contains("bad");
 	}

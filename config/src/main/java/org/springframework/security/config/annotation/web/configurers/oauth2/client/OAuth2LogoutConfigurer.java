@@ -37,10 +37,10 @@ import org.springframework.security.oauth2.client.oidc.web.authentication.sessio
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.jwt.JwtDecoderFactory;
+import org.springframework.security.web.authentication.logout.BackchannelLogoutHandler;
+import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.security.web.csrf.CsrfFilter;
-import org.springframework.security.web.session.BackchannelSessionInformationExpiredStrategy;
-import org.springframework.security.web.session.SessionInformationExpiredStrategy;
 import org.springframework.util.Assert;
 
 /**
@@ -126,16 +126,15 @@ public final class OAuth2LogoutConfigurer<B extends HttpSecurityBuilder<B>>
 
 	public final class BackchannelLogoutConfigurer {
 
-		private SessionInformationExpiredStrategy expiredStrategy = new BackchannelSessionInformationExpiredStrategy();
+		private LogoutHandler logoutHandler = new BackchannelLogoutHandler();
 
 		private JwtDecoderFactory<ClientRegistration> logoutTokenDecoderFactory = new NimbusLogoutTokenDecoderFactory();
 
 		private OidcProviderSessionRegistry providerSessionRegistry = new InMemoryOidcProviderSessionRegistry();
 
-		public BackchannelLogoutConfigurer clientSessionExpiredStrategy(
-				SessionInformationExpiredStrategy expiredStrategy) {
-			Assert.notNull(expiredStrategy, "expiredStrategy cannot be null");
-			this.expiredStrategy = expiredStrategy;
+		public BackchannelLogoutConfigurer clientLogoutHandler(LogoutHandler logoutHandler) {
+			Assert.notNull(logoutHandler, "logoutHandler cannot be null");
+			this.logoutHandler = logoutHandler;
 			return this;
 		}
 
@@ -161,8 +160,8 @@ public final class OAuth2LogoutConfigurer<B extends HttpSecurityBuilder<B>>
 			return this.providerSessionRegistry;
 		}
 
-		private SessionInformationExpiredStrategy expiredStrategy() {
-			return this.expiredStrategy;
+		private LogoutHandler logoutHandler() {
+			return this.logoutHandler;
 		}
 
 		private SessionAuthenticationStrategy sessionAuthenticationStrategy() {
@@ -177,8 +176,8 @@ public final class OAuth2LogoutConfigurer<B extends HttpSecurityBuilder<B>>
 			OidcBackchannelLogoutFilter filter = new OidcBackchannelLogoutFilter(clientRegistrationRepository,
 					oidcLogoutTokenDecoderFactory());
 			filter.setProviderSessionRegistry(oidcProviderSessionRegistry());
-			SessionInformationExpiredStrategy expiredStrategy = expiredStrategy();
-			filter.setExpiredStrategy(expiredStrategy);
+			LogoutHandler expiredStrategy = logoutHandler();
+			filter.setLogoutHandler(expiredStrategy);
 			http.addFilterBefore(filter, CsrfFilter.class);
 			SessionManagementConfigurer<B> sessionConfigurer = http.getConfigurer(SessionManagementConfigurer.class);
 			if (sessionConfigurer != null) {

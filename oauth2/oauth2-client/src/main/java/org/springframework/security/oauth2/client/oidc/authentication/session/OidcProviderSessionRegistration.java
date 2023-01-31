@@ -58,14 +58,6 @@ public class OidcProviderSessionRegistration implements OidcProviderSessionRegis
 	 * {@inheritDoc}
 	 */
 	@Override
-	public OidcProviderSessionRegistrationDetails withClientSessionId(String clientSessionId) {
-		return new OidcProviderSessionRegistration(clientSessionId, this.token, this.user);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
 	public String getClientSessionId() {
 		return this.clientSessionId;
 	}

@@ -17,6 +17,7 @@
 package org.springframework.security.oauth2.client.oidc.authentication.session;
 
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -41,12 +42,18 @@ public final class InMemoryOidcProviderSessionRegistry implements OidcProviderSe
 	}
 
 	@Override
+	public void reregister(String oldClientSessionId, String newClientSessionId) {
+		OidcProviderSessionRegistrationDetails old = this.sessions.remove(oldClientSessionId);
+		register(new OidcProviderSessionRegistration(old.getClientSessionId(), old.getCsrfToken(), old.getPrincipal()));
+	}
+
+	@Override
 	public OidcProviderSessionRegistrationDetails deregister(String clientSessionId) {
 		return this.sessions.remove(clientSessionId);
 	}
 
 	@Override
-	public Set<OidcProviderSessionRegistrationDetails> deregister(OidcLogoutToken token) {
+	public Iterator<OidcProviderSessionRegistrationDetails> deregister(OidcLogoutToken token) {
 		String issuer = token.getIssuer().toString();
 		String subject = token.getSubject();
 		String providerSessionId = token.getSessionId();
@@ -60,7 +67,7 @@ public final class InMemoryOidcProviderSessionRegistry implements OidcProviderSe
 			}
 			return result;
 		});
-		return infos;
+		return infos.iterator();
 	}
 
 	private static Predicate<OidcProviderSessionRegistrationDetails> sessionIdMatcher(String issuer, String sessionId) {

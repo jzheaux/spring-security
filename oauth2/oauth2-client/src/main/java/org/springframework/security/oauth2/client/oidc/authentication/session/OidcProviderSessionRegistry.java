@@ -16,7 +16,7 @@
 
 package org.springframework.security.oauth2.client.oidc.authentication.session;
 
-import java.util.Set;
+import java.util.Iterator;
 
 import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
 
@@ -41,6 +41,14 @@ public interface OidcProviderSessionRegistry {
 	void register(OidcProviderSessionRegistrationDetails details);
 
 	/**
+	 * Update the entry for a Client when their session id changes. This is handy, for
+	 * example, when the id changes for session fixation protection.
+	 * @param oldClientSessionId the Client's old session id
+	 * @param newClientSessionId the Client's new session id
+	 */
+	void reregister(String oldClientSessionId, String newClientSessionId);
+
+	/**
 	 * Deregister the OIDC Provider session tied to the provided client session. Generally
 	 * speaking, the client session should be the session tied to the current logout.
 	 * @param clientSessionId the client session
@@ -55,6 +63,6 @@ public interface OidcProviderSessionRegistry {
 	 * @param logoutToken the {@link OidcLogoutToken}
 	 * @return any found {@link OidcProviderSessionRegistrationDetails}s, could be empty
 	 */
-	Set<OidcProviderSessionRegistrationDetails> deregister(OidcLogoutToken logoutToken);
+	Iterator<OidcProviderSessionRegistrationDetails> deregister(OidcLogoutToken logoutToken);
 
 }

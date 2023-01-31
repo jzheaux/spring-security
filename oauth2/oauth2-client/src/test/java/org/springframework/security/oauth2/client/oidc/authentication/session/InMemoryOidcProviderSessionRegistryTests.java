@@ -16,7 +16,7 @@
 
 package org.springframework.security.oauth2.client.oidc.authentication.session;
 
-import java.util.Set;
+import java.util.Iterator;
 
 import org.junit.jupiter.api.Test;
 
@@ -42,9 +42,9 @@ public class InMemoryOidcProviderSessionRegistryTests {
 		registry.register(info);
 		assertThat(info.getClientSessionId()).isSameAs(sessionId);
 		assertThat(info.getPrincipal()).isSameAs(user);
-		Set<OidcProviderSessionRegistrationDetails> infos = registry
+		Iterator<OidcProviderSessionRegistrationDetails> infos = registry
 				.deregister(TestOidcLogoutTokens.withUser(user).build());
-		assertThat(infos).containsExactly(info);
+		assertThat(infos).toIterable().containsExactly(info);
 	}
 
 	@Test
@@ -56,8 +56,8 @@ public class InMemoryOidcProviderSessionRegistryTests {
 		registry.register(info);
 		OidcLogoutToken logoutToken = TestOidcLogoutTokens.withSessionId(token.getIssuer().toString(), "provider")
 				.build();
-		Set<OidcProviderSessionRegistrationDetails> infos = registry.deregister(logoutToken);
-		assertThat(infos).containsExactly(info);
+		Iterator<OidcProviderSessionRegistrationDetails> infos = registry.deregister(logoutToken);
+		assertThat(infos).toIterable().containsExactly(info);
 	}
 
 	@Test
@@ -77,11 +77,11 @@ public class InMemoryOidcProviderSessionRegistryTests {
 		registry.register(three);
 		OidcLogoutToken logoutToken = TestOidcLogoutTokens.withSubject(token.getIssuer().toString(), token.getSubject())
 				.build();
-		Set<OidcProviderSessionRegistrationDetails> infos = registry.deregister(logoutToken);
-		assertThat(infos).containsExactlyInAnyOrder(two, three);
+		Iterator<OidcProviderSessionRegistrationDetails> infos = registry.deregister(logoutToken);
+		assertThat(infos).toIterable().containsExactlyInAnyOrder(two, three);
 		logoutToken = TestOidcLogoutTokens.withSubject(token.getIssuer().toString(), "otheruser").build();
 		infos = registry.deregister(logoutToken);
-		assertThat(infos).containsExactly(one);
+		assertThat(infos).toIterable().containsExactly(one);
 	}
 
 	@Test
@@ -91,13 +91,13 @@ public class InMemoryOidcProviderSessionRegistryTests {
 		OidcUser user = new DefaultOidcUser(AuthorityUtils.NO_AUTHORITIES, token);
 		registry.register(new OidcProviderSessionRegistration("client", null, user));
 		OidcLogoutToken logoutToken = TestOidcLogoutTokens.withSessionId(token.getIssuer().toString(), "wrong").build();
-		Set<?> infos = registry.deregister(logoutToken);
+		Iterator<?> infos = registry.deregister(logoutToken);
 		assertThat(infos).isNotNull();
-		assertThat(infos).isEmpty();
+		assertThat(infos).toIterable().isEmpty();
 		logoutToken = TestOidcLogoutTokens.withSessionId("https://wrong", "provider").build();
 		infos = registry.deregister(logoutToken);
 		assertThat(infos).isNotNull();
-		assertThat(infos).isEmpty();
+		assertThat(infos).toIterable().isEmpty();
 	}
 
 }

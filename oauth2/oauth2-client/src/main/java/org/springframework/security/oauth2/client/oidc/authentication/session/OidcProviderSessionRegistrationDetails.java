@@ -45,12 +45,4 @@ public interface OidcProviderSessionRegistrationDetails {
 	 */
 	OidcUser getPrincipal();
 
-	/**
-	 * A mutator for updating the Client's session id. Needed for session fixation
-	 * support.
-	 * @param clientSessionId the Client's new session id
-	 * @return the new {@link OidcProviderSessionRegistrationDetails}
-	 */
-	OidcProviderSessionRegistrationDetails withClientSessionId(String clientSessionId);
-
 }

@@ -43,11 +43,7 @@ public final class OidcClientSessionEventListener implements ApplicationListener
 			return;
 		}
 		if (event instanceof SessionIdChangedEvent changed) {
-			OidcProviderSessionRegistrationDetails details = this.providerSessionRegistry.deregister(changed.getOldSessionId());
-			if (details == null) {
-				return;
-			}
-			this.providerSessionRegistry.register(details.withClientSessionId(changed.getNewSessionId()));
+			this.providerSessionRegistry.reregister(changed.getOldSessionId(), changed.getNewSessionId());
 		}
 	}
 
