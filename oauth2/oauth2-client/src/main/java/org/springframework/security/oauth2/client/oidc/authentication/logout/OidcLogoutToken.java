@@ -28,14 +28,32 @@ import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.util.Assert;
 
+/**
+ * An implementation of an {@link AbstractOAuth2Token} representing an OpenID Backchannel
+ * Logout Token.
+ *
+ * <p>
+ * The {@code OidcLogoutToken} is a security token that contains &quot;claims&quot; about
+ * terminating sessions for a given OIDC Provider session id or End User.
+ *
+ * @author Josh Cummings
+ * @since 6.1
+ * @see AbstractOAuth2Token
+ * @see LogoutTokenClaimAccessor
+ * @see <a target="_blank" href=
+ * "https://openid.net/specs/openid-connect-backchannel-1_0.html#LogoutToken">Logout
+ * Token</a>
+ */
 public class OidcLogoutToken extends AbstractOAuth2Token implements LogoutTokenClaimAccessor {
+
+	private static final String LOGOUT_TOKEN_EVENT_NAME = "http://schemas.openid.net/event/backchannel-logout";
 
 	private final Map<String, Object> claims;
 
 	/**
-	 * Constructs a {@code OidcIdToken} using the provided parameters.
-	 * @param tokenValue the ID Token value
-	 * @param issuedAt the time at which the ID Token was issued {@code (iat)}
+	 * Constructs a {@code OidcLogoutToken} using the provided parameters.
+	 * @param tokenValue the Logout Token value
+	 * @param issuedAt the time at which the Logout Token was issued {@code (iat)}
 	 * @param claims the claims about the logout statement
 	 */
 	OidcLogoutToken(String tokenValue, Instant issuedAt, Map<String, Object> claims) {
@@ -71,8 +89,8 @@ public class OidcLogoutToken extends AbstractOAuth2Token implements LogoutTokenC
 
 		private Builder(String tokenValue) {
 			this.tokenValue = tokenValue;
-			this.claims.put(LogoutTokenClaimNames.EVENTS, Collections
-					.singletonMap("http://schemas.openid.net/event/backchannel-logout", Collections.emptyMap()));
+			this.claims.put(LogoutTokenClaimNames.EVENTS,
+					Collections.singletonMap(LOGOUT_TOKEN_EVENT_NAME, Collections.emptyMap()));
 		}
 
 		/**

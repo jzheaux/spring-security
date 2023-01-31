@@ -20,6 +20,13 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.csrf.DefaultCsrfToken;
 
+/**
+ * The default implementation for {@link OidcProviderSessionRegistrationDetails}. Handy
+ * for in-memory registries.
+ *
+ * @author Josh Cummings
+ * @since 6.1
+ */
 public class OidcProviderSessionRegistration implements OidcProviderSessionRegistrationDetails {
 
 	private final String clientSessionId;
@@ -28,6 +35,12 @@ public class OidcProviderSessionRegistration implements OidcProviderSessionRegis
 
 	private final OidcUser user;
 
+	/**
+	 * Construct an {@link OidcProviderSessionRegistration}
+	 * @param clientSessionId the Client's session id
+	 * @param token the Client's CSRF token for this session
+	 * @param user the OIDC Provider's session and end user
+	 */
 	public OidcProviderSessionRegistration(String clientSessionId, CsrfToken token, OidcUser user) {
 		this.clientSessionId = clientSessionId;
 		this.token = extract(token);
@@ -41,21 +54,33 @@ public class OidcProviderSessionRegistration implements OidcProviderSessionRegis
 		return new DefaultCsrfToken(token.getHeaderName(), token.getParameterName(), token.getToken());
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public OidcProviderSessionRegistrationDetails withClientSessionId(String clientSessionId) {
 		return new OidcProviderSessionRegistration(clientSessionId, this.token, this.user);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public String getClientSessionId() {
 		return this.clientSessionId;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public CsrfToken getCsrfToken() {
 		return this.token;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public OidcUser getPrincipal() {
 		return this.user;

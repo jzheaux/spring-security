@@ -22,10 +22,20 @@ import org.springframework.security.core.session.SessionDestroyedEvent;
 import org.springframework.security.core.session.SessionIdChangedEvent;
 import org.springframework.util.Assert;
 
+/**
+ * An {@link ApplicationListener} that listens to when sessions are destroyed or session
+ * ids change and updates the {@link OidcProviderSessionRegistry} accordingly.
+ *
+ * @author Josh Cummings
+ * @since 6.1
+ */
 public final class OidcClientSessionEventListener implements ApplicationListener<AbstractSessionEvent> {
 
 	private OidcProviderSessionRegistry providerSessionRegistry = new InMemoryOidcProviderSessionRegistry();
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void onApplicationEvent(AbstractSessionEvent event) {
 		if (event instanceof SessionDestroyedEvent destroyed) {
@@ -41,6 +51,11 @@ public final class OidcClientSessionEventListener implements ApplicationListener
 		}
 	}
 
+	/**
+	 * The registry where OIDC Provider sessions are linked to the Client session.
+	 * Defaults to in-memory storage.
+	 * @param providerSessionRegistry the {@link OidcProviderSessionRegistry} to use
+	 */
 	public void setProviderSessionRegistry(OidcProviderSessionRegistry providerSessionRegistry) {
 		Assert.notNull(providerSessionRegistry, "providerSessionRegistry cannot be null");
 		this.providerSessionRegistry = providerSessionRegistry;

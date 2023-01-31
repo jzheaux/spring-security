@@ -28,10 +28,23 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtDecoderFactory;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 
+/**
+ * A {@link JwtDecoderFactory} that decodes and verifies OIDC Logout Tokens.
+ *
+ * @author Josh Cummings
+ * @since 6.1
+ * @see OidcLogoutToken
+ * @see <a target="_blank" href=
+ * "https://openid.net/specs/openid-connect-backchannel-1_0.html#LogoutToken">Logout
+ * Token</a>
+ */
 public final class NimbusLogoutTokenDecoderFactory implements JwtDecoderFactory<ClientRegistration> {
 
 	private final Map<String, JwtDecoder> jwtDecoderByRegistrationId = new ConcurrentHashMap<>();
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public JwtDecoder createDecoder(ClientRegistration context) {
 		ClientID clientId = new ClientID(context.getClientId());

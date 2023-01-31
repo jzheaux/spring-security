@@ -25,6 +25,12 @@ import java.util.function.Predicate;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.LogoutTokenClaimNames;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
 
+/**
+ * An in-memory implementation of {@link OidcProviderSessionRegistry}
+ *
+ * @author Josh Cummings
+ * @since 6.1
+ */
 public final class InMemoryOidcProviderSessionRegistry implements OidcProviderSessionRegistry {
 
 	private final Map<String, OidcProviderSessionRegistrationDetails> sessions = new ConcurrentHashMap<>();

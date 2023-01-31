@@ -30,10 +30,20 @@ import org.springframework.security.web.authentication.session.SessionAuthentica
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.util.Assert;
 
+/**
+ * A {@link SessionAuthenticationStrategy} that links the OIDC Provider Session to the
+ * Client session
+ *
+ * @author Josh Cummings
+ * @since 6.1
+ */
 public final class OidcProviderSessionAuthenticationStrategy implements SessionAuthenticationStrategy {
 
 	private OidcProviderSessionRegistry providerSessionRegistry = new InMemoryOidcProviderSessionRegistry();
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void onAuthentication(Authentication authentication, HttpServletRequest request, HttpServletResponse response) throws SessionAuthenticationException {
 		HttpSession session = request.getSession(false);
@@ -52,6 +62,11 @@ public final class OidcProviderSessionAuthenticationStrategy implements SessionA
 		this.providerSessionRegistry.register(registration);
 	}
 
+	/**
+	 * The registration for linking OIDC Provider Session information to the Client's
+	 * session. Defaults to in-memory.
+	 * @param providerSessionRegistry the {@link OidcProviderSessionRegistry} to use
+	 */
 	public void setProviderSessionRegistry(OidcProviderSessionRegistry providerSessionRegistry) {
 		Assert.notNull(providerSessionRegistry, "providerSessionRegistry cannot be null");
 		this.providerSessionRegistry = providerSessionRegistry;

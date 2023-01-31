@@ -34,6 +34,7 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtDecoderFactory;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.session.BackchannelSessionInformationExpiredStrategy;
 import org.springframework.security.web.session.SessionInformationExpiredEvent;
 import org.springframework.security.web.session.SessionInformationExpiredStrategy;
@@ -42,11 +43,20 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+/**
+ * A filter for the Client-side OIDC Backchannel Logout endpoint
+ *
+ * @author Josh Cummings
+ * @since 6.1
+ * @see <a target="_blank" href=
+ * "https://openid.net/specs/openid-connect-backchannel-1_0.html">OIDC Backchannel Logout
+ * Spec</a>
+ */
 public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 
 	private static final String ERROR_MESSAGE = "{ \"error\" : \"%s\", \"error_description\" : \"%s\" }";
 
-	private final ClientRegistrationRepository clients;
+	private final ClientRegistrationRepository clientRegistrationRepository;
 
 	private final JwtDecoderFactory<ClientRegistration> logoutTokenDecoderFactory;
 
@@ -56,12 +66,22 @@ public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 
 	private SessionInformationExpiredStrategy expiredStrategy = new BackchannelSessionInformationExpiredStrategy();
 
+	/**
+	 * Construct an {@link OidcBackchannelLogoutFilter}
+	 * @param clients the {@link ClientRegistrationRepository} for deriving Logout Token
+	 * validation
+	 * @param logoutTokenDecoderFactory the {@link JwtDecoderFactory} for constructing
+	 * Logout Token validators
+	 */
 	public OidcBackchannelLogoutFilter(ClientRegistrationRepository clients,
 			JwtDecoderFactory<ClientRegistration> logoutTokenDecoderFactory) {
-		this.clients = clients;
+		this.clientRegistrationRepository = clients;
 		this.logoutTokenDecoderFactory = logoutTokenDecoderFactory;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
 			throws ServletException, IOException {
@@ -76,7 +96,7 @@ public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 			return;
 		}
 		String registrationId = result.getVariables().get("registrationId");
-		ClientRegistration registration = this.clients.findByRegistrationId(registrationId);
+		ClientRegistration registration = this.clientRegistrationRepository.findByRegistrationId(registrationId);
 		if (registration == null) {
 			chain.doFilter(request, response);
 			return;
@@ -89,6 +109,7 @@ public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 					.deregister(logoutToken);
 			for (OidcProviderSessionRegistrationDetails session : sessions) {
 				SessionInformation info = new SessionInformation(session.getPrincipal(), session.getClientSessionId());
+				request.setAttribute(CsrfToken.class.getName(), session.getCsrfToken());
 				SessionInformationExpiredEvent event = new SessionInformationExpiredEvent(info, request, response);
 				this.expiredStrategy.onExpiredSessionDetected(event);
 			}
@@ -99,16 +120,28 @@ public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 		}
 	}
 
+	/**
+	 * The logout endpoint. Defaults to {@code /oauth2/{registrationId}/logout}.
+	 * @param requestMatcher the {@link RequestMatcher} to use
+	 */
 	public void setRequestMatcher(RequestMatcher requestMatcher) {
 		Assert.notNull(requestMatcher, "requestMatcher cannot be null");
 		this.requestMatcher = requestMatcher;
 	}
 
+	/**
+	 * The registry for linking Client sessions to OIDC Provider sessions and End Users
+	 * @param providerSessionRegistry the {@link OidcProviderSessionRegistry} to use
+	 */
 	public void setProviderSessionRegistry(OidcProviderSessionRegistry providerSessionRegistry) {
 		Assert.notNull(providerSessionRegistry, "providerSessionRegistry cannot be null");
 		this.providerSessionRegistry = providerSessionRegistry;
 	}
 
+	/**
+	 * The strategy for expiring each Client session indicated by the logout request
+	 * @param expiredStrategy the {@link SessionInformationExpiredStrategy} to use
+	 */
 	public void setExpiredStrategy(SessionInformationExpiredStrategy expiredStrategy) {
 		Assert.notNull(expiredStrategy, "expiredStrategy cannot be null");
 		this.expiredStrategy = expiredStrategy;

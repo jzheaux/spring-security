@@ -38,7 +38,7 @@ public final class BackchannelSessionInformationExpiredStrategy implements Sessi
 		SessionInformation information = event.getSessionInformation();
 		HttpHeaders headers = new HttpHeaders();
 		headers.add(HttpHeaders.COOKIE, this.clientSessionCookieName + "=" + information.getSessionId());
-		CsrfToken token = information.getAttribute(CsrfToken.class.getName());
+		CsrfToken token = (CsrfToken) event.getRequest().getAttribute(CsrfToken.class.getName());
 		if (token != null) {
 			headers.add(token.getHeaderName(), token.getToken());
 		}

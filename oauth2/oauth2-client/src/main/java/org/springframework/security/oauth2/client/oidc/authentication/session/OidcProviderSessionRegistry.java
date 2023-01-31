@@ -20,12 +20,41 @@ import java.util.Set;
 
 import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
 
+/**
+ * A registry to record the tie between the OIDC Provider session and the Client session.
+ * This is handy when a provider makes a logout request that indicates the OIDC Provider
+ * session or the End User.
+ *
+ * @author Josh Cummings
+ * @since 6.1
+ * @see <a target="_blank" href=
+ * "https://openid.net/specs/openid-connect-backchannel-1_0.html#LogoutToken">Logout
+ * Token</a>
+ */
 public interface OidcProviderSessionRegistry {
 
+	/**
+	 * Register a OIDC Provider session with the provided client session. Generally
+	 * speaking, the client session should be the session tied to the current login.
+	 * @param details the {@link OidcProviderSessionRegistrationDetails} to use
+	 */
 	void register(OidcProviderSessionRegistrationDetails details);
 
+	/**
+	 * Deregister the OIDC Provider session tied to the provided client session. Generally
+	 * speaking, the client session should be the session tied to the current logout.
+	 * @param clientSessionId the client session
+	 * @return any found {@link OidcProviderSessionRegistrationDetails}, could be
+	 * {@code null}
+	 */
 	OidcProviderSessionRegistrationDetails deregister(String clientSessionId);
 
+	/**
+	 * Deregister the OIDC Provider sessions referenced by the provided OIDC Logout Token
+	 * by its session id or its subject.
+	 * @param logoutToken the {@link OidcLogoutToken}
+	 * @return any found {@link OidcProviderSessionRegistrationDetails}s, could be empty
+	 */
 	Set<OidcProviderSessionRegistrationDetails> deregister(OidcLogoutToken logoutToken);
 
 }

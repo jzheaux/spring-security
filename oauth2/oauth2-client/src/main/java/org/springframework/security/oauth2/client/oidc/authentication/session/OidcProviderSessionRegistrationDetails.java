@@ -19,14 +19,38 @@ package org.springframework.security.oauth2.client.oidc.authentication.session;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.web.csrf.CsrfToken;
 
+/**
+ * A registration of the OIDC Provider Session with the Client's session
+ *
+ * @author Josh Cummings
+ * @since 6.1
+ */
 public interface OidcProviderSessionRegistrationDetails {
 
+	/**
+	 * The Client's session id, typically the browser {@code JSESSIONID}
+	 * @return the client session id
+	 */
 	String getClientSessionId();
 
+	/**
+	 * The Client's CSRF Token tied to the client's session
+	 * @return the {@link CsrfToken}
+	 */
 	CsrfToken getCsrfToken();
 
+	/**
+	 * The Provider's End User, including any indicated session id
+	 * @return
+	 */
 	OidcUser getPrincipal();
 
+	/**
+	 * A mutator for updating the Client's session id. Needed for session fixation
+	 * support.
+	 * @param clientSessionId the Client's new session id
+	 * @return the new {@link OidcProviderSessionRegistrationDetails}
+	 */
 	OidcProviderSessionRegistrationDetails withClientSessionId(String clientSessionId);
 
 }

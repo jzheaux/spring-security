@@ -17,9 +17,7 @@
 package org.springframework.security.core.session;
 
 import java.io.Serializable;
-import java.util.Collections;
 import java.util.Date;
-import java.util.Map;
 
 import org.springframework.security.core.SpringSecurityCoreVersion;
 import org.springframework.util.Assert;
@@ -49,8 +47,6 @@ public class SessionInformation implements Serializable {
 
 	private final String sessionId;
 
-	private final Map<String, Object> attributes;
-
 	private boolean expired = false;
 
 	public SessionInformation(Object principal, String sessionId) {
@@ -58,18 +54,12 @@ public class SessionInformation implements Serializable {
 	}
 
 	public SessionInformation(Object principal, String sessionId, Date lastRequest) {
-		this(principal, sessionId, lastRequest, Collections.emptyMap());
-	}
-
-	public SessionInformation(Object principal, String sessionId, Date lastRequest, Map<String, Object> attributes) {
 		Assert.notNull(principal, "Principal required");
 		Assert.hasText(sessionId, "SessionId required");
 		Assert.notNull(lastRequest, "LastRequest required");
-		Assert.notNull(attributes, "attributes must not be null");
 		this.principal = principal;
 		this.sessionId = sessionId;
 		this.lastRequest = lastRequest;
-		this.attributes = Collections.unmodifiableMap(attributes);
 	}
 
 	public void expireNow() {
@@ -90,14 +80,6 @@ public class SessionInformation implements Serializable {
 
 	public boolean isExpired() {
 		return this.expired;
-	}
-
-	public <A> A getAttribute(String name) {
-		return (A) this.attributes.get(name);
-	}
-
-	public Map<String, Object> getAttributes() {
-		return this.attributes;
 	}
 
 	/**

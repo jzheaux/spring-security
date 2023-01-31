@@ -29,11 +29,11 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.annotation.web.configurers.SessionManagementConfigurer;
 import org.springframework.security.context.DelegatingApplicationListener;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.NimbusLogoutTokenDecoderFactory;
-import org.springframework.security.oauth2.client.oidc.authentication.session.OidcClientSessionEventListener;
-import org.springframework.security.oauth2.client.oidc.web.authentication.logout.OidcBackchannelLogoutFilter;
 import org.springframework.security.oauth2.client.oidc.authentication.session.InMemoryOidcProviderSessionRegistry;
-import org.springframework.security.oauth2.client.oidc.web.authentication.session.OidcProviderSessionAuthenticationStrategy;
+import org.springframework.security.oauth2.client.oidc.authentication.session.OidcClientSessionEventListener;
 import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistry;
+import org.springframework.security.oauth2.client.oidc.web.authentication.logout.OidcBackchannelLogoutFilter;
+import org.springframework.security.oauth2.client.oidc.web.authentication.session.OidcProviderSessionAuthenticationStrategy;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.jwt.JwtDecoderFactory;
