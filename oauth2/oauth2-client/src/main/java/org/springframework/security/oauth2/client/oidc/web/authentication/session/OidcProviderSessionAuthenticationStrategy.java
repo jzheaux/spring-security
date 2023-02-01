@@ -40,6 +40,7 @@ import org.springframework.util.Assert;
  * @since 6.1
  */
 public final class OidcProviderSessionAuthenticationStrategy implements SessionAuthenticationStrategy {
+
 	private final Log logger = LogFactory.getLog(getClass());
 
 	private OidcProviderSessionRegistry providerSessionRegistry = new InMemoryOidcProviderSessionRegistry();

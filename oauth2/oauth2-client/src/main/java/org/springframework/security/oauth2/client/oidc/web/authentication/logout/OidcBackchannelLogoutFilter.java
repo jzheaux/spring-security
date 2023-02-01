@@ -110,7 +110,8 @@ public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 		OidcLogoutToken token;
 		try {
 			token = token(logoutToken, registration);
-		} catch (BadJwtException ex) {
+		}
+		catch (BadJwtException ex) {
 			this.logger.debug("Failed to process OIDC Backchannel Logout", ex);
 			String message = String.format(ERROR_MESSAGE, "invalid_request", ex.getMessage());
 			response.sendError(400, message);
@@ -134,7 +135,8 @@ public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 				}
 				this.logoutHandler.logout(request, response, authentication);
 				loggedOutCount++;
-			} catch (Exception ex) {
+			}
+			catch (Exception ex) {
 				if (this.logger.isDebugEnabled()) {
 					String message = "Failed to invalidate session #%d from result set for issuer [%s]";
 					this.logger.debug(String.format(message, sessionCount, token.getIssuer()), ex);
@@ -144,17 +146,24 @@ public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 			sessionCount++;
 		}
 		if (this.logger.isTraceEnabled()) {
-			this.logger.trace(String.format("Invalidated %d/%d linked sessions for issuer [%s]", loggedOutCount, sessionCount, token.getIssuer()));
+			this.logger.trace(String.format("Invalidated %d/%d linked sessions for issuer [%s]", loggedOutCount,
+					sessionCount, token.getIssuer()));
+		}
+		if (messages.isEmpty()) {
+			return;
 		}
 		if (messages.size() == sessionCount) {
 			this.logger.trace("Returning a 400 since all linked sessions for issuer [%s] failed termination");
-			String message = String.format(ERROR_MESSAGE, "logout_failed", messages.iterator().next(), token.getIssuer());
+			String message = String.format(ERROR_MESSAGE, "logout_failed", messages.iterator().next(),
+					token.getIssuer());
 			response.sendError(400, message);
 			return;
 		}
 		if (messages.size() < sessionCount) {
-			this.logger.trace("Returning a 400 since not all linked sessions for issuer [%s] were successfully terminated");
-			String message = String.format(ERROR_MESSAGE, "incomplete_logout", messages.iterator().next(), token.getIssuer());
+			this.logger.trace(
+					"Returning a 400 since not all linked sessions for issuer [%s] were successfully terminated");
+			String message = String.format(ERROR_MESSAGE, "incomplete_logout", messages.iterator().next(),
+					token.getIssuer());
 			response.sendError(400, message);
 		}
 	}

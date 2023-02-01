@@ -33,6 +33,7 @@ import org.springframework.util.Assert;
  * @since 6.1
  */
 public final class OidcClientSessionEventListener implements ApplicationListener<AbstractSessionEvent> {
+
 	private final Log logger = LogFactory.getLog(OidcClientSessionEventListener.class);
 
 	private OidcProviderSessionRegistry providerSessionRegistry = new InMemoryOidcProviderSessionRegistry();

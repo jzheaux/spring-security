@@ -76,7 +76,8 @@ public final class InMemoryOidcProviderSessionRegistry implements OidcProviderSe
 			String message = "Looking up sessions by issuer [%s] and %s [%s]";
 			if (providerSessionId != null) {
 				this.logger.trace(String.format(message, issuer, LogoutTokenClaimNames.SID, providerSessionId));
-			} else {
+			}
+			else {
 				this.logger.trace(String.format(message, issuer, LogoutTokenClaimNames.SUB, subject));
 			}
 		}
@@ -91,7 +92,8 @@ public final class InMemoryOidcProviderSessionRegistry implements OidcProviderSe
 		});
 		if (infos.isEmpty()) {
 			this.logger.debug("Failed to remove any sessions since none matched");
-		} else if (this.logger.isTraceEnabled()) {
+		}
+		else if (this.logger.isTraceEnabled()) {
 			String message = "Found and removed %d session(s) from mapping of %d session(s)";
 			this.logger.trace(String.format(message, infos.size(), size));
 		}
