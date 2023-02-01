@@ -23,6 +23,9 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import org.springframework.security.oauth2.client.oidc.authentication.logout.LogoutTokenClaimNames;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
 
@@ -34,6 +37,8 @@ import org.springframework.security.oauth2.client.oidc.authentication.logout.Oid
  */
 public final class InMemoryOidcProviderSessionRegistry implements OidcProviderSessionRegistry {
 
+	private final Log logger = LogFactory.getLog(InMemoryOidcProviderSessionRegistry.class);
+
 	private final Map<String, OidcProviderSessionRegistrationDetails> sessions = new ConcurrentHashMap<>();
 
 	@Override
@@ -44,12 +49,20 @@ public final class InMemoryOidcProviderSessionRegistry implements OidcProviderSe
 	@Override
 	public void reregister(String oldClientSessionId, String newClientSessionId) {
 		OidcProviderSessionRegistrationDetails old = this.sessions.remove(oldClientSessionId);
-		register(new OidcProviderSessionRegistration(old.getClientSessionId(), old.getCsrfToken(), old.getPrincipal()));
+		if (old == null) {
+			this.logger.debug("Failed to register new session id since old session id was not found in registry");
+			return;
+		}
+		register(new OidcProviderSessionRegistration(newClientSessionId, old.getCsrfToken(), old.getPrincipal()));
 	}
 
 	@Override
 	public OidcProviderSessionRegistrationDetails deregister(String clientSessionId) {
-		return this.sessions.remove(clientSessionId);
+		OidcProviderSessionRegistrationDetails details = this.sessions.remove(clientSessionId);
+		if (details != null) {
+			this.logger.trace("Removed client session");
+		}
+		return details;
 	}
 
 	@Override
@@ -59,6 +72,15 @@ public final class InMemoryOidcProviderSessionRegistry implements OidcProviderSe
 		String providerSessionId = token.getSessionId();
 		Predicate<OidcProviderSessionRegistrationDetails> matcher = (providerSessionId != null)
 				? sessionIdMatcher(issuer, providerSessionId) : subjectMatcher(issuer, subject);
+		if (this.logger.isTraceEnabled()) {
+			String message = "Looking up sessions by issuer [%s] and %s [%s]";
+			if (providerSessionId != null) {
+				this.logger.trace(String.format(message, issuer, LogoutTokenClaimNames.SID, providerSessionId));
+			} else {
+				this.logger.trace(String.format(message, issuer, LogoutTokenClaimNames.SUB, subject));
+			}
+		}
+		int size = this.sessions.size();
 		Set<OidcProviderSessionRegistrationDetails> infos = new HashSet<>();
 		this.sessions.values().removeIf((info) -> {
 			boolean result = matcher.test(info);
@@ -67,6 +89,12 @@ public final class InMemoryOidcProviderSessionRegistry implements OidcProviderSe
 			}
 			return result;
 		});
+		if (infos.isEmpty()) {
+			this.logger.debug("Failed to remove any sessions since none matched");
+		} else if (this.logger.isTraceEnabled()) {
+			String message = "Found and removed %d session(s) from mapping of %d session(s)";
+			this.logger.trace(String.format(message, infos.size(), size));
+		}
 		return infos.iterator();
 	}
 

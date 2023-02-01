@@ -16,6 +16,9 @@
 
 package org.springframework.security.oauth2.client.oidc.authentication.session;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import org.springframework.context.ApplicationListener;
 import org.springframework.security.core.session.AbstractSessionEvent;
 import org.springframework.security.core.session.SessionDestroyedEvent;
@@ -30,6 +33,7 @@ import org.springframework.util.Assert;
  * @since 6.1
  */
 public final class OidcClientSessionEventListener implements ApplicationListener<AbstractSessionEvent> {
+	private final Log logger = LogFactory.getLog(OidcClientSessionEventListener.class);
 
 	private OidcProviderSessionRegistry providerSessionRegistry = new InMemoryOidcProviderSessionRegistry();
 
@@ -39,10 +43,12 @@ public final class OidcClientSessionEventListener implements ApplicationListener
 	@Override
 	public void onApplicationEvent(AbstractSessionEvent event) {
 		if (event instanceof SessionDestroyedEvent destroyed) {
+			this.logger.debug("Received SessionDestroyedEvent");
 			this.providerSessionRegistry.deregister(destroyed.getId());
 			return;
 		}
 		if (event instanceof SessionIdChangedEvent changed) {
+			this.logger.debug("Received SessionIdChangedEvent");
 			this.providerSessionRegistry.reregister(changed.getOldSessionId(), changed.getNewSessionId());
 		}
 	}

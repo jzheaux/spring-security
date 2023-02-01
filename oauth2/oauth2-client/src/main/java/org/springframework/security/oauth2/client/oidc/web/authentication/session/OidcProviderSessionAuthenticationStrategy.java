@@ -19,6 +19,8 @@ package org.springframework.security.oauth2.client.oidc.web.authentication.sessi
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.oidc.authentication.session.InMemoryOidcProviderSessionRegistry;
@@ -38,6 +40,7 @@ import org.springframework.util.Assert;
  * @since 6.1
  */
 public final class OidcProviderSessionAuthenticationStrategy implements SessionAuthenticationStrategy {
+	private final Log logger = LogFactory.getLog(getClass());
 
 	private OidcProviderSessionRegistry providerSessionRegistry = new InMemoryOidcProviderSessionRegistry();
 
@@ -59,6 +62,9 @@ public final class OidcProviderSessionAuthenticationStrategy implements SessionA
 		String sessionId = session.getId();
 		CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
 		OidcProviderSessionRegistration registration = new OidcProviderSessionRegistration(sessionId, csrfToken, user);
+		if (this.logger.isTraceEnabled()) {
+			this.logger.trace(String.format("Linking a provider [%s] session to this client's session", user.getIssuer()));
+		}
 		this.providerSessionRegistry.register(registration);
 	}
 

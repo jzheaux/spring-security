@@ -18,6 +18,8 @@ package org.springframework.security.web.authentication.logout;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -30,6 +32,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 public final class BackchannelLogoutHandler implements LogoutHandler {
 
+	private final Log logger = LogFactory.getLog(getClass());
+
 	private RestOperations rest = new RestTemplate();
 
 	private String logoutEndpointName = "/logout";
@@ -39,6 +43,10 @@ public final class BackchannelLogoutHandler implements LogoutHandler {
 	@Override
 	public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
 		if (!(authentication instanceof BackchannelLogoutAuthentication token)) {
+			if (this.logger.isDebugEnabled()) {
+				String message = "Did not perform Backchannel Logout since authentication [%s] was of the wrong type";
+				this.logger.debug(String.format(message, authentication.getClass().getSimpleName()));
+			}
 			return;
 		}
 		HttpHeaders headers = new HttpHeaders();
@@ -52,6 +60,9 @@ public final class BackchannelLogoutHandler implements LogoutHandler {
 				.toUriString();
 		HttpEntity<?> entity = new HttpEntity<>(null, headers);
 		this.rest.postForEntity(logout, entity, Object.class);
+		if (this.logger.isTraceEnabled()) {
+			this.logger.trace(String.format("Invalidated session [%s]", token.getSessionId()));
+		}
 	}
 
 	public void setRestOperations(RestOperations rest) {
