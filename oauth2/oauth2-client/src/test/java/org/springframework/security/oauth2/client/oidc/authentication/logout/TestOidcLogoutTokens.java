@@ -24,8 +24,13 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 public final class TestOidcLogoutTokens {
 
 	public static OidcLogoutToken.Builder withUser(OidcUser user) {
-		return OidcLogoutToken.withTokenValue("token").audience(Collections.singleton("audience"))
-				.issuedAt(Instant.now()).issuer(user.getIssuer().toString()).jti("id").subject(user.getSubject());
+		OidcLogoutToken.Builder builder = OidcLogoutToken.withTokenValue("token")
+				.audience(Collections.singleton("audience")).issuedAt(Instant.now()).issuer(user.getIssuer().toString())
+				.jti("id").subject(user.getSubject());
+		if (user.hasClaim(LogoutTokenClaimNames.SID)) {
+			builder.sessionId(user.getClaimAsString(LogoutTokenClaimNames.SID));
+		}
+		return builder;
 	}
 
 	public static OidcLogoutToken.Builder withSessionId(String issuer, String sessionId) {
