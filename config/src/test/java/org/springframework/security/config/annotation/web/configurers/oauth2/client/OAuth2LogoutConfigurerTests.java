@@ -23,6 +23,7 @@ import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.gargoylesoftware.htmlunit.util.UrlUtils;
@@ -62,8 +63,9 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.LogoutTokenClaimNames;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.TestOidcLogoutTokens;
-import org.springframework.security.oauth2.client.oidc.authentication.session.InMemoryOidcProviderSessionRegistry;
+import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistrationDetails;
 import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistry;
+import org.springframework.security.oauth2.client.oidc.authentication.session.TestOidcProviderSessionRegistrations;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
@@ -72,11 +74,15 @@ import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.TestOidcIdTokens;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtDecoderFactory;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.jwt.TestJwts;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
@@ -87,6 +93,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -99,7 +109,7 @@ public class OAuth2LogoutConfigurerTests {
 	@Autowired
 	private MockMvc mvc;
 
-	@Autowired
+	@Autowired(required = false)
 	private MockWebServer web;
 
 	@Autowired
@@ -117,8 +127,9 @@ public class OAuth2LogoutConfigurerTests {
 				.andExpect(status().isFound()).andReturn();
 		MockHttpSession session = (MockHttpSession) result.getRequest().getSession();
 		String redirectUrl = UrlUtils.decode(result.getResponse().getRedirectedUrl());
-		String state = this.mvc.perform(get(redirectUrl)
-				.with(httpBasic(this.registration.getClientId(), this.registration.getClientSecret())))
+		String state = this.mvc
+				.perform(get(redirectUrl)
+						.with(httpBasic(this.registration.getClientId(), this.registration.getClientSecret())))
 				.andReturn().getResponse().getContentAsString();
 		result = this.mvc.perform(get("/login/oauth2/code/" + registrationId).param("code", "code")
 				.param("state", state).session(session)).andExpect(status().isFound()).andReturn();
@@ -140,15 +151,60 @@ public class OAuth2LogoutConfigurerTests {
 				.andExpect(status().isFound()).andReturn();
 		MockHttpSession session = (MockHttpSession) result.getRequest().getSession();
 		String redirectUrl = UrlUtils.decode(result.getResponse().getRedirectedUrl());
-		String state = this.mvc.perform(get(redirectUrl)
-				.with(httpBasic(this.registration.getClientId(), this.registration.getClientSecret())))
+		String state = this.mvc
+				.perform(get(redirectUrl)
+						.with(httpBasic(this.registration.getClientId(), this.registration.getClientSecret())))
 				.andReturn().getResponse().getContentAsString();
 		result = this.mvc.perform(get("/login/oauth2/code/" + registrationId).param("code", "code")
 				.param("state", state).session(session)).andExpect(status().isFound()).andReturn();
 		session = (MockHttpSession) result.getRequest().getSession();
-		this.mvc.perform(post(this.web.url("/oauth2/" + registrationId + "/logout").toString()).param("logout_token",
-				"invalid")).andExpect(status().isBadRequest());
+		this.mvc.perform(
+				post(this.web.url("/oauth2/" + registrationId + "/logout").toString()).param("logout_token", "invalid"))
+				.andExpect(status().isBadRequest());
 		this.mvc.perform(post("/logout").with(csrf()).session(session)).andExpect(status().isFound());
+	}
+
+	@Test
+	void logoutWhenCustomComponentsThenUses() throws Exception {
+		this.spring.register(WithCustomComponentsConfig.class).autowire();
+		String registrationId = this.registration.getRegistrationId();
+		JwtDecoderFactory<ClientRegistration> decoderFactory = this.spring.getContext()
+				.getBean(JwtDecoderFactory.class);
+		JwtDecoder decoder = mock(JwtDecoder.class);
+		given(decoder.decode(any())).willReturn(TestJwts.user());
+		given(decoderFactory.createDecoder(any())).willReturn(decoder);
+		LogoutHandler logoutHandler = this.spring.getContext().getBean(LogoutHandler.class);
+		OidcProviderSessionRegistry registry = this.spring.getContext().getBean(OidcProviderSessionRegistry.class);
+		Set<OidcProviderSessionRegistrationDetails> details = Set.of(TestOidcProviderSessionRegistrations.create());
+		given(registry.deregister(any(OidcLogoutToken.class))).willReturn(details.iterator());
+		this.mvc.perform(post("/oauth2/" + registrationId + "/logout").param("logout_token", "token"))
+				.andExpect(status().isOk());
+		verify(registry).deregister(any(OidcLogoutToken.class));
+		verify(decoderFactory).createDecoder(any());
+		verify(logoutHandler).logout(any(), any(), any());
+	}
+
+	@Configuration
+	static class RegistrationConfig {
+
+		@Autowired(required = false)
+		MockWebServer web;
+
+		@Bean
+		ClientRegistration registration() {
+			if (this.web == null) {
+				return TestClientRegistrations.clientRegistration().build();
+			}
+			String issuer = this.web.url("/").toString();
+			return TestClientRegistrations.clientRegistration().issuerUri(issuer).jwkSetUri(issuer + "jwks")
+					.tokenUri(issuer + "token").userInfoUri(issuer + "user").scope("openid").build();
+		}
+
+		@Bean
+		ClientRegistrationRepository registrations(ClientRegistration registration) {
+			return new InMemoryClientRegistrationRepository(registration);
+		}
+
 	}
 
 	@Configuration
@@ -158,15 +214,13 @@ public class OAuth2LogoutConfigurerTests {
 
 		@Bean
 		@Order(1)
-		SecurityFilterChain filters(HttpSecurity http, OidcProviderSessionRegistry registry) throws Exception {
+		SecurityFilterChain filters(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
 				.authorizeHttpRequests((authorize) -> authorize.anyRequest().authenticated())
 				.oauth2Login(Customizer.withDefaults())
 				.oauth2Logout((oauth2) -> oauth2.
-					backchannel((backchannel) -> backchannel
-						.oidcProviderSessionRegistry(registry)
-					)
+					backchannel((backchannel) -> { })
 				);
 			// @formatter:on
 
@@ -177,10 +231,57 @@ public class OAuth2LogoutConfigurerTests {
 
 	@Configuration
 	@EnableWebSecurity
-	@EnableWebMvc
 	@Import(RegistrationConfig.class)
+	static class WithCustomComponentsConfig {
+
+		JwtDecoderFactory<ClientRegistration> decoderFactory = mock(JwtDecoderFactory.class);
+
+		LogoutHandler logoutHandler = mock(LogoutHandler.class);
+
+		OidcProviderSessionRegistry registry = mock(OidcProviderSessionRegistry.class);
+
+		@Bean
+		@Order(1)
+		SecurityFilterChain filters(HttpSecurity http) throws Exception {
+			// @formatter:off
+			http
+				.authorizeHttpRequests((authorize) -> authorize.anyRequest().authenticated())
+				.oauth2Login(Customizer.withDefaults())
+				.oauth2Logout((oauth2) -> oauth2.
+					backchannel((backchannel) -> backchannel
+						.clientLogoutHandler(this.logoutHandler)
+						.oidcLogoutTokenDecoderFactory(this.decoderFactory)
+						.oidcProviderSessionRegistry(this.registry)
+					)
+				);
+			// @formatter:on
+
+			return http.build();
+		}
+
+		@Bean
+		JwtDecoderFactory<ClientRegistration> decoderFactory() {
+			return this.decoderFactory;
+		}
+
+		@Bean
+		LogoutHandler logoutHandler() {
+			return this.logoutHandler;
+		}
+
+		@Bean
+		OidcProviderSessionRegistry providerSessionRegistry() {
+			return this.registry;
+		}
+
+	}
+
+	@Configuration
+	@EnableWebSecurity
+	@EnableWebMvc
 	@RestController
 	static class OidcProviderConfig {
+
 		private static final RSAKey key = key();
 
 		private static final JWKSource<SecurityContext> jwks = jwks(key);
@@ -225,10 +326,7 @@ public class OAuth2LogoutConfigurerTests {
 					.requestMatchers("/jwks").permitAll()
 					.anyRequest().authenticated()
 				)
-				.httpBasic(Customizer.withDefaults()).oauth2Login(Customizer.withDefaults())
-				.oauth2Logout((oauth2) -> oauth2
-					.backchannel((backchannel) -> {})
-				)
+				.httpBasic(Customizer.withDefaults())
 				.oauth2ResourceServer((oauth2) -> oauth2
 					.jwt().jwkSetUri(registration.getProviderDetails().getJwkSetUri())
 				);
@@ -288,26 +386,6 @@ public class OAuth2LogoutConfigurerTests {
 					.from(JwtClaimsSet.builder().claims((claims) -> claims.putAll(token.getClaims())).build());
 			return this.encoder.encode(parameters).getTokenValue();
 		}
-	}
-
-	@Configuration
-	static class RegistrationConfig {
-
-		@Autowired
-		MockWebServer web;
-
-		@Bean
-		ClientRegistration registration() {
-			String issuer = this.web.url("/").toString();
-			return TestClientRegistrations.clientRegistration().issuerUri(issuer).jwkSetUri(issuer + "jwks")
-					.tokenUri(issuer + "token").userInfoUri(issuer + "user").scope("openid").build();
-		}
-
-		@Bean
-		ClientRegistrationRepository registrations(ClientRegistration registration) {
-			return new InMemoryClientRegistrationRepository(registration);
-		}
-
 	}
 
 	@Configuration
