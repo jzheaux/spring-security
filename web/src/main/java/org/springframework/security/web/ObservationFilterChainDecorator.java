@@ -145,6 +145,8 @@ public final class ObservationFilterChainDecorator implements FilterChainProxy.F
 
 		private final String name;
 
+		private final String eventName;
+
 		private final int position;
 
 		private final int size;
@@ -153,6 +155,12 @@ public final class ObservationFilterChainDecorator implements FilterChainProxy.F
 			this.registry = registry;
 			this.filter = filter;
 			this.name = filter.getClass().getSimpleName();
+			if (this.name.endsWith("Filter")) {
+				this.eventName = this.name.substring(0, this.name.lastIndexOf("Filter"));
+			}
+			else {
+				this.eventName = this.name;
+			}
 			this.position = position;
 			this.size = size;
 		}
@@ -181,7 +189,7 @@ public final class ObservationFilterChainDecorator implements FilterChainProxy.F
 				parentBefore.setFilterName(this.name);
 				parentBefore.setChainPosition(this.position);
 			}
-			parent.before().event(Observation.Event.of(this.name + ".before", "before " + this.name));
+			parent.before().event(Observation.Event.of(this.eventName + ".before", "before " + this.eventName));
 			this.filter.doFilter(request, response, chain);
 			parent.start();
 			if (parent.after().getContext() instanceof FilterChainObservationContext parentAfter) {
@@ -189,7 +197,7 @@ public final class ObservationFilterChainDecorator implements FilterChainProxy.F
 				parentAfter.setFilterName(this.name);
 				parentAfter.setChainPosition(this.size - this.position + 1);
 			}
-			parent.after().event(Observation.Event.of(this.name + ".after", "after " + this.name));
+			parent.after().event(Observation.Event.of(this.eventName + ".after", "after " + this.eventName));
 		}
 
 		private AroundFilterObservation parent(HttpServletRequest request) {
