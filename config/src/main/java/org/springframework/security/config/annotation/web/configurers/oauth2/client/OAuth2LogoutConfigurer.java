@@ -28,10 +28,9 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.SessionManagementConfigurer;
 import org.springframework.security.context.DelegatingApplicationListener;
+import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutTokenDecoderFactory;
-import org.springframework.security.oauth2.client.oidc.authentication.session.InMemoryOidcProviderSessionRegistry;
-import org.springframework.security.oauth2.client.oidc.authentication.session.OidcClientSessionEventListener;
-import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistry;
+import org.springframework.security.oauth2.client.oidc.authentication.session.InMemoryOidcProviderSessionRegistryImpl;
 import org.springframework.security.oauth2.client.oidc.web.authentication.logout.OidcBackchannelLogoutFilter;
 import org.springframework.security.oauth2.client.oidc.web.authentication.session.OidcProviderSessionAuthenticationStrategy;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
@@ -130,7 +129,7 @@ public final class OAuth2LogoutConfigurer<B extends HttpSecurityBuilder<B>>
 
 		private JwtDecoderFactory<ClientRegistration> logoutTokenDecoderFactory = new OidcLogoutTokenDecoderFactory();
 
-		private OidcProviderSessionRegistry providerSessionRegistry = new InMemoryOidcProviderSessionRegistry();
+		private SessionRegistry providerSessionRegistry = new InMemoryOidcProviderSessionRegistryImpl();
 
 		public BackchannelLogoutConfigurer clientLogoutHandler(LogoutHandler logoutHandler) {
 			Assert.notNull(logoutHandler, "logoutHandler cannot be null");
@@ -145,8 +144,7 @@ public final class OAuth2LogoutConfigurer<B extends HttpSecurityBuilder<B>>
 			return this;
 		}
 
-		public BackchannelLogoutConfigurer oidcProviderSessionRegistry(
-				OidcProviderSessionRegistry providerSessionRegistry) {
+		public BackchannelLogoutConfigurer oidcProviderSessionRegistry(SessionRegistry providerSessionRegistry) {
 			Assert.notNull(providerSessionRegistry, "providerSessionRegistry cannot be null");
 			this.providerSessionRegistry = providerSessionRegistry;
 			return this;
@@ -156,7 +154,7 @@ public final class OAuth2LogoutConfigurer<B extends HttpSecurityBuilder<B>>
 			return this.logoutTokenDecoderFactory;
 		}
 
-		private OidcProviderSessionRegistry oidcProviderSessionRegistry() {
+		private SessionRegistry oidcProviderSessionRegistry() {
 			return this.providerSessionRegistry;
 		}
 
@@ -175,7 +173,8 @@ public final class OAuth2LogoutConfigurer<B extends HttpSecurityBuilder<B>>
 					.getClientRegistrationRepository(http);
 			OidcBackchannelLogoutFilter filter = new OidcBackchannelLogoutFilter(clientRegistrationRepository,
 					oidcLogoutTokenDecoderFactory());
-			filter.setProviderSessionRegistry(oidcProviderSessionRegistry());
+			SessionRegistry registry = oidcProviderSessionRegistry();
+			filter.setProviderSessionRegistry(registry);
 			LogoutHandler expiredStrategy = logoutHandler();
 			filter.setLogoutHandler(expiredStrategy);
 			http.addFilterBefore(filter, CsrfFilter.class);
@@ -183,9 +182,9 @@ public final class OAuth2LogoutConfigurer<B extends HttpSecurityBuilder<B>>
 			if (sessionConfigurer != null) {
 				sessionConfigurer.addSessionAuthenticationStrategy(sessionAuthenticationStrategy());
 			}
-			OidcClientSessionEventListener listener = new OidcClientSessionEventListener();
-			listener.setProviderSessionRegistry(this.providerSessionRegistry);
-			registerDelegateApplicationListener(listener);
+			if (registry instanceof ApplicationListener<?> listener) {
+				registerDelegateApplicationListener(listener);
+			}
 		}
 
 	}

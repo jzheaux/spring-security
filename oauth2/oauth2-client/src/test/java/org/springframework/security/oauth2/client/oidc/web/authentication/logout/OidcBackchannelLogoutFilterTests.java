@@ -17,6 +17,7 @@
 package org.springframework.security.oauth2.client.oidc.web.authentication.logout;
 
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 
 import jakarta.servlet.FilterChain;
@@ -24,14 +25,14 @@ import org.junit.jupiter.api.Test;
 
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.core.session.SessionInformation;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.oauth2.client.oidc.authentication.logout.LogoutTokenClaimAccessor;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
-import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistration;
-import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistrationDetails;
-import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistry;
+import org.springframework.security.oauth2.client.oidc.authentication.logout.TestOidcLogoutTokens;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.TestClientRegistrations;
-import org.springframework.security.oauth2.core.oidc.user.TestOidcUsers;
 import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -102,12 +103,11 @@ public class OidcBackchannelLogoutFilterTests {
 		given(factory.createDecoder(any())).willReturn(jwtDecoder);
 		Jwt jwt = TestJwts.jwt().claim("sid", "provider").build();
 		given(jwtDecoder.decode(any())).willReturn(jwt);
-		OidcProviderSessionRegistry registry = mock(OidcProviderSessionRegistry.class);
-		Iterator<OidcProviderSessionRegistrationDetails> infos = Set.of(
-				(OidcProviderSessionRegistrationDetails) new OidcProviderSessionRegistration("clientOne", null,
-						TestOidcUsers.create()),
-				new OidcProviderSessionRegistration("clientTwo", null, TestOidcUsers.create())).iterator();
-		given(registry.deregister(any(OidcLogoutToken.class))).willReturn(infos);
+		SessionRegistry registry = mock(SessionRegistry.class);
+		OidcLogoutToken token = TestOidcLogoutTokens.withSubject("issuer", "subject").build();
+		Iterator<SessionInformation> infos = Set.of(new SessionInformation(token, "clientOne", Map.of()),
+				new SessionInformation(token, "clientTwo", Map.of())).iterator();
+		given(registry.removeSessionInformation(any(LogoutTokenClaimAccessor.class))).willReturn(infos);
 		LogoutHandler logoutHandler = mock(LogoutHandler.class);
 		OidcBackchannelLogoutFilter filter = new OidcBackchannelLogoutFilter(clients, factory);
 		filter.setProviderSessionRegistry(registry);
@@ -133,12 +133,11 @@ public class OidcBackchannelLogoutFilterTests {
 		JwtDecoder jwtDecoder = mock(JwtDecoder.class);
 		given(factory.createDecoder(any())).willReturn(jwtDecoder);
 		given(jwtDecoder.decode(any())).willThrow(new BadJwtException("bad"));
-		OidcProviderSessionRegistry registry = mock(OidcProviderSessionRegistry.class);
-		Iterator<OidcProviderSessionRegistrationDetails> infos = Set.of(
-				(OidcProviderSessionRegistrationDetails) new OidcProviderSessionRegistration("clientOne", null,
-						TestOidcUsers.create()),
-				new OidcProviderSessionRegistration("clientTwo", null, TestOidcUsers.create())).iterator();
-		given(registry.deregister(any(OidcLogoutToken.class))).willReturn(infos);
+		SessionRegistry registry = mock(SessionRegistry.class);
+		OidcLogoutToken token = TestOidcLogoutTokens.withSubject("issuer", "subject").build();
+		Iterator<SessionInformation> infos = Set.of(new SessionInformation(token, "clientOne", Map.of()),
+				new SessionInformation(token, "clientTwo", Map.of())).iterator();
+		given(registry.removeSessionInformation(any(LogoutTokenClaimAccessor.class))).willReturn(infos);
 		LogoutHandler logoutHandler = mock(LogoutHandler.class);
 		OidcBackchannelLogoutFilter filter = new OidcBackchannelLogoutFilter(clients, factory);
 		filter.setProviderSessionRegistry(registry);

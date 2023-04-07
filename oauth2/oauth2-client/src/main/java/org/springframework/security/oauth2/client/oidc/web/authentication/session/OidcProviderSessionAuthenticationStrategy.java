@@ -16,6 +16,8 @@
 
 package org.springframework.security.oauth2.client.oidc.web.authentication.session;
 
+import java.util.Map;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -23,13 +25,16 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.client.oidc.authentication.session.InMemoryOidcProviderSessionRegistry;
-import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistration;
+import org.springframework.security.core.session.SessionInformation;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.core.session.SessionRegistryImpl;
+import org.springframework.security.oauth2.client.oidc.authentication.logout.LogoutTokenClaimAccessor;
 import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistry;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.web.authentication.session.SessionAuthenticationException;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.security.web.csrf.DefaultCsrfToken;
 import org.springframework.util.Assert;
 
 /**
@@ -43,7 +48,7 @@ public final class OidcProviderSessionAuthenticationStrategy implements SessionA
 
 	private final Log logger = LogFactory.getLog(getClass());
 
-	private OidcProviderSessionRegistry providerSessionRegistry = new InMemoryOidcProviderSessionRegistry();
+	private SessionRegistry providerSessionRegistry = new SessionRegistryImpl();
 
 	/**
 	 * {@inheritDoc}
@@ -62,11 +67,20 @@ public final class OidcProviderSessionAuthenticationStrategy implements SessionA
 		}
 		String sessionId = session.getId();
 		CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
-		OidcProviderSessionRegistration registration = new OidcProviderSessionRegistration(sessionId, csrfToken, user);
 		if (this.logger.isTraceEnabled()) {
 			this.logger.trace(String.format("Linking a provider [%s] session to this client's session", user.getIssuer()));
 		}
-		this.providerSessionRegistry.register(registration);
+		LogoutTokenClaimAccessor logoutClaims = user::getClaims;
+		Map<String, Object> attributes = Map.of(CsrfToken.class.getName(), extract(csrfToken));
+		SessionInformation info = new SessionInformation(logoutClaims, sessionId, attributes);
+		this.providerSessionRegistry.registerNewSession(info);
+	}
+
+	private CsrfToken extract(CsrfToken token) {
+		if (token == null) {
+			return null;
+		}
+		return new DefaultCsrfToken(token.getHeaderName(), token.getParameterName(), token.getToken());
 	}
 
 	/**
@@ -74,7 +88,7 @@ public final class OidcProviderSessionAuthenticationStrategy implements SessionA
 	 * session. Defaults to in-memory.
 	 * @param providerSessionRegistry the {@link OidcProviderSessionRegistry} to use
 	 */
-	public void setProviderSessionRegistry(OidcProviderSessionRegistry providerSessionRegistry) {
+	public void setProviderSessionRegistry(SessionRegistry providerSessionRegistry) {
 		Assert.notNull(providerSessionRegistry, "providerSessionRegistry cannot be null");
 		this.providerSessionRegistry = providerSessionRegistry;
 	}

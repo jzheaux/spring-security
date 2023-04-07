@@ -58,14 +58,13 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.test.SpringTestContext;
 import org.springframework.security.config.test.SpringTestContextExtension;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.session.SessionInformation;
+import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.LogoutTokenClaimNames;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.TestOidcLogoutTokens;
-import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistrationDetails;
-import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistry;
-import org.springframework.security.oauth2.client.oidc.authentication.session.TestOidcProviderSessionRegistrations;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
@@ -174,12 +173,13 @@ public class OAuth2LogoutConfigurerTests {
 		given(decoder.decode(any())).willReturn(TestJwts.user());
 		given(decoderFactory.createDecoder(any())).willReturn(decoder);
 		LogoutHandler logoutHandler = this.spring.getContext().getBean(LogoutHandler.class);
-		OidcProviderSessionRegistry registry = this.spring.getContext().getBean(OidcProviderSessionRegistry.class);
-		Set<OidcProviderSessionRegistrationDetails> details = Set.of(TestOidcProviderSessionRegistrations.create());
-		given(registry.deregister(any(OidcLogoutToken.class))).willReturn(details.iterator());
+		SessionRegistry registry = this.spring.getContext().getBean(SessionRegistry.class);
+		OidcLogoutToken token = TestOidcLogoutTokens.withSessionId("issuer", "sessionId").build();
+		Set<SessionInformation> details = Set.of(new SessionInformation(token, "sessionId", Map.of()));
+		given(registry.removeSessionInformation(any(OidcLogoutToken.class))).willReturn(details.iterator());
 		this.mvc.perform(post("/oauth2/" + registrationId + "/logout").param("logout_token", "token"))
 				.andExpect(status().isOk());
-		verify(registry).deregister(any(OidcLogoutToken.class));
+		verify(registry).removeSessionInformation(any(OidcLogoutToken.class));
 		verify(decoderFactory).createDecoder(any());
 		verify(logoutHandler).logout(any(), any(), any());
 	}
@@ -238,7 +238,7 @@ public class OAuth2LogoutConfigurerTests {
 
 		LogoutHandler logoutHandler = mock(LogoutHandler.class);
 
-		OidcProviderSessionRegistry registry = mock(OidcProviderSessionRegistry.class);
+		SessionRegistry registry = mock(SessionRegistry.class);
 
 		@Bean
 		@Order(1)
@@ -270,7 +270,7 @@ public class OAuth2LogoutConfigurerTests {
 		}
 
 		@Bean
-		OidcProviderSessionRegistry providerSessionRegistry() {
+		SessionRegistry providerSessionRegistry() {
 			return this.registry;
 		}
 

@@ -28,9 +28,10 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import org.springframework.security.core.session.SessionInformation;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
-import org.springframework.security.oauth2.client.oidc.authentication.session.InMemoryOidcProviderSessionRegistry;
-import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistrationDetails;
 import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistry;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
@@ -40,6 +41,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoderFactory;
 import org.springframework.security.web.authentication.logout.BackchannelLogoutAuthentication;
 import org.springframework.security.web.authentication.logout.BackchannelLogoutHandler;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
@@ -66,7 +68,7 @@ public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 
 	private RequestMatcher requestMatcher = new AntPathRequestMatcher("/oauth2/{registrationId}/logout", "POST");
 
-	private OidcProviderSessionRegistry providerSessionRegistry = new InMemoryOidcProviderSessionRegistry();
+	private SessionRegistry providerSessionRegistry = new SessionRegistryImpl();
 
 	private LogoutHandler logoutHandler = new BackchannelLogoutHandler();
 
@@ -120,14 +122,14 @@ public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 		int sessionCount = 0;
 		int loggedOutCount = 0;
 		List<String> messages = new ArrayList<>();
-		Iterator<OidcProviderSessionRegistrationDetails> sessions = this.providerSessionRegistry.deregister(token);
+		Iterator<SessionInformation> sessions = this.providerSessionRegistry.removeSessionInformation(token);
 		if (!sessions.hasNext()) {
 			return;
 		}
 		while (sessions.hasNext()) {
-			OidcProviderSessionRegistrationDetails session = sessions.next();
-			BackchannelLogoutAuthentication authentication = new BackchannelLogoutAuthentication(
-					session.getClientSessionId(), session.getCsrfToken());
+			SessionInformation session = sessions.next();
+			BackchannelLogoutAuthentication authentication = new BackchannelLogoutAuthentication(session.getSessionId(),
+					session.getAttribute(CsrfToken.class.getName()));
 			try {
 				if (this.logger.isTraceEnabled()) {
 					String message = "Logging out session #%d from result set for issuer [%s]";
@@ -188,7 +190,7 @@ public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 	 * The registry for linking Client sessions to OIDC Provider sessions and End Users
 	 * @param providerSessionRegistry the {@link OidcProviderSessionRegistry} to use
 	 */
-	public void setProviderSessionRegistry(OidcProviderSessionRegistry providerSessionRegistry) {
+	public void setProviderSessionRegistry(SessionRegistry providerSessionRegistry) {
 		Assert.notNull(providerSessionRegistry, "providerSessionRegistry cannot be null");
 		this.providerSessionRegistry = providerSessionRegistry;
 	}

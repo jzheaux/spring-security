@@ -16,6 +16,7 @@
 
 package org.springframework.security.core.session;
 
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -69,6 +70,10 @@ public interface SessionRegistry {
 	 */
 	void registerNewSession(String sessionId, Object principal);
 
+	default void registerNewSession(SessionInformation information) {
+		registerNewSession(information.getSessionId(), information.getPrincipal());
+	}
+
 	/**
 	 * Deletes all the session information being maintained for the specified
 	 * <code>sessionId</code>. If the <code>sessionId</code> is not found, the method
@@ -76,5 +81,13 @@ public interface SessionRegistry {
 	 * @param sessionId to delete information for (should never be <code>null</code>)
 	 */
 	void removeSessionInformation(String sessionId);
+
+	default Iterator<SessionInformation> removeSessionInformation(Object principal) {
+		List<SessionInformation> infos = getAllSessions(principal, true);
+		for (SessionInformation info : infos) {
+			removeSessionInformation(info.getSessionId());
+		}
+		return infos.iterator();
+	}
 
 }
