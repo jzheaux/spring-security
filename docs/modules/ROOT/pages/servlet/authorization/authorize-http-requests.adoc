@@ -725,7 +725,7 @@ Because the performance impact is now addressed, Spring Security recommends usin
 == Migrating from `authorizeRequests`
 
 [NOTE]
-`AuthorizationFilter` supersedes xref:servlet/authorization/authorize-requests.adoc#servlet-authorization-filtersecurityinterceptor[`FilterSecurityInterceptor`].
+`AuthorizationFilter` supersedes {security-api-url}org/springframework/security/web/access/intercept/FilterSecurityInterceptor.html[`FilterSecurityInterceptor`].
 To remain backward compatible, `FilterSecurityInterceptor` remains the default.
 This section discusses how `AuthorizationFilter` works and how to override the default configuration.
 
@@ -733,7 +733,7 @@ The {security-api-url}org/springframework/security/web/access/intercept/Authoriz
 It is inserted into the xref:servlet/architecture.adoc#servlet-filterchainproxy[FilterChainProxy] as one of the xref:servlet/architecture.adoc#servlet-security-filters[Security Filters].
 
 You can override the default when you declare a `SecurityFilterChain`.
-Instead of using xref:servlet/authorization/authorize-requests.adoc[`authorizeRequests`], use `authorizeHttpRequests`, like so:
+Instead of using {security-api-url}org/springframework/security/config/annotation/web/builders/HttpSecurity.html#authorizeRequests()[`authorizeRequests`], use `authorizeHttpRequests`, like so:
 
 .Use authorizeHttpRequests
 ====
@@ -761,7 +761,7 @@ This simplifies reuse and customization.
 Instead of the authentication needing to be looked up for every request, it will only look it up in requests where an authorization decision requires authentication.
 3. Bean-based configuration support.
 
-When `authorizeHttpRequests` is used instead of `authorizeRequests`, then {security-api-url}org/springframework/security/web/access/intercept/AuthorizationFilter.html[`AuthorizationFilter`] is used instead of xref:servlet/authorization/authorize-requests.adoc#servlet-authorization-filtersecurityinterceptor[`FilterSecurityInterceptor`].
+When `authorizeHttpRequests` is used instead of `authorizeRequests`, then {security-api-url}org/springframework/security/web/access/intercept/AuthorizationFilter.html[`AuthorizationFilter`] is used instead of {security-api-url}org/springframework/security/web/access/intercept/FilterSecurityInterceptor.html[`FilterSecurityInterceptor`].
 
 === Migrating Expressions
 
