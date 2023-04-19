@@ -2,7 +2,156 @@
 = Authorize HttpServletRequests with AuthorizationFilter
 :figures: servlet/authorization
 
-This section builds on xref:servlet/architecture.adoc#servlet-architecture[Servlet Architecture and Implementation] by digging deeper into how xref:servlet/authorization/index.adoc#servlet-authorization[authorization] works within Servlet-based applications.
+By default, Spring Security requires that every request be authenticated.
+That said, any time you use an `HttpSecurity` instance, it's necessary to declare your authorization rules.
+
+Whenever you have an `HttpSecurity` instance, you should at least do:
+
+.Use authorizeHttpRequests
+====
+.Java
+[source,java,role="primary"]
+----
+http
+    .authorizeHttpRequests((authorize) -> authorize
+        .anyRequest().authenticated()
+    )
+----
+
+.Kotlin
+[source,kotlin,role="secondary"]
+----
+http {
+    authorizeHttpRequests {
+        authorize(anyRequest, authenticated)
+    }
+}
+----
+
+.Xml
+[source,xml,role="secondary"]
+----
+<http>
+    <intercept-url pattern="/**" access="authenticated"/>
+</http>
+----
+====
+
+In many cases, your authorization rules will be more sophisticated than that, so please consider the following use cases:
+
+* I have an app that uses `authorizeRequests` and I want to migrate it to `authorizeHttpRequests`
+* I want to understand how the `AuthorizationFilter` components work
+* I want to match requests based on a pattern; specifically regex
+* I want to authorize requests
+* I want to match a request programmatically
+* I want to authorize a request programmatically
+
+== Understanding How Request Authorization Components Work
+
+[NOTE]
+This section builds on xref:servlet/architecture.adoc#servlet-architecture[Servlet Architecture and Implementation] by digging deeper into how xref:servlet/authorization/index.adoc#servlet-authorization[authorization] works at the request level in Servlet-based applications.
+
+.Authorize HttpServletRequest
+image::{figures}/authorizationfilter.png[]
+
+* image:{icondir}/number_1.png[] First, the `AuthorizationFilter` constructs a `Supplier` that retrieves an  xref:servlet/authentication/architecture.adoc#servlet-authentication-authentication[Authentication] from the xref:servlet/authentication/architecture.adoc#servlet-authentication-securitycontextholder[SecurityContextHolder].
+* image:{icondir}/number_2.png[] Second, it passes the `Supplier<Authentication>` and the `HttpServletRequest` to the xref:servlet/architecture.adoc#authz-authorization-manager[`AuthorizationManager`].
+The `AuthorizationManager` matches the request to the patterns in `authorizeHttpRequests`, and runs the corresponding rule.
+** image:{icondir}/number_3.png[] If authorization is denied, xref:servlet/authorization/events.adoc[an `AuthorizationDeniedEvent` is published], and an `AccessDeniedException` is thrown.
+In this case the xref:servlet/architecture.adoc#servlet-exceptiontranslationfilter[`ExceptionTranslationFilter`] handles the `AccessDeniedException`.
+** image:{icondir}/number_4.png[] If access is granted, xref:servlet/authorization/events.adoc[an `AuthorizationGrantedEvent` is published] and `AuthorizationFilter` continues with the xref:servlet/architecture.adoc#servlet-filters-review[FilterChain] which allows the application to process normally.
+
+=== `AuthorizationFilter` Is Last By Default
+
+The `AuthorizationFilter` is last in the Spring Security filter chain by default.
+This means that Spring Security's authentication filters, exploit protections, and other integrations do not require authorization.
+If you add filters of your own before the `AuthorizationFilter`, they will also not require authorization; otherwise, they will.
+
+A place where this typically becomes important is when you are adding Spring MVC endpoints.
+Because they are executed by the `DispatcherServlet` and this comes after the `AuthorizationFilter`, you're endpoints need to be <<authorize-endpoints,included in `authorizeHttpRequests` to be permitted>>.
+
+=== All Dispatches Are Authorized
+
+The `AuthorizationFilter` runs not just on every request, but on every dispatch.
+This means that the `REQUEST` dispatch needs authorization, but also ``FORWARD``s, ``ERROR``s, and ``INCLUDE``s.
+
+For example, Spring MVC can `FORWARD` the request to a view resolver that renders a Thymeleaf template, like so:
+
+.Sample Forwarding Spring MVC Controller
+====
+.Java
+[source,java,role="primary"]
+----
+@Controller
+public class MyController {
+    @GetMapping("/endpoint")
+    public String endpoint() {
+        return "endpoint";
+    }
+}
+----
+
+.Kotlin
+[source,kotlin,role="secondary"]
+----
+@Controller
+class MyController {
+    @GetMapping("/endpoint")
+    fun endpoint(): String {
+        return "endpoint"
+    }
+}
+----
+====
+
+In this case, authorization happens twice; once for authorizing `/endpoint` and once for forwarding to Thymeleaf to render the "endpoint" template.
+
+For that reason, you may want to <<authorize-dispatcher-types, permit all `FORWARD` dispatches>>.
+
+Another example of this principle is how Spring Boot handles errors.
+If the container catches an exception, say like the following:
+
+.Sample Erroring Spring MVC Controller
+====
+.Java
+[source,java,role="primary"]
+----
+@Controller
+public class MyController {
+    @GetMapping("/endpoint")
+    public String endpoint() {
+        throw new UnsupportedOperationException("unsupported");
+    }
+}
+----
+
+.Kotlin
+[source,kotlin,role="secondary"]
+----
+@Controller
+class MyController {
+    @GetMapping("/endpoint")
+    fun endpoint(): String {
+        throw UnsupportedOperationException("unsupported")
+    }
+}
+----
+====
+
+then Boot will dispatch it to the `ERROR` dispatch.
+
+In that case, authorization also happens twice; once for authorizing `/endpoint` and once for dispatching the error.
+
+For that reason, you may want to <<authorize-dispatcher-types, permit all `ERROR` dispatches>>.
+
+=== `Authentication` Lookup is Deferred
+
+Remember that the `AuthorizationManager` API uses a `Supplier<Authentication>`.
+
+This matters with `authorizeHttpRequests` when requests are <<apply-authorization rules,always permitted or always denied>>.
+In those cases, the `Authentication` is not queried, making for a faster request.
+
+== Migrating from `authorizeRequests`
 
 [NOTE]
 `AuthorizationFilter` supersedes xref:servlet/authorization/authorize-requests.adoc#servlet-authorization-filtersecurityinterceptor[`FilterSecurityInterceptor`].
@@ -43,18 +192,207 @@ Instead of the authentication needing to be looked up for every request, it will
 
 When `authorizeHttpRequests` is used instead of `authorizeRequests`, then {security-api-url}org/springframework/security/web/access/intercept/AuthorizationFilter.html[`AuthorizationFilter`] is used instead of xref:servlet/authorization/authorize-requests.adoc#servlet-authorization-filtersecurityinterceptor[`FilterSecurityInterceptor`].
 
-.Authorize HttpServletRequest
-image::{figures}/authorizationfilter.png[]
+[[authorizing-endpoints]]
+== Authorizing Endpoints
 
-* image:{icondir}/number_1.png[] First, the `AuthorizationFilter` obtains an  xref:servlet/authentication/architecture.adoc#servlet-authentication-authentication[Authentication] from the xref:servlet/authentication/architecture.adoc#servlet-authentication-securitycontextholder[SecurityContextHolder].
-It wraps this in an `Supplier` in order to delay lookup.
-* image:{icondir}/number_2.png[] Second, it passes the `Supplier<Authentication>` and the `HttpServletRequest` to the xref:servlet/architecture.adoc#authz-authorization-manager[`AuthorizationManager`].
-** image:{icondir}/number_3.png[] If authorization is denied, an `AccessDeniedException` is thrown.
-In this case the xref:servlet/architecture.adoc#servlet-exceptiontranslationfilter[`ExceptionTranslationFilter`] handles the `AccessDeniedException`.
-** image:{icondir}/number_4.png[] If access is granted, `AuthorizationFilter` continues with the xref:servlet/architecture.adoc#servlet-filters-review[FilterChain] which allows the application to process normally.
+You can configure Spring Security to have different rules by adding more rules in order of precedence.
 
-We can configure Spring Security to have different rules by adding more rules in order of precedence.
+If you want to require that `/endpoint` only be accessible by end users with the `USER` authority, then you can do:
 
+.Authorize an Endpoint
+====
+.Java
+[source,java,role="primary"]
+----
+@Bean
+SecurityFilterChain web(HttpSecurity http) throws Exception {
+	http
+		.authorizeHttpRequests((authorize) -> authorize
+			.requestMatchers("/endpoint").hasAuthority('USER')
+			.anyRequest().authenticated()
+		)
+        // ...
+
+	return http.build();
+}
+----
+
+.Kotlin
+[source,kotlin,role="secondary"]
+----
+@Bean
+SecurityFilterChain web(HttpSecurity http) throws Exception {
+	http {
+        authorizeHttpRequests {
+            authorize("/endpoint", hasAuthority('USER'))
+            authorize(anyRequest, authenticated)
+        }
+	}
+	return http.build();
+}
+----
+
+.Xml
+[source,xml,role="secondary"]
+----
+<http>
+    <intercept-url pattern="/endpoint" access="hasAuthority('USER')"/>
+    <intercept-url pattern="/**" access="authenticated"/>
+</http>
+----
+====
+
+As you can see, the declaration can be broken up in to pattern/rule pairs.
+
+`AuthorizationFilter` processes these pairs in the order listed, applying only the first match to the request.
+This means that even though `/**` would also match for `/endpoint` the above rules are not a problem.
+The way to read the above rules is "if the request is `/endpoint`, then require the `USER` authority; else, only require authentication".
+
+Spring Security supports several patterns and several rules; you can also programmatically create your own of each.
+
+== Matching Requests
+
+Above you've already seen two ways to match requests.
+The first you saw was the simplest, which is to match any request.
+
+The second is to match by a URI pattern.
+Spring Security supports two languages for URI pattern-matching: <<authorizing-endpoints-ant,Ant>> (as seen above) and <<authorizing-endpoints-regex,Regular Expressions>>.
+
+[[authorizing-endpoints-ant]]
+=== Matching Using Ant
+Ant is the default language that Spring Security uses to match requests.
+
+You can use it to match a single endpoint or a directory, and you can even capture placeholders for later use.
+You can also refine it to match a specific set of HTTP methods.
+
+Let's say that you instead of wanting to match the `/endpoint` endpoint, you want to match all endpoints under the `/resource` directory.
+In that case, you can do something like the following:
+
+.Authorize a Directory
+====
+.Java
+[source,java,role="primary"]
+----
+http
+    .authorizeHttpRequests((authorize) -> authorize
+        .requestMatchers("/resource/**").hasAuthority("USER")
+        .anyRequest().authenticated()
+    )
+----
+
+.Kotlin
+[source,kotlin,role="secondary"]
+----
+http {
+    authorizeHttpRequests {
+        authorize("/resource/**", hasAuthority("USER"))
+        authorize(anyRequest, authenticated)
+    }
+}
+----
+
+.Xml
+[source,xml,role="secondary"]
+----
+<http>
+    <intercept-url pattern="/resource/**" access="hasAuthority('USER')"/>
+    <intercept-url pattern="/**" access="authenticated"/>
+</http>
+----
+====
+
+The way to read this is "if the request is `/resource` or some subdirectory, require the `USER` authority; otherwise, only require authentication"
+
+You can also extract path values from the request, as seen below:
+
+.Authorize and Extract
+====
+.Java
+[source,java,role="primary"]
+----
+http
+    .authorizeHttpRequests((authorize) -> authorize
+        .requestMatchers("/resource/{name}").access(new WebExpressionAuthorizationManager("#name == authentication.name"))
+        .anyRequest().authenticated()
+    )
+----
+
+.Kotlin
+[source,kotlin,role="secondary"]
+----
+http {
+    authorizeHttpRequests {
+        authorize("/resource/{name}", WebExpressionAuthorizationManager("#name == authentication.name"))
+        authorize(anyRequest, authenticated)
+    }
+}
+----
+
+.Xml
+[source,xml,role="secondary"]
+----
+<http>
+    <intercept-url pattern="/resource/{name}" access="#name == authentication.name"/>
+    <intercept-url pattern="/**" access="authenticated"/>
+</http>
+----
+====
+
+[NOTE]
+Spring Security only matches paths.
+If you want to match query parameters, you will need a custom request matcher.
+
+[[authorizing-endpoints-regex]]
+=== Matching Using Regular Expressions
+Spring Security supports matching requests against a regular expression.
+This can come in handy if you want to apply more strict matching criteria than `**` on a subdirectory.
+
+For example, consider a path that contains the username and the rule that all usernames must be alphanumeric.
+You can use `RegexRequestMatcher` to respect this rule in your authorization rules, like so:
+
+.Authorize with Regex
+====
+.Java
+[source,java,role="primary"]
+----
+http
+    .authorizeHttpRequests((authorize) -> authorize
+        .requestMatchers(RegexRequestMatcher.regexMatcher("/resource/[A-Za-z0-9]+")).hasAuthority("USER")
+        .anyRequest().denyAll()
+    )
+----
+
+.Kotlin
+[source,kotlin,role="secondary"]
+----
+http {
+    authorizeHttpRequests {
+        authorize(RegexRequestMatcher.regexMatcher("/resource/[A-Za-z0-9]+", hasAuthority("USER"))
+        authorize(anyRequest, denyAll)
+    }
+}
+----
+
+.Xml
+[source,xml,role="secondary"]
+----
+<http>
+    <intercept-url request-matcher="regex" pattern="/resource/[A-Za-z0-9]+" access="hasAuthority('USER')"/>
+    <intercept-url pattern="/**" access="denyAll"/>
+</http>
+----
+====
+
+=== Matching By Http Method
+
+=== Matching By Dispatcher Type
+
+=== Using a Custom Matcher
+As just seen, when using Java configuration you can specify a custom `RequestMatcher` implementation
+
+== Authorizing Requests
+
+Once a request is matched,
 .Authorize Requests
 ====
 .Java

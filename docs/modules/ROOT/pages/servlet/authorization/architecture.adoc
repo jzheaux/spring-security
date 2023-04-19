@@ -46,7 +46,7 @@ A pre-invocation decision on whether the invocation is allowed to proceed is mad
 
 Applications that customize an `AccessDecisionManager` or `AccessDecisionVoter` are encouraged to <<authz-voter-adaptation,change to using `AuthorizationManager`>>.
 
-``AuthorizationManager``s are called by the xref:servlet/authorization/authorize-http-requests.adoc[`AuthorizationFilter`] and are responsible for making final access control decisions.
+``AuthorizationManager``s are called by Spring Security's xref:servlet/authorization/authorize-http-requests.adoc[request-based], xref:servlet/authorization/method-security.adoc[method-based], and xref:servlet/integrations/websocket.adoc[message-based] authorization components and are responsible for making final access control decisions.
 The `AuthorizationManager` interface contains two methods:
 
 ====
@@ -96,6 +96,10 @@ It will return a negative `AuthorizationDecision` otherwise.
 Another manager is the `AuthenticatedAuthorizationManager`.
 It can be used to differentiate between anonymous, fully-authenticated and remember-me authenticated users.
 Many sites allow certain limited access under remember-me authentication, but require a user to confirm their identity by logging in for full access.
+
+[[authz-authorization-managers]]
+==== AuthorizationManagers
+There are also helpful static factories in `AuthenticationManagers` for composing individual ``AuthenticationManager``s into more sophisticated expressions.
 
 [[authz-custom-authorization-manager]]
 ==== Custom Authorization Managers
