@@ -2,6 +2,9 @@
 = Authorize HttpServletRequests with AuthorizationFilter
 :figures: servlet/authorization
 
+Spring Security allows you to model your authorization at the request level.
+For example, with Spring Security you can say that all pages under `/admin` require one authority while all other pages simply require authentication.
+
 By default, Spring Security requires that every request be authenticated.
 That said, any time you use xref:servlet/configuration/java.adoc#jc-httpsecurity[an `HttpSecurity` instance], it's necessary to declare your authorization rules.
 
@@ -36,6 +39,8 @@ http {
 </http>
 ----
 ====
+
+This tells Spring Security that any endpoint in your application requires that the security context at a minimum be authenticated in order to allow it.
 
 In many cases, your authorization rules will be more sophisticated than that, so please consider the following use cases:
 
@@ -765,8 +770,8 @@ When `authorizeHttpRequests` is used instead of `authorizeRequests`, then {secur
 
 === Migrating Expressions
 
-It is recommended that you use type-safe authorization managers instead of SpEL.
-However, {security-api-url}org/springframework/security/web/access/expression/WebExpressionAuthorizationManager.html[`WebExpressionAuthorizationManager`] is available to help migrate legacy SpEL.
+Where possible, it is recommended that you use type-safe authorization managers instead of SpEL.
+For Java configuration, {security-api-url}org/springframework/security/web/access/expression/WebExpressionAuthorizationManager.html[`WebExpressionAuthorizationManager`] is available to help migrate legacy SpEL.
 
 To use `WebExpressionAuthorizationManager`, you can construct one with the expression you are trying to migrate, like so:
 

@@ -2,6 +2,8 @@
 [[jc-method]]
 = Method Security
 
+In addition to Spring Security's support for authorizing HTTP requests, you can also model your authorization at the method level.
+Spring Security does not secure methods by default.
 From version 2.0 onwards, Spring Security has improved support substantially for adding security to your service layer methods.
 It provides support for JSR-250 annotation security as well as the framework's original `@Secured` annotation.
 From 3.0, you can also make use of new xref:servlet/authorization/expression-based.adoc#el-access[expression-based annotations].
@@ -159,7 +161,7 @@ class MethodSecurityConfig {
 
 === Customizing Authorization
 
-Spring Security's `@PreAuthorize`, `@PostAuthorize`, `@PreFilter`, and `@PostFilter` ship with rich expression-based support.
+Spring Security's `@PreAuthorize`, `@PostAuthorize`, `@PreFilter`, and `@PostFilter` ship with rich xref:servlet/authorization/expression-based.adoc[expression-based support].
 
 [[jc-method-security-custom-expression-handler]]
 If you need to customize the way that expressions are handled, you can expose a custom `MethodSecurityExpressionHandler`, like so:
@@ -207,49 +209,6 @@ companion object {
 [TIP]
 ====
 We expose `MethodSecurityExpressionHandler` using a `static` method to ensure that Spring publishes it before it initializes Spring Security's method security `@Configuration` classes
-====
-
-Also, for role-based authorization, Spring Security adds a default `ROLE_` prefix, which is uses when evaluating expressions like `hasRole`.
-
-[[jc-method-security-custom-granted-authority-defaults]]
-You can configure the authorization rules to use a different prefix by exposing a `GrantedAuthorityDefaults` bean, like so:
-
-.Custom MethodSecurityExpressionHandler
-====
-.Java
-[source,java,role="primary"]
-----
-@Bean
-static GrantedAuthorityDefaults grantedAuthorityDefaults() {
-	return new GrantedAuthorityDefaults("MYPREFIX_");
-}
-----
-
-.Kotlin
-[source,kotlin,role="secondary"]
-----
-companion object {
-	@Bean
-	fun grantedAuthorityDefaults() : GrantedAuthorityDefaults {
-		return GrantedAuthorityDefaults("MYPREFIX_");
-	}
-}
-----
-
-.Xml
-[source,xml,role="secondary"]
-----
-<sec:method-security/>
-
-<bean id="grantedAuthorityDefaults" class="org.springframework.security.config.core.GrantedAuthorityDefaults">
-	<constructor-arg value="MYPREFIX_"/>
-</bean>
-----
-====
-
-[TIP]
-====
-We expose `GrantedAuthorityDefaults` using a `static` method to ensure that Spring publishes it before it initializes Spring Security's method security `@Configuration` classes
 ====
 
 [[jc-method-security-custom-authorization-manager]]
@@ -395,7 +354,6 @@ fun postFilterAuthorizationMethodInterceptor() : Advisor {
 ====
 
 You may want to only support `@PreAuthorize` in your application, in which case you can do the following:
-
 
 .Only @PreAuthorize Configuration
 ====
