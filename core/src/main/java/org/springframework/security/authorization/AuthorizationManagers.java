@@ -41,7 +41,10 @@ public final class AuthorizationManagers {
 			List<AuthorizationDecision> decisions = new ArrayList<>();
 			for (AuthorizationManager<T> manager : managers) {
 				AuthorizationDecision decision = manager.check(authentication, object);
-				if (decision == null || decision.isGranted()) {
+				if (decision == null) {
+					continue;
+				}
+				if (decision.isGranted()) {
 					return decision;
 				}
 				decisions.add(decision);
@@ -64,7 +67,10 @@ public final class AuthorizationManagers {
 			List<AuthorizationDecision> decisions = new ArrayList<>();
 			for (AuthorizationManager<T> manager : managers) {
 				AuthorizationDecision decision = manager.check(authentication, object);
-				if (decision != null && !decision.isGranted()) {
+				if (decision == null) {
+					continue;
+				}
+				if (!decision.isGranted()) {
 					return decision;
 				}
 				decisions.add(decision);
