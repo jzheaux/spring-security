@@ -35,7 +35,6 @@ From here, you can learn about:
 
 * How to migrate from `@EnableGlobalMethodSecurity`
 * How <<method-security-architecture,method security works>> and reasons to use it
-* How to configure methods when one Spring-Security-annotated method calls another.
 * How to evaluate the difference between doing <<request-vs-method,request-level or method-level authorization>>
 * How and when to use `@PreAuthorize`
 * How and when to use `@PostAuthorize`
@@ -177,6 +176,7 @@ The main tradeoff seems to be where you want your authorization rules to live.
 It's important to remember that if you are going to use method-level security, then unannotated methods are not secured.
 To protect against this, it's strongly recommend that your `HttpSecurity` declaration protect all requests by default.
 
+[[use-preauthorize]]
 == Authorizing Method Invocation with `@PreAuthorize`
 
 When Method Security is active, you can annotate a method with `@PreAuthorize` like so:
@@ -232,6 +232,7 @@ Or, Spring Security also integrations with Spring MVC to identify parameters lik
 Collection<Order> findOrders(@PathVariable("username") String username) { ... }
 ```
 
+[[use-postauthorize]]
 == Authorization Method Results with `@PostAuthorize`
 
 When Method Security is active, you can annotate a method with `@PostAuthorize` like so:
@@ -292,6 +293,7 @@ public class BankService {
 }
 ```
 
+[[use-prefilter]]
 == Filtering Method Parameters with `@PreFilter`
 
 When Method Security is active, you can annotate a method with `@PreFilter` like so:
@@ -345,6 +347,7 @@ public Collection<Account> updateAccounts(Map<String, Account> accounts)
 public Collection<Account> updateAccounts(Stream<Account> accounts)
 ```
 
+[[use-postfilter]]
 == Filtering Method Results with `@PostFilter`
 
 When Method Security is active, you can annotate a method with `@PostFilter` like so:
@@ -397,16 +400,19 @@ public Stream<Account> readAccounts(String... ids)
 [NOTE]
 In-memory filtering can obviously be expensive, and so be considerate of whether it is better to filter the data in the data layer instead.
 
-== Authorizing Method Invocatino with `@Secured`
+[[use-secured]]
+== Authorizing Method Invocation with `@Secured`
 
 `@Secured` is a legacy option for authorizing invocations.
 `@PreAuthorize` supercedes it.
 
+[[use-jsr250]]
 == Using JSR-250 Annotations
 
 In case you would like to use JSR-250 annotations, Spring Security also supports that.
 Again, `@PreAuthorize` is quite a bit more powerful and is thus recommended.
 
+[[class-or-interface-annotations]]
 == Declaring Annotations at the Class or Interface Level
 
 It's also supported to have Method Security annotations at the class and interface level.
@@ -424,6 +430,7 @@ This is because Spring Security has no way to tell which one you want to use.
 
 In cases like this, you can resolve the ambiguity by adding the annotation to the concrete method.
 
+[[meta-annotations]]
 == Using Meta Annotations
 
 Method Security supports meta annotations.
@@ -435,6 +442,30 @@ And the result is that on your secured methods you can now do the following inst
 
 This results in more readable method definitions.
 
+[[use-intercept-methods]]
+== Authorizing Method Invocation with `<intercept-methods>`
+
+As already covered, Method Security annotations are the Java way to declare authorization at the bean level.
+
+If you need to declare it in your XML configuration instead, you can use `<intercept-methods>` like so:
+
+====
+.Xml
+[source,xml,role="primary"]
+----
+<bean class="org.mycompany.MyController">
+    <intercept-methods>
+        <protect method="get*" access="hasAuthority('read')"/>
+        <protect method="*" access="hasAuthority('write')"/>
+    </intercept-methods>
+</bean>
+----
+====
+
+Note that this approach usually relies on rigid naming conventions, which Java introduced annotations to address.
+Given that, it's recommended to use annotation support instead.
+
+[[use-programmatic-authorization]]
 == Authorize Methods Programmatically
 
 As you've already seen, there are several ways that you can specify non-trivial authorization rules using Method Security annotations.
@@ -504,7 +535,7 @@ static MethodSecurityExpressionHandler myMethodSecurityExpressionHandler() {
         @Override
 	    public EvaluationContext createEvaluationContext(Supplier<Authentication> authentication, MethodInvocation mi) {
             EvaluationContext context = super.createEvaluationContext(authentication, mi);
-            MethodSecurityExpressionOperations delegate = (MethodSecurityExpressionOperations) context.getRootObject();
+            MethodSecurityExpressionOperations delegate = (MethodSecurityExpressionOperations) context.getRootObject().getValue();
             context.setRootObject(new MyMethodSecurityExpressionRoot(delegate));
             return context;
 	    }
@@ -512,18 +543,49 @@ static MethodSecurityExpressionHandler myMethodSecurityExpressionHandler() {
 }
 ```
 
+[NOTE]
+This bean definition uses `static` to ensure that Spring AOP picks it up at the appropriate point in the bean factory lifecycle.
+
 At that point, you can use your custom SpEL method in Method Security annotations like the following one:
 
 ```java
 @PreAuthorize("hasScope('message:read')")
 ```
 
-== Bean-level Authorization
+[[match-by-pointcut]]
+== Matching Methods with Custom Pointcuts
 
-== Integrating with AspectJ
+Being built on Spring AOP, you can declare patterns that are not related to annotations, similar to request-level authorization.
+This has the potential advantage of centralizing method-level authorization rules.
 
-== Invoking Nested Annotated Methods
+For example, you can use publish your own `Advisor` or use `<protect-pointcut>` to match AOP expressions to authorization rules like so:
 
+```java
+@Bean
+@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+static Advisor protectServicePointcut() {
+    JdkRegexpMethodPointcut pattern = new JdkRegexpMethodPointcut();
+    pattern.setPattern("execution(* com.mycompany.*Service.*(..))");
+    return new AuthorizationManagerBeforeMethodInterceptor(pattern, hasRole("USER"));
+}
+```
+
+```xml
+<sec:method-security>
+    <protect-pointcut expression="execution(* com.mycompany.*Service.*(..))" access="hasRole('USER')"/>
+</sec:method-security>
+```
+
+[[use-aspectj]]
+== Authorizing Method Invocation with AspectJ
+
+Performance can at time be enhanced by using AspectJ to weave Spring Security advice into the byte code of your beans.
+
+After setting up AspectJ, you can quite simply state in the `@EnableMethodSecurity` annotation or `<method-security>` element that you are using AspectJ:
+
+And the result will be that Spring Security will publish its advisors as AspectJ advice so that they can be woven in accordingly.
+
+[[migration-enableglobalmethodsecurity]]
 == Migrating from `@EnableGlobalMethodSecurity`
 
 ```java
