@@ -8,6 +8,7 @@ For example, with Spring Security you can say that all pages under `/admin` requ
 By default, Spring Security requires that every request be authenticated.
 That said, any time you use xref:servlet/configuration/java.adoc#jc-httpsecurity[an `HttpSecurity` instance], it's necessary to declare your authorization rules.
 
+[[activate-request-security]]
 Whenever you have an `HttpSecurity` instance, you should at least do:
 
 .Use authorizeHttpRequests
