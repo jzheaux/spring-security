@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,6 @@
 
 package org.springframework.security.config.annotation.web.configurers;
 
-import java.util.UUID;
-
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -29,13 +27,12 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.RememberMeServices;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
-import org.springframework.security.web.authentication.rememberme.AbstractRememberMeServices;
-import org.springframework.security.web.authentication.rememberme.PersistentTokenBasedRememberMeServices;
-import org.springframework.security.web.authentication.rememberme.PersistentTokenRepository;
-import org.springframework.security.web.authentication.rememberme.RememberMeAuthenticationFilter;
-import org.springframework.security.web.authentication.rememberme.TokenBasedRememberMeServices;
+import org.springframework.security.web.authentication.rememberme.*;
 import org.springframework.security.web.authentication.ui.DefaultLoginPageGeneratingFilter;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.util.Assert;
+
+import java.util.UUID;
 
 /**
  * Configures Remember Me authentication. This typically involves the user checking a box
@@ -287,6 +284,12 @@ public final class RememberMeConfigurer<H extends HttpSecurityBuilder<H>>
 				http.getSharedObject(AuthenticationManager.class), this.rememberMeServices);
 		if (this.authenticationSuccessHandler != null) {
 			rememberMeFilter.setAuthenticationSuccessHandler(this.authenticationSuccessHandler);
+		}
+		SecurityContextConfigurer<?> securityContextConfigurer = http.getConfigurer(SecurityContextConfigurer.class);
+		if (securityContextConfigurer != null && securityContextConfigurer.isRequireExplicitSave()) {
+			SecurityContextRepository securityContextRepository = securityContextConfigurer
+					.getSecurityContextRepository();
+			rememberMeFilter.setSecurityContextRepository(securityContextRepository);
 		}
 		rememberMeFilter.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
 		rememberMeFilter = postProcess(rememberMeFilter);
