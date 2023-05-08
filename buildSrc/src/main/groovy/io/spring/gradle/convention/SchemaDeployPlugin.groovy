@@ -1,7 +1,5 @@
 package io.spring.gradle.convention
 
-import org.gradle.api.plugins.JavaPlugin
-import org.gradle.api.tasks.bundling.Zip
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
@@ -64,6 +62,11 @@ public class SchemaDeployPlugin implements Plugin<Project> {
 						execute "mv $tempPath/* $extractPath"
 
 						/*
+						 * Symlink spring-security schema so that legacy projects using the "http" scheme can
+						 * resolve the following schema location:
+						 *
+						 * - http://www.springframework.org/schema/security/spring-security.xsd
+						 *
 						 * Copy spring-security-oauth schemas so that legacy projects using the "http" scheme can
 						 * resolve the following schema locations:
 						 *
@@ -85,6 +88,9 @@ public class SchemaDeployPlugin implements Plugin<Project> {
 						 * See https://github.com/spring-io/autoln for more info.
 						 */
 						if (name == "spring-security") {
+							def versionString = project.rootProject.version.toString()
+							versionString = versionString.substring(0, versionString.lastIndexOf('.'))
+							execute "ln -sfd ${extractPath}security/${name}-${versionString}.xsd ${name}.xsd"
 							def springSecurityOauthPath = "/var/www/domains/spring.io/docs/htdocs/autorepo/schema/spring-security-oauth/current/security"
 							execute "cp $springSecurityOauthPath/* ${extractPath}security"
 						}
