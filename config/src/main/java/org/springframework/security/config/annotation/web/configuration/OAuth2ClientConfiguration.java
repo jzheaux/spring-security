@@ -82,6 +82,8 @@ final class OAuth2ClientConfiguration {
 
 		private OAuth2AuthorizedClientManager authorizedClientManager;
 
+		private OAuth2AuthorizedClientProvider authorizedClientProvider;
+
 		private SecurityContextHolderStrategy securityContextHolderStrategy;
 
 		@Override
@@ -111,6 +113,7 @@ final class OAuth2ClientConfiguration {
 			}
 		}
 
+		@Deprecated(since="6.2", forRemoval = true)
 		@Autowired(required = false)
 		void setAccessTokenResponseClient(
 				OAuth2AccessTokenResponseClient<OAuth2ClientCredentialsGrantRequest> accessTokenResponseClient) {
@@ -125,6 +128,13 @@ final class OAuth2ClientConfiguration {
 		}
 
 		@Autowired(required = false)
+		void setAuthorizedClientProvider(List<OAuth2AuthorizedClientProvider> authorizedClientProviders) {
+			if (authorizedClientProviders.size() == 1) {
+				this.authorizedClientProvider = authorizedClientProviders.get(0);
+			}
+		}
+
+		@Autowired(required = false)
 		void setSecurityContextHolderStrategy(SecurityContextHolderStrategy strategy) {
 			this.securityContextHolderStrategy = strategy;
 		}
@@ -133,31 +143,34 @@ final class OAuth2ClientConfiguration {
 			if (this.authorizedClientManager != null) {
 				return this.authorizedClientManager;
 			}
-			OAuth2AuthorizedClientManager authorizedClientManager = null;
-			if (this.clientRegistrationRepository != null && this.authorizedClientRepository != null) {
-				if (this.accessTokenResponseClient != null) {
-					// @formatter:off
-					OAuth2AuthorizedClientProvider authorizedClientProvider = OAuth2AuthorizedClientProviderBuilder
-						.builder()
-						.authorizationCode()
-						.refreshToken()
-						.clientCredentials((configurer) -> configurer.accessTokenResponseClient(this.accessTokenResponseClient))
-						.password()
-						.build();
-					// @formatter:on
-					DefaultOAuth2AuthorizedClientManager defaultAuthorizedClientManager = new DefaultOAuth2AuthorizedClientManager(
-							this.clientRegistrationRepository, this.authorizedClientRepository);
-					defaultAuthorizedClientManager.setAuthorizedClientProvider(authorizedClientProvider);
-					authorizedClientManager = defaultAuthorizedClientManager;
-				}
-				else {
-					authorizedClientManager = new DefaultOAuth2AuthorizedClientManager(
-							this.clientRegistrationRepository, this.authorizedClientRepository);
-				}
+			if (this.clientRegistrationRepository == null) {
+				return null;
 			}
-			return authorizedClientManager;
+			if (this.authorizedClientRepository == null) {
+				return null;
+			}
+			DefaultOAuth2AuthorizedClientManager defaultAuthorizedClientManager = new DefaultOAuth2AuthorizedClientManager(
+					this.clientRegistrationRepository, this.authorizedClientRepository);
+			defaultAuthorizedClientManager.setAuthorizedClientProvider(authorizedClientProvider());
+			return defaultAuthorizedClientManager;
 		}
 
+		OAuth2AuthorizedClientProvider authorizedClientProvider() {
+			if (this.authorizedClientProvider != null) {
+				return this.authorizedClientProvider;
+			}
+			OAuth2AuthorizedClientProviderBuilder builder = OAuth2AuthorizedClientProviderBuilder.builder()
+					.authorizationCode()
+					.refreshToken()
+					.password();
+			if (this.accessTokenResponseClient != null) {
+				// @formatter:off
+				return builder.clientCredentials((client) -> client
+						.accessTokenResponseClient(this.accessTokenResponseClient)).build();
+				// @formatter:on
+			}
+			return builder.clientCredentials().build();
+		}
 	}
 
 }
