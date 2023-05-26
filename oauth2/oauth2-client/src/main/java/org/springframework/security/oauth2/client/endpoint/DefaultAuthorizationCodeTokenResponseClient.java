@@ -16,15 +16,15 @@
 
 package org.springframework.security.oauth2.client.endpoint;
 
-import java.util.Arrays;
-
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.FormHttpMessageConverter;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.security.oauth2.client.http.OAuth2ErrorResponseErrorHandler;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.OAuth2AuthorizationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenResponse;
@@ -34,6 +34,8 @@ import org.springframework.web.client.ResponseErrorHandler;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestOperations;
 import org.springframework.web.client.RestTemplate;
+
+import java.util.Arrays;
 
 /**
  * The default implementation of an {@link OAuth2AccessTokenResponseClient} for the
@@ -58,7 +60,8 @@ public final class DefaultAuthorizationCodeTokenResponseClient
 
 	private static final String INVALID_TOKEN_RESPONSE_ERROR_CODE = "invalid_token_response";
 
-	private Converter<OAuth2AuthorizationCodeGrantRequest, RequestEntity<?>> requestEntityConverter = new OAuth2AuthorizationCodeGrantRequestEntityConverter();
+	private Converter<OAuth2AuthorizationCodeGrantRequest, RequestEntity<?>> requestEntityConverter =
+			new ClientAuthenticationMethodVerifyingRequestEntityConverter();
 
 	private RestOperations restOperations;
 
@@ -132,4 +135,22 @@ public final class DefaultAuthorizationCodeTokenResponseClient
 		this.restOperations = restOperations;
 	}
 
+	private static final class ClientAuthenticationMethodVerifyingRequestEntityConverter implements
+			Converter<OAuth2AuthorizationCodeGrantRequest, RequestEntity<?>> {
+		private final OAuth2AuthorizationCodeGrantRequestEntityConverter delegate =
+				new OAuth2AuthorizationCodeGrantRequestEntityConverter();
+
+		@Override
+		public RequestEntity<?> convert(OAuth2AuthorizationCodeGrantRequest authorizationCodeGrantRequest) {
+			ClientRegistration clientRegistration = authorizationCodeGrantRequest.getClientRegistration();
+			ClientAuthenticationMethod clientAuthenticationMethod = clientRegistration.getClientAuthenticationMethod();
+			String registrationId = clientRegistration.getRegistrationId();
+			boolean supportedClientAuthenticationMethod = clientAuthenticationMethod.equals(ClientAuthenticationMethod.NONE) ||
+					clientAuthenticationMethod.equals(ClientAuthenticationMethod.CLIENT_SECRET_BASIC) ||
+					clientAuthenticationMethod.equals(ClientAuthenticationMethod.CLIENT_SECRET_POST);
+			Assert.isTrue(supportedClientAuthenticationMethod,
+					() -> String.format("This entity converter supports `client_secret_basic`, `client_secret_post`, and `none`. Client [%s] is using [%s] instead. Please either change your configuration to a supported method, choose an implementation that supports [%s], or implement your own.", registrationId, clientAuthenticationMethod, clientAuthenticationMethod));
+			return this.delegate.convert(authorizationCodeGrantRequest);
+		}
+	}
 }

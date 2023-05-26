@@ -16,12 +16,6 @@
 
 package org.springframework.security.oauth2.client.endpoint;
 
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.function.Function;
-
-import javax.crypto.spec.SecretKeySpec;
-
 import com.nimbusds.jose.jwk.JWK;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -29,7 +23,6 @@ import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
@@ -45,9 +38,12 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationResp
 import org.springframework.security.oauth2.jose.TestJwks;
 import org.springframework.security.oauth2.jose.TestKeys;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.function.Function;
+
+import static org.assertj.core.api.Assertions.*;
 
 /**
  * Tests for {@link DefaultAuthorizationCodeTokenResponseClient}.
@@ -368,6 +364,22 @@ public class DefaultAuthorizationCodeTokenResponseClientTests {
 						.getTokenResponse(authorizationCodeGrantRequest(this.clientRegistration.build())))
 				.withMessageContaining("[invalid_token_response] An error occurred while attempting to retrieve "
 						+ "the OAuth 2.0 Access Token Response");
+	}
+
+	@Test
+	public void getTokenResponseWhenCustomClientAuthenticationMethodThenIllegalArgument() {
+		ClientRegistration clientRegistration = this.clientRegistration.clientAuthenticationMethod(new ClientAuthenticationMethod("basic")).build();
+		OAuth2AuthorizationCodeGrantRequest authorizationCodeGrantRequest = authorizationCodeGrantRequest(clientRegistration);
+		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() ->
+			this.tokenResponseClient.getTokenResponse(authorizationCodeGrantRequest));
+	}
+
+	@Test
+	public void getTokenResponseWhenUnsupportedClientAuthenticationMethodThenIllegalArgument() {
+		ClientRegistration clientRegistration = this.clientRegistration.clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_JWT).build();
+		OAuth2AuthorizationCodeGrantRequest authorizationCodeGrantRequest = authorizationCodeGrantRequest(clientRegistration);
+		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() ->
+				this.tokenResponseClient.getTokenResponse(authorizationCodeGrantRequest));
 	}
 
 	private OAuth2AuthorizationCodeGrantRequest authorizationCodeGrantRequest(ClientRegistration clientRegistration) {
