@@ -18,6 +18,7 @@ package org.springframework.security.oauth2.client.oidc.web.authentication.logou
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -28,11 +29,13 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.session.SessionInformation;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.core.session.SessionRegistryImpl;
+import org.springframework.security.oauth2.client.oidc.authentication.logout.LogoutTokenClaimNames;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
-import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistry;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.jwt.BadJwtException;
@@ -59,8 +62,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 
 	private final Log logger = LogFactory.getLog(getClass());
-
-	private static final String ERROR_MESSAGE = "{ \"error\" : \"%s\", \"error_description\" : \"%s\" }";
 
 	private final ClientRegistrationRepository clientRegistrationRepository;
 
@@ -115,14 +116,13 @@ public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 		}
 		catch (BadJwtException ex) {
 			this.logger.debug("Failed to process OIDC Backchannel Logout", ex);
-			String message = String.format(ERROR_MESSAGE, "invalid_request", ex.getMessage());
-			response.sendError(400, message);
+			sendError(response, 400, "invalid_request", ex.getMessage());
 			return;
 		}
 		int sessionCount = 0;
 		int loggedOutCount = 0;
 		List<String> messages = new ArrayList<>();
-		Iterator<SessionInformation> sessions = this.providerSessionRegistry.removeSessionInformation(token);
+		Iterator<SessionInformation> sessions = sessionsToExpire(token);
 		if (!sessions.hasNext()) {
 			return;
 		}
@@ -136,6 +136,7 @@ public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 					this.logger.trace(String.format(message, sessionCount, token.getIssuer()));
 				}
 				this.logoutHandler.logout(request, response, authentication);
+				this.providerSessionRegistry.removeSessionInformation(session.getSessionId());
 				loggedOutCount++;
 			}
 			catch (Exception ex) {
@@ -152,21 +153,18 @@ public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 					sessionCount, token.getIssuer()));
 		}
 		if (messages.isEmpty()) {
+			response.addHeader(HttpHeaders.CACHE_CONTROL, "no-store");
 			return;
 		}
 		if (messages.size() == sessionCount) {
 			this.logger.trace("Returning a 400 since all linked sessions for issuer [%s] failed termination");
-			String message = String.format(ERROR_MESSAGE, "logout_failed", messages.iterator().next(),
-					token.getIssuer());
-			response.sendError(400, message);
+			sendError(response, 400, "logout_failed", messages.iterator().next());
 			return;
 		}
 		if (messages.size() < sessionCount) {
 			this.logger.trace(
 					"Returning a 400 since not all linked sessions for issuer [%s] were successfully terminated");
-			String message = String.format(ERROR_MESSAGE, "incomplete_logout", messages.iterator().next(),
-					token.getIssuer());
-			response.sendError(400, message);
+			sendError(response, 400, "incomplete_logout", messages.iterator().next());
 		}
 	}
 
@@ -175,6 +173,46 @@ public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 		OidcLogoutToken token = OidcLogoutToken.withTokenValue(logoutToken)
 				.claims((claims) -> claims.putAll(logoutTokenDecoder.decode(logoutToken).getClaims())).build();
 		return token;
+	}
+
+	private Iterator<SessionInformation> sessionsToExpire(OidcLogoutToken token) {
+		if (token.getSessionId() != null) {
+			SessionInformation info = this.providerSessionRegistry.getSessionInformation(token.getSessionId());
+			if (info == null) {
+				return Collections.emptyIterator();
+			}
+			if (!token.getIssuer().toExternalForm().equals(info.getAttribute(LogoutTokenClaimNames.ISS))) {
+				return Collections.emptyIterator();
+			}
+			return Collections.singleton(info).iterator();
+		}
+		if (token.getSubject() != null) {
+			List<SessionInformation> infos = this.providerSessionRegistry.getAllSessions(token.getSubject(), true);
+			List<SessionInformation> toExpire = new ArrayList<>();
+			for (SessionInformation info : infos) {
+				if (token.getIssuer().toExternalForm().equals(info.getAttribute(LogoutTokenClaimNames.ISS))) {
+					toExpire.add(info);
+				}
+			}
+			return toExpire.iterator();
+		}
+		return Collections.emptyIterator();
+	}
+
+	private void sendError(HttpServletResponse response, int status, String error, String description)
+			throws IOException {
+		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+		response.addHeader(HttpHeaders.CACHE_CONTROL, "no-store");
+		response.sendError(status, errorResponse(error, description));
+	}
+
+	private String errorResponse(String error, String description) {
+		return String.format("""
+			{
+				"error" : "%s",
+				"description" : "%s"
+			}
+			""", error, description);
 	}
 
 	/**

@@ -129,13 +129,21 @@ public class SessionRegistryImpl implements SessionRegistry, ApplicationListener
 	public void registerNewSession(String sessionId, Object principal) {
 		Assert.hasText(sessionId, "SessionId required as per interface contract");
 		Assert.notNull(principal, "Principal required as per interface contract");
+		registerNewSession(new SessionInformation(principal, sessionId, new Date()));
+	}
+
+	@Override
+	public void registerNewSession(SessionInformation info) {
+		Assert.notNull(info, "SessionInformation cannot be null");
+		String sessionId = info.getSessionId();
+		Object principal = info.getPrincipal();
 		if (getSessionInformation(sessionId) != null) {
 			removeSessionInformation(sessionId);
 		}
 		if (this.logger.isDebugEnabled()) {
 			this.logger.debug(LogMessage.format("Registering session %s, for principal %s", sessionId, principal));
 		}
-		this.sessionIds.put(sessionId, new SessionInformation(principal, sessionId, new Date()));
+		this.sessionIds.put(sessionId, info);
 		this.principals.compute(principal, (key, sessionsUsedByPrincipal) -> {
 			if (sessionsUsedByPrincipal == null) {
 				sessionsUsedByPrincipal = new CopyOnWriteArraySet<>();

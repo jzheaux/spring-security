@@ -17,6 +17,7 @@
 package org.springframework.security.oauth2.client.oidc.web.authentication.session;
 
 import java.util.Map;
+import java.util.UUID;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -29,7 +30,7 @@ import org.springframework.security.core.session.SessionInformation;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.LogoutTokenClaimAccessor;
-import org.springframework.security.oauth2.client.oidc.authentication.session.OidcProviderSessionRegistry;
+import org.springframework.security.oauth2.client.oidc.authentication.logout.LogoutTokenClaimNames;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.web.authentication.session.SessionAuthenticationException;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
@@ -65,14 +66,20 @@ public final class OidcProviderSessionAuthenticationStrategy implements SessionA
 		if (!(authentication.getPrincipal() instanceof OidcUser user)) {
 			return;
 		}
-		String sessionId = session.getId();
 		CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
-		if (this.logger.isTraceEnabled()) {
-			this.logger.trace(String.format("Linking a provider [%s] session to this client's session", user.getIssuer()));
-		}
 		LogoutTokenClaimAccessor logoutClaims = user::getClaims;
-		Map<String, Object> attributes = Map.of(CsrfToken.class.getName(), extract(csrfToken));
-		SessionInformation info = new SessionInformation(logoutClaims, sessionId, attributes);
+		if (logoutClaims.getSubject() == null) {
+			return;
+		}
+		if (this.logger.isTraceEnabled()) {
+			this.logger.trace(String.format("Linking a provider [%s] session to this client's session", logoutClaims.getIssuer()));
+		}
+		String sessionId = logoutClaims.getSessionId();
+		if (sessionId == null) {
+			sessionId = UUID.randomUUID().toString();
+		}
+		Map<String, Object> attributes = Map.of(CsrfToken.class.getName(), extract(csrfToken), LogoutTokenClaimNames.ISS, logoutClaims.getIssuer().toString());
+		SessionInformation info = new SessionInformation(logoutClaims.getSubject(), sessionId, attributes);
 		this.providerSessionRegistry.registerNewSession(info);
 	}
 

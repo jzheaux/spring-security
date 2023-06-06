@@ -16,13 +16,13 @@
 
 package org.springframework.security.core.session;
 
-import java.util.Iterator;
 import java.util.List;
 
 /**
  * Maintains a registry of <code>SessionInformation</code> instances.
  *
  * @author Ben Alex
+ * @author Josh Cummings
  */
 public interface SessionRegistry {
 
@@ -70,6 +70,17 @@ public interface SessionRegistry {
 	 */
 	void registerNewSession(String sessionId, Object principal);
 
+	/**
+	 * Registers a new {@link SessionInformation}. Will be retrievable by:
+	 * <ul>
+	 * <li>Calling {@link #getSessionInformation(String)} with
+	 * {@link SessionInformation#getSessionId()}</li>
+	 * <li>Calling {@link #getAllSessions(Object, boolean)} with
+	 * {@link SessionInformation#getPrincipal()}</li>
+	 * </ul>
+	 * @param information a new {@link SessionInformation}
+	 * @since 6.1
+	 */
 	default void registerNewSession(SessionInformation information) {
 		registerNewSession(information.getSessionId(), information.getPrincipal());
 	}
@@ -81,13 +92,5 @@ public interface SessionRegistry {
 	 * @param sessionId to delete information for (should never be <code>null</code>)
 	 */
 	void removeSessionInformation(String sessionId);
-
-	default Iterator<SessionInformation> removeSessionInformation(Object principal) {
-		List<SessionInformation> infos = getAllSessions(principal, true);
-		for (SessionInformation info : infos) {
-			removeSessionInformation(info.getSessionId());
-		}
-		return infos.iterator();
-	}
 
 }

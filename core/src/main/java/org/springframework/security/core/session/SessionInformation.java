@@ -92,6 +92,7 @@ public class SessionInformation implements Serializable {
 		return this.expired;
 	}
 
+	@SuppressWarnings("unchecked")
 	public <T> T getAttribute(String name) {
 		return (T) this.attributes.get(name);
 	}
