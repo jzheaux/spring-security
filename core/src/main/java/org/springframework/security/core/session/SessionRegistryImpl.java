@@ -19,6 +19,7 @@ package org.springframework.security.core.session;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,6 +32,7 @@ import org.apache.commons.logging.LogFactory;
 
 import org.springframework.context.ApplicationListener;
 import org.springframework.core.log.LogMessage;
+import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.util.Assert;
 
 /**
@@ -90,6 +92,21 @@ public class SessionRegistryImpl implements SessionRegistry, ApplicationListener
 			}
 		}
 		return list;
+	}
+
+	@Override
+	public Iterator<SessionInformation> findByPrincipalName(String name) {
+		String saved = name(name);
+		for (Object principal : this.principals.keySet()) {
+			if (name(principal).equals(name)) {
+				return getAllSessions(principal, true).iterator();
+			}
+		}
+		return Collections.emptyIterator();
+	}
+
+	private String name(Object principal) {
+		return new TestingAuthenticationToken(principal, null).getName();
 	}
 
 	@Override

@@ -31,7 +31,9 @@ import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.LogoutTokenClaimAccessor;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.LogoutTokenClaimNames;
+import org.springframework.security.oauth2.client.oidc.web.authentication.logout.OidcClientSessionInformation;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
+import org.springframework.security.web.authentication.logout.BackchannelLogoutAuthentication;
 import org.springframework.security.web.authentication.session.SessionAuthenticationException;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.security.web.csrf.CsrfToken;
@@ -74,20 +76,9 @@ public final class OidcProviderSessionAuthenticationStrategy implements SessionA
 		if (this.logger.isTraceEnabled()) {
 			this.logger.trace(String.format("Linking a provider [%s] session to this client's session", logoutClaims.getIssuer()));
 		}
-		String sessionId = logoutClaims.getSessionId();
-		if (sessionId == null) {
-			sessionId = UUID.randomUUID().toString();
-		}
-		Map<String, Object> attributes = Map.of(CsrfToken.class.getName(), extract(csrfToken), LogoutTokenClaimNames.ISS, logoutClaims.getIssuer().toString());
-		SessionInformation info = new SessionInformation(logoutClaims.getSubject(), sessionId, attributes);
+		SessionInformation info = OidcClientSessionInformation.withOidcUser(user).clientSessionId(session.getId())
+				.csrfToken(csrfToken).build();
 		this.providerSessionRegistry.registerNewSession(info);
-	}
-
-	private CsrfToken extract(CsrfToken token) {
-		if (token == null) {
-			return null;
-		}
-		return new DefaultCsrfToken(token.getHeaderName(), token.getParameterName(), token.getToken());
 	}
 
 	/**

@@ -16,6 +16,7 @@
 
 package org.springframework.security.core.session;
 
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -43,6 +44,8 @@ public interface SessionRegistry {
 	 * @return the matching sessions for this principal (should not return null).
 	 */
 	List<SessionInformation> getAllSessions(Object principal, boolean includeExpiredSessions);
+
+	Iterator<SessionInformation> findByPrincipalName(String name);
 
 	/**
 	 * Obtains the session information for the specified <code>sessionId</code>. Even

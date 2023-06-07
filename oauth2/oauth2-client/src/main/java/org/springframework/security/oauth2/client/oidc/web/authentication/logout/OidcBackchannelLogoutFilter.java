@@ -122,13 +122,13 @@ public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 		int sessionCount = 0;
 		int loggedOutCount = 0;
 		List<String> messages = new ArrayList<>();
-		Iterator<SessionInformation> sessions = sessionsToExpire(token);
+		Iterator<OidcClientSessionInformation> sessions = sessionsToExpire(token);
 		if (!sessions.hasNext()) {
 			return;
 		}
 		while (sessions.hasNext()) {
-			SessionInformation session = sessions.next();
-			BackchannelLogoutAuthentication authentication = new BackchannelLogoutAuthentication(session.getSessionId(),
+			OidcClientSessionInformation session = sessions.next();
+			BackchannelLogoutAuthentication authentication = new BackchannelLogoutAuthentication(session.getClientSessionId(),
 					session.getAttribute(CsrfToken.class.getName()));
 			try {
 				if (this.logger.isTraceEnabled()) {
@@ -175,23 +175,26 @@ public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 		return token;
 	}
 
-	private Iterator<SessionInformation> sessionsToExpire(OidcLogoutToken token) {
+	private Iterator<OidcClientSessionInformation> sessionsToExpire(OidcLogoutToken token) {
 		if (token.getSessionId() != null) {
 			SessionInformation info = this.providerSessionRegistry.getSessionInformation(token.getSessionId());
-			if (info == null) {
+			if (!(info instanceof OidcClientSessionInformation clientSessionInfo)) {
 				return Collections.emptyIterator();
 			}
-			if (!token.getIssuer().toExternalForm().equals(info.getAttribute(LogoutTokenClaimNames.ISS))) {
+			if (!token.getIssuer().toExternalForm().equals(clientSessionInfo.getIssuer())) {
 				return Collections.emptyIterator();
 			}
-			return Collections.singleton(info).iterator();
+			return Collections.singleton(clientSessionInfo).iterator();
 		}
 		if (token.getSubject() != null) {
 			List<SessionInformation> infos = this.providerSessionRegistry.getAllSessions(token.getSubject(), true);
-			List<SessionInformation> toExpire = new ArrayList<>();
+			List<OidcClientSessionInformation> toExpire = new ArrayList<>();
 			for (SessionInformation info : infos) {
-				if (token.getIssuer().toExternalForm().equals(info.getAttribute(LogoutTokenClaimNames.ISS))) {
-					toExpire.add(info);
+				if (!(info instanceof OidcClientSessionInformation clientSessionInfo)) {
+					continue;
+				}
+				if (token.getIssuer().toExternalForm().equals(clientSessionInfo.getIssuer())) {
+					toExpire.add(clientSessionInfo);
 				}
 			}
 			return toExpire.iterator();
