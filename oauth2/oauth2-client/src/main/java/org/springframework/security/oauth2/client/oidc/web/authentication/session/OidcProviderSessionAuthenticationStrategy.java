@@ -16,9 +16,6 @@
 
 package org.springframework.security.oauth2.client.oidc.web.authentication.session;
 
-import java.util.Map;
-import java.util.UUID;
-
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -30,14 +27,11 @@ import org.springframework.security.core.session.SessionInformation;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.LogoutTokenClaimAccessor;
-import org.springframework.security.oauth2.client.oidc.authentication.logout.LogoutTokenClaimNames;
 import org.springframework.security.oauth2.client.oidc.web.authentication.logout.OidcClientSessionInformation;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
-import org.springframework.security.web.authentication.logout.BackchannelLogoutAuthentication;
 import org.springframework.security.web.authentication.session.SessionAuthenticationException;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.security.web.csrf.CsrfToken;
-import org.springframework.security.web.csrf.DefaultCsrfToken;
 import org.springframework.util.Assert;
 
 /**

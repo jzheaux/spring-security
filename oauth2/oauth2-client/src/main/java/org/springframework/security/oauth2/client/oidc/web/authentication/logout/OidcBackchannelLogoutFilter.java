@@ -34,7 +34,6 @@ import org.springframework.http.MediaType;
 import org.springframework.security.core.session.SessionInformation;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.core.session.SessionRegistryImpl;
-import org.springframework.security.oauth2.client.oidc.authentication.logout.LogoutTokenClaimNames;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
@@ -128,8 +127,8 @@ public class OidcBackchannelLogoutFilter extends OncePerRequestFilter {
 		}
 		while (sessions.hasNext()) {
 			OidcClientSessionInformation session = sessions.next();
-			BackchannelLogoutAuthentication authentication = new BackchannelLogoutAuthentication(session.getClientSessionId(),
-					session.getAttribute(CsrfToken.class.getName()));
+			BackchannelLogoutAuthentication authentication = new BackchannelLogoutAuthentication(
+					session.getClientSessionId(), session.getAttribute(CsrfToken.class.getName()));
 			try {
 				if (this.logger.isTraceEnabled()) {
 					String message = "Logging out session #%d from result set for issuer [%s]";
