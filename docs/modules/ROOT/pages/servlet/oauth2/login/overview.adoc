@@ -1,0 +1,122 @@
+= OAuth 2.0 Login Overview
+:figures: servlet/oauth2
+:icondir: icons
+
+You can configure your application to log in using the authorization code grant (including PKCE) over OIDC.
+
+[NOTE]
+In the event your provider doesn't support OIDC, Spring Security also supports plain OAuth 2.0 with a custom endpoint.
+
+[[oidc-minimalconfiguration]]
+In an otherwise default Spring Boot application, you can authenticate with OIDC in two steps:
+
+1. First, add the `spring-boot-starter-oauth2-client` dependency as follows:
+.Spring Boot Starter OAuth 2.0 Client Dependency
+====
+.Gradle
+[source,groovy]
+----
+implementation `org.springframework.boot:spring-boot-starter-oauth2-client`
+----
+
+.Maven
+[source,xml]
+----
+<dependency>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-starter-oauth2-client</artifactId>
+</dependency>
+----
+====
++
+This will add the Spring Boot Autoconfiguration support and the related Spring Security componets.
++
+However, they need to be activated, which is done by specifying the needed Client and OIDC Provider information in the next step.
+
+2. Second, specify the Client and OIDC Provider details as follows:
+.Minimal OIDC Configuration
+[source,yaml]
+----
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          op:
+            client-id: ${CLIENT_ID} <1>
+            client-secret: ${CLIENT_SECRET} <2>
+        provider:
+          op:
+            scope: openid <3>
+            issuer-uri: ${ISSUER_URI} <4>
+----
+<1> - The client id identifies your application to the OIDC Provider; the value is usually assigned to you by the provider when you register your client application.
+<2> - The client secret authenticates your application with the OIDC Provider; the value is usually assigned to you by the provider when you register your client application.
+<3> - The scope is the list of scopes your application will request from the OIDC Provider; this should be `openid` at a minimum
+<4> - The issuer URI identifies the OIDC Provider; it is usually available in the OIDC Provider's documentation
++
+The last property, `issuer-uri`, is powerful in that Spring Security will use it to bootstrap the rest of the needed configuration, like the location of the OP's OAuth 2.0 endpoints.
++
+[NOTE]
+To use the `issuer-uri` property, it must also be true that one of `${ISSUER_URI}/.well-known/openid-configuration`, `${ISSUER_URI}/.well-known/openid-configuration/issuer`, or `${ISSUER_URI}/.well-known/oauth-authorization-server/issuer` is a supported endpoint for the authorization server.
+This endpoint is referred to as a https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfig[Provider Configuration] endpoint or a https://tools.ietf.org/html/rfc8414#section-3[Authorization Server Metadata] endpoint.
+If your provider doesn't support that, no problem, you can configure those endpoints manually.
+
+And that's it!
+
+[NOTE]
+If your provider doesn't support OIDC, you can create customize how the user information is obtained and otherwise use Spring Security's OAuth 2.0 support.
+
+=== Startup Expectations
+
+When these properties and this dependency are used, Spring Boot will automatically configure your application as an OIDC Relying Party and OAuth 2.0 Client.
+This will allow you to authenticate over OIDC and access user information as well as other resources protected by the OIDC Provider.
+
+It achieves this through a deterministic startup process:
+
+1. Query the Provider Configuration or Authorization Server Metadata endpoint for the Authorization, Token, JWK Set, and User Info endpoints.
+2. Configure the Spring Security filter chain to:
+  a. Redirect to the Authorization endpoint for unauthenticated requests
+  b. Use the Token endpoint to obtain Access and ID tokens
+  c. Use the User Info endpoint to obtain the user's principal
+3. Configure ID token validation to:
+  a. Use the JWK Set endpoint for public keys
+  b. Require `RS256` signatures and an `iss` value of `${ISSUER_URI}`
+
+A consequence of this process is that the authorization server must be up and received requests in order for OAuth 2.0 Client to successfully start up.
+You can change this by configuring the endpoints directly yourself.
+
+=== Runtime Expectations
+
+Once the application is started up, unauthenticated requests will redirect to your OIDC provider's Authorization Endpoint to start the OIDC Authorization Code Grant handshake.
+
+Once the OIDC provider responds with an authorization code, then your application will verify the request, process the authorization code, and exchange it for an access token and ID token.
+
+Finally, it will query the OIDC provider for any user information and compose that and the access and ID tokens into a principal.
+That resulting `Authentication#getPrincipal`, by default, will be an `OidcUser` instance and `Authentication#getName` will map to the ID Token's `sub` claim.
+The resulting `Authentication#getAuthorities` will be based on any scopes contained in the access token.
+
+Now, consider reading the article section by section or jumping to one of the following use cases:
+
+* I want to understand OIDC Login or OAuth 2.0 Login's architecture
+* I want to configure specific OAuth 2.0 or OIDC Endpoint locations
+* I want to request other scopes
+* I want to have a custom login page
+* I need to override Boot's filter chain configuration
+* I want to authenticate, but not with OIDC
+* I want to customize the Authorization Code Grant, Token, or UserInfo request details
+* I want to configure proxy or other `RestTemplate` settings for the OAuth 2.0 and OIDC endpoints
+* I want to customize granted authorities
+* I want to logout
+
+[[oidc-architecture]]
+== How OIDC Authentication Works
+
+[[oauth2-login-architecture]]
+== How OAuth 2.0 Authentication Works
+
+Many OAuth 2.0 Authentication Providers have a custom way to resolve user information.
+They are not OIDC Providers, but they can perform similar functions.
+
+As such, the architecture is quite similar to the OIDC architecture, with a few changes.
+

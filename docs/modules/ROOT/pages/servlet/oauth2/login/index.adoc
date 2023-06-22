@@ -9,3 +9,6 @@ OAuth 2.0 Login implements two use cases: "`Login with Google`" or "`Login with 
 ====
 OAuth 2.0 Login is implemented by using the *Authorization Code Grant*, as specified in the https://tools.ietf.org/html/rfc6749#section-4.1[OAuth 2.0 Authorization Framework] and https://openid.net/specs/openid-connect-core-1_0.html#CodeFlowAuth[OpenID Connect Core 1.0].
 ====
+
+First-party Login over OIDC
+Social Login 
