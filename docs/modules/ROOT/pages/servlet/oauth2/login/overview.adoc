@@ -67,7 +67,7 @@ And that's it!
 [NOTE]
 If your provider doesn't support OIDC, you can create customize how the user information is obtained and otherwise use Spring Security's OAuth 2.0 support.
 
-=== Startup Expectations
+== Startup Expectations
 
 When these properties and this dependency are used, Spring Boot will automatically configure your application as an OIDC Relying Party and OAuth 2.0 Client.
 This will allow you to authenticate over OIDC and access user information as well as other resources protected by the OIDC Provider.
@@ -86,7 +86,7 @@ It achieves this through a deterministic startup process:
 A consequence of this process is that the authorization server must be up and received requests in order for OAuth 2.0 Client to successfully start up.
 You can change this by configuring the endpoints directly yourself.
 
-=== Runtime Expectations
+== Runtime Expectations
 
 Once the application is started up, unauthenticated requests will redirect to your OIDC provider's Authorization Endpoint to start the OIDC Authorization Code Grant handshake.
 
@@ -100,6 +100,7 @@ Now, consider reading the article section by section or jumping to one of the fo
 
 * I want to understand OIDC Login or OAuth 2.0 Login's architecture
 * I want to configure specific OAuth 2.0 or OIDC Endpoint locations
+* I want to use a different client authentication method
 * I want to request other scopes
 * I want to have a custom login page
 * I need to override Boot's filter chain configuration
@@ -112,6 +113,11 @@ Now, consider reading the article section by section or jumping to one of the fo
 [[oidc-architecture]]
 == How OIDC Authentication Works
 
+=== URI Endpoints
+
+=== ClientRegistrationRepository
+
+
 [[oauth2-login-architecture]]
 == How OAuth 2.0 Authentication Works
 
@@ -120,3 +126,95 @@ They are not OIDC Providers, but they can perform similar functions.
 
 As such, the architecture is quite similar to the OIDC architecture, with a few changes.
 
+== Specifying OIDC or OAuth 2.0 Endpoints
+
+As seen in the minimal configuration, you specify one endpoint, the `issuer-uri` and Spring Security can infer the rest.
+
+There are a number of reasons why you might want to specify these other endpoints directly though.
+Among those reasons are the following:
+
+* You don't want to ping the authorization server during startup
+* Your server doesn't have a standard Provider Configuration endpoint (so the `issuer-uri` autoconfiguration doesn't work)
+* You need to customize OAuth 2.0 Client endpoints
+
+
+== Specifying a Client Authentication Method
+
+By default, Spring Security will authentication clients using HTTP Basic.
+This means, for example, that when the application is exchanging its authorization code for an access token, it will send its client id and secret using the HTTP Basic authentication method.
+
+Let's look at each possibility, one at a time.
+
+=== Using `client_secret_basic`
+
+Since this is the default, you usually will not need to do anything.
+
+[NOTE]
+The value for this recently changed.
+If you are using `client-authentication-method: basic`, this will not work any longer.
+Please ensure that you are using the new value `client_secret_basic` instead, as demonstrated above.
+
+=== Using `client_secret_post`
+
+Some providers need you to pass the client ID and secret as form parameters.
+
+In that case, you can set the client authentication method in the following way:
+
+[NOTE]
+The value for this recently changed.
+If you are using `client-authentication-method: post`, this will not work any longer.
+Please ensure that you are using the new value `client_secret_post` instead, as demonstrated above.
+
+=== Using `client_secret_jwt`
+
+Another way that the OIDC spec allows is for the OAuth 2.0 client to specify a JWT.
+This is nice because the client secret isn't repeatedly passed to the authorization server.
+
+The idea is to form a JWT and sign it with a key generated from the client secret.
+
+To use this authentication method requires two steps:
+
+1. First, specify this as your client authentication method
+2. Second, configure the `OAuth2AuthorizedClientManager` instance
+
+=== Using `private_key_jwt`
+
+Lastly the OIDC spec allows is for this JWT to be signed asymmetrically with a private key.
+This is more powerful than `client_secret_jwt` since it offers non-repudiation on top of message integrity.
+
+The idea is to form a JWT and sign it with a private key that your application owns.
+
+To use this authentication method requires two steps:
+
+1. First, specify this as your client authentication method
+2. Second, configure the `OAuth2AuthorizedClientManager` instance
+
+== Specifying Scopes
+
+== Replacing Spring Boot Autoconfiguration
+
+=== Replacing the ClientRegistrationRepository
+
+=== Replacing the SecurityFilterChain
+
+== Adding a Login Page
+
+== Logging with OAuth 2.0, but not OIDC
+
+== Customizing OIDC or OAuth 2.0 Endpoint Requests
+
+=== Configuring all OIDC and OAuth 2.0 RestTemplate Configurations
+
+== Granting Custom Authorities
+
+== Logging Out
+
+Getting logged out requires that you make a decision regarding the relationship between your application's session and the OP's session.
+
+If a user logging out of your application does not mean that they should be logged out of the OP as well, then you'll want to use Spring Security's general logout support.
+
+If you are wanting a coordinated logout with the OP, use Spring Security's OIDC logout support.
+
+== Next Steps
+
+Having added authentication, you should now consider adding request-based or method-based authorization. Or, you can add more authentication mechanisms if needed.
