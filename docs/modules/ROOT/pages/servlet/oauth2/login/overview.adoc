@@ -179,7 +179,7 @@ To use this authentication method requires two steps:
 
 === Using `private_key_jwt`
 
-Lastly the OIDC spec allows is for this JWT to be signed asymmetrically with a private key.
+Lastly the OIDC spec allows this JWT to be signed asymmetrically with a private key instead of symmetrically with the client secret.
 This is more powerful than `client_secret_jwt` since it offers non-repudiation on top of message integrity.
 
 The idea is to form a JWT and sign it with a private key that your application owns.
