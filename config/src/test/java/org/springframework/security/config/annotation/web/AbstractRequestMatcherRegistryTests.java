@@ -61,7 +61,8 @@ public class AbstractRequestMatcherRegistryTests {
 	private WebApplicationContext context;
 
 	@BeforeEach
-	public void setUp() {
+	public void setUp() throws Exception {
+		mockMvcPresentClasspath(true);
 		this.matcherRegistry = new TestRequestMatcherRegistry();
 		this.context = mock(WebApplicationContext.class);
 		given(this.context.getBean(ObjectPostProcessor.class)).willReturn(NO_OP_OBJECT_POST_PROCESSOR);
@@ -174,10 +175,50 @@ public class AbstractRequestMatcherRegistryTests {
 	public void requestMatchersWhenAmbiguousServletsThenException() {
 		MockServletContext servletContext = new MockServletContext();
 		given(this.context.getServletContext()).willReturn(servletContext);
-		servletContext.addServlet("dispatcherServlet", DispatcherServlet.class);
-		servletContext.addServlet("servletTwo", Servlet.class);
+		servletContext.addServlet("servletTwo", Servlet.class).addMapping("/servlet-two");
+		servletContext.addServlet("dispatcherServlet", DispatcherServlet.class).addMapping("/");
 		assertThatExceptionOfType(IllegalArgumentException.class)
 				.isThrownBy(() -> this.matcherRegistry.requestMatchers("/**"));
+	}
+
+	@Test
+	public void requestMatchersWhenTwoDispatcherServletsThenException() {
+		MockServletContext servletContext = new MockServletContext();
+		given(this.context.getServletContext()).willReturn(servletContext);
+		servletContext.addServlet("mvc", DispatcherServlet.class).addMapping("/mvc");
+		servletContext.addServlet("dispatcherServlet", DispatcherServlet.class).addMapping("/");
+		assertThatExceptionOfType(IllegalArgumentException.class)
+				.isThrownBy(() -> this.matcherRegistry.requestMatchers("/**"));
+	}
+
+	@Test
+	public void requestMatchersWhenNonDefaultDispatcherServletThenException() {
+		MockServletContext servletContext = new MockServletContext();
+		given(this.context.getServletContext()).willReturn(servletContext);
+		servletContext.addServlet("dispatcherServlet", DispatcherServlet.class).addMapping("/mvc");
+		assertThatExceptionOfType(IllegalArgumentException.class)
+				.isThrownBy(() -> this.matcherRegistry.requestMatchers("/**"));
+	}
+
+	@Test
+	public void requestMatchersWhenImplicitServletsThenAllows() {
+		mockMvcIntrospector(true);
+		MockServletContext servletContext = new MockServletContext();
+		given(this.context.getServletContext()).willReturn(servletContext);
+		servletContext.addServlet("defaultServlet", Servlet.class);
+		servletContext.addServlet("jspServlet", Servlet.class).addMapping("*.jsp", "*.jspx");
+		servletContext.addServlet("dispatcherServlet", DispatcherServlet.class).addMapping("/");
+		this.matcherRegistry.requestMatchers("/**");
+	}
+
+	@Test
+	public void requestMatchersWhenConflictingServletsThenAllows() {
+		mockMvcIntrospector(true);
+		MockServletContext servletContext = new MockServletContext();
+		given(this.context.getServletContext()).willReturn(servletContext);
+		servletContext.addServlet("defaultServlet", Servlet.class).addMapping("/");
+		servletContext.addServlet("dispatcherServlet", DispatcherServlet.class).addMapping("/");
+		this.matcherRegistry.requestMatchers("/**");
 	}
 
 	private void mockMvcIntrospector(boolean isPresent) {
