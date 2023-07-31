@@ -19,7 +19,6 @@ package org.springframework.security.config.annotation.web;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -200,33 +199,18 @@ public abstract class AbstractRequestMatcherRegistry<C> {
 		if (registrations == null) {
 			return requestMatchers(RequestMatchers.antMatchersAsArray(method, patterns));
 		}
-		List<ServletRegistration> dispatcherServlets = dispatcherServlet(registrations);
+		List<ServletRegistration> dispatcherServlets = dispatcherServlets(registrations);
 		if (dispatcherServlets.isEmpty()) {
 			return requestMatchers(RequestMatchers.antMatchersAsArray(method, patterns));
 		}
-		if (dispatcherServlets.size() > 1) {
+		if (hasNonRootPathBasedServletMappings(registrations.values())) {
 			throw new IllegalArgumentException(
-					"This method cannot decide whether these patterns are Spring MVC patterns or not. If this endpoint is a Spring MVC endpoint, please use requestMatchers(MvcRequestMatcher); otherwise, please use requestMatchers(AntPathRequestMatcher).");
-		}
-		ServletRegistration dispatcherServlet = dispatcherServlets.iterator().next();
-		if (!dispatcherServlet.getMappings().contains("/") && !dispatcherServlet.getMappings().contains("/*")) {
-			throw new IllegalArgumentException(
-					"This method cannot decide whether these patterns are Spring MVC patterns or not. If this endpoint is a Spring MVC endpoint, please use requestMatchers(MvcRequestMatcher); otherwise, please use requestMatchers(AntPathRequestMatcher).");
-		}
-		if (registrations.size() == 1) {
-			return requestMatchers(createMvcMatchers(method, patterns).toArray(new RequestMatcher[0]));
-		}
-		if (hasPathBasedServletMappings(dispatcherServlet, registrations.values())) {
-			throw new IllegalArgumentException(
-					"This method cannot decide whether these patterns are Spring MVC patterns or not. If this endpoint is a Spring MVC endpoint, please use requestMatchers(MvcRequestMatcher); otherwise, please use requestMatchers(AntPathRequestMatcher).");
+					"Due to there being non-root servlets in the servlet mapping: This method cannot decide whether these patterns are Spring MVC patterns or not. If this endpoint is a Spring MVC endpoint, please use requestMatchers(MvcRequestMatcher); otherwise, please use requestMatchers(AntPathRequestMatcher). Using MvcRequestMatcher will allow you to specify any non-root servlet path.");
 		}
 		return requestMatchers(createMvcMatchers(method, patterns).toArray(new RequestMatcher[0]));
 	}
 
-	private List<ServletRegistration> dispatcherServlet(Map<String, ? extends ServletRegistration> map) {
-		if (map == null) {
-			return Collections.emptyList();
-		}
+	private List<ServletRegistration> dispatcherServlets(Map<String, ? extends ServletRegistration> map) {
 		List<ServletRegistration> registrations = new ArrayList<>();
 		Class<?> dispatcherServlet = ClassUtils.resolveClassName("org.springframework.web.servlet.DispatcherServlet",
 				null);
@@ -244,22 +228,14 @@ public abstract class AbstractRequestMatcherRegistry<C> {
 		return registrations;
 	}
 
-	private boolean hasPathBasedServletMappings(ServletRegistration dispatcherServlet,
-			Collection<? extends ServletRegistration> registrations) {
+	private boolean hasNonRootPathBasedServletMappings(Collection<? extends ServletRegistration> registrations) {
 		for (ServletRegistration registration : registrations) {
-			if (registration.equals(dispatcherServlet)) {
-				continue;
-			}
 			Collection<String> mappings = registration.getMappings();
 			if (mappings.isEmpty()) {
 				continue;
 			}
-			if (mappings.contains("/") || mappings.contains("/*")) {
-				// servlet path will be the same as DispatcherServlet in this case
-				continue;
-			}
 			for (String mapping : registration.getMappings()) {
-				if (mapping.startsWith("/")) {
+				if (!"/".equals(mapping) && mapping.startsWith("/")) {
 					return true;
 				}
 			}

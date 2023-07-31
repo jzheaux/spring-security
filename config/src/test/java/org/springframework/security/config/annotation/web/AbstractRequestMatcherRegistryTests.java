@@ -62,7 +62,6 @@ public class AbstractRequestMatcherRegistryTests {
 
 	@BeforeEach
 	public void setUp() throws Exception {
-		mockMvcPresentClasspath(true);
 		this.matcherRegistry = new TestRequestMatcherRegistry();
 		this.context = mock(WebApplicationContext.class);
 		given(this.context.getBean(ObjectPostProcessor.class)).willReturn(NO_OP_OBJECT_POST_PROCESSOR);
@@ -181,6 +180,7 @@ public class AbstractRequestMatcherRegistryTests {
 				.isThrownBy(() -> this.matcherRegistry.requestMatchers("/**"));
 	}
 
+	// gh-13568
 	@Test
 	public void requestMatchersWhenTwoDispatcherServletsThenException() {
 		MockServletContext servletContext = new MockServletContext();
@@ -191,6 +191,7 @@ public class AbstractRequestMatcherRegistryTests {
 				.isThrownBy(() -> this.matcherRegistry.requestMatchers("/**"));
 	}
 
+	// gh-13568
 	@Test
 	public void requestMatchersWhenNonDefaultDispatcherServletThenException() {
 		MockServletContext servletContext = new MockServletContext();
@@ -200,6 +201,7 @@ public class AbstractRequestMatcherRegistryTests {
 				.isThrownBy(() -> this.matcherRegistry.requestMatchers("/**"));
 	}
 
+	// gh-13568
 	@Test
 	public void requestMatchersWhenImplicitServletsThenAllows() {
 		mockMvcIntrospector(true);
@@ -208,17 +210,26 @@ public class AbstractRequestMatcherRegistryTests {
 		servletContext.addServlet("defaultServlet", Servlet.class);
 		servletContext.addServlet("jspServlet", Servlet.class).addMapping("*.jsp", "*.jspx");
 		servletContext.addServlet("dispatcherServlet", DispatcherServlet.class).addMapping("/");
-		this.matcherRegistry.requestMatchers("/**");
+		List<RequestMatcher> requestMatchers = this.matcherRegistry.requestMatchers("/**");
+		assertThat(requestMatchers).hasSize(1);
+		assertThat(requestMatchers.get(0)).isInstanceOf(MvcRequestMatcher.class);
 	}
 
+	// gh-13568
+	// Some servlet containers allow for multiple root servlets,
+	// including in their default configuration.
+	// While unexpected, such will not affect our purpose of
+	// matching a request to the correct authorization rule.
 	@Test
-	public void requestMatchersWhenConflictingServletsThenAllows() {
+	public void requestMatchersWhenMultipleRootServletsThenAllows() {
 		mockMvcIntrospector(true);
 		MockServletContext servletContext = new MockServletContext();
 		given(this.context.getServletContext()).willReturn(servletContext);
 		servletContext.addServlet("defaultServlet", Servlet.class).addMapping("/");
 		servletContext.addServlet("dispatcherServlet", DispatcherServlet.class).addMapping("/");
-		this.matcherRegistry.requestMatchers("/**");
+		List<RequestMatcher> requestMatchers = this.matcherRegistry.requestMatchers("/**");
+		assertThat(requestMatchers).hasSize(1);
+		assertThat(requestMatchers.get(0)).isInstanceOf(MvcRequestMatcher.class);
 	}
 
 	private void mockMvcIntrospector(boolean isPresent) {
