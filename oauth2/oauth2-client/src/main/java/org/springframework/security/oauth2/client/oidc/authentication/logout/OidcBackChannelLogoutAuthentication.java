@@ -19,6 +19,7 @@ package org.springframework.security.oauth2.client.oidc.authentication.logout;
 import java.util.Collections;
 
 import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.oauth2.client.oidc.session.OidcSessionInformation;
 
 /**
  * An {@link org.springframework.security.core.Authentication} implementation that
@@ -36,13 +37,17 @@ public class OidcBackChannelLogoutAuthentication extends AbstractAuthenticationT
 
 	private final OidcLogoutToken logoutToken;
 
+	private final Iterable<OidcSessionInformation> invalidated;
+
 	/**
 	 * Construct an {@link OidcBackChannelLogoutAuthentication}
 	 * @param logoutToken a deserialized, verified OIDC Logout Token
 	 */
-	public OidcBackChannelLogoutAuthentication(OidcLogoutToken logoutToken) {
+	public OidcBackChannelLogoutAuthentication(OidcLogoutToken logoutToken,
+			Iterable<OidcSessionInformation> invalidated) {
 		super(Collections.emptyList());
 		this.logoutToken = logoutToken;
+		this.invalidated = invalidated;
 		setAuthenticated(true);
 	}
 

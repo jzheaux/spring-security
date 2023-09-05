@@ -26,11 +26,9 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcBackChannelLogoutAuthenticationProvider;
 import org.springframework.security.oauth2.client.oidc.web.OidcBackChannelLogoutFilter;
-import org.springframework.security.oauth2.client.oidc.web.logout.OidcBackChannelLogoutHandler;
 import org.springframework.security.oauth2.client.oidc.web.logout.OidcLogoutAuthenticationConverter;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.web.authentication.AuthenticationConverter;
-import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.util.Assert;
 
@@ -100,10 +98,7 @@ public final class OidcLogoutConfigurer<B extends HttpSecurityBuilder<B>>
 
 		private AuthenticationConverter authenticationConverter;
 
-		private AuthenticationManager authenticationManager = new ProviderManager(
-				new OidcBackChannelLogoutAuthenticationProvider());
-
-		private LogoutHandler logoutHandler;
+		private AuthenticationManager authenticationManager;
 
 		/**
 		 * Use this {@link AuthenticationConverter} to extract the Logout Token from the
@@ -128,17 +123,6 @@ public final class OidcLogoutConfigurer<B extends HttpSecurityBuilder<B>>
 			return this;
 		}
 
-		/**
-		 * Use this {@link LogoutHandler} for invalidating each session identified by the
-		 * OIDC Back-Channel Logout Token
-		 * @return the {@link BackChannelLogoutConfigurer} for further configuration
-		 */
-		public BackChannelLogoutConfigurer logoutHandler(LogoutHandler logoutHandler) {
-			Assert.notNull(logoutHandler, "logoutHandler cannot be null");
-			this.logoutHandler = logoutHandler;
-			return this;
-		}
-
 		private AuthenticationConverter authenticationConverter(B http) {
 			if (this.authenticationConverter == null) {
 				ClientRegistrationRepository clientRegistrationRepository = OAuth2ClientConfigurerUtils
@@ -148,23 +132,18 @@ public final class OidcLogoutConfigurer<B extends HttpSecurityBuilder<B>>
 			return this.authenticationConverter;
 		}
 
-		private AuthenticationManager authenticationManager() {
-			return this.authenticationManager;
-		}
-
-		private LogoutHandler logoutHandler(B http) {
-			if (this.logoutHandler == null) {
-				OidcBackChannelLogoutHandler logoutHandler = new OidcBackChannelLogoutHandler();
-				logoutHandler.setSessionRegistry(OAuth2ClientConfigurerUtils.getOidcSessionRegistry(http));
-				this.logoutHandler = logoutHandler;
+		private AuthenticationManager authenticationManager(B http) {
+			if (this.authenticationManager == null) {
+				OidcBackChannelLogoutAuthenticationProvider authenticationProvider = new OidcBackChannelLogoutAuthenticationProvider();
+				authenticationProvider.setSessionRegistry(OAuth2ClientConfigurerUtils.getOidcSessionRegistry(http));
+				this.authenticationManager = new ProviderManager(authenticationProvider);
 			}
-			return this.logoutHandler;
+			return this.authenticationManager;
 		}
 
 		void configure(B http) {
 			OidcBackChannelLogoutFilter filter = new OidcBackChannelLogoutFilter(authenticationConverter(http),
-					authenticationManager());
-			filter.setLogoutHandler(logoutHandler(http));
+					authenticationManager(http));
 			http.addFilterBefore(filter, CsrfFilter.class);
 		}
 

@@ -52,7 +52,8 @@ import org.springframework.core.annotation.Order;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.mock.web.MockServletContext;
-import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -62,14 +63,13 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.LogoutTokenClaimNames;
-import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcBackChannelLogoutAuthentication;
+import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcBackChannelLogoutAuthenticationProvider;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutAuthenticationToken;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.TestOidcLogoutTokens;
 import org.springframework.security.oauth2.client.oidc.session.OidcSessionInformation;
 import org.springframework.security.oauth2.client.oidc.session.OidcSessionRegistry;
 import org.springframework.security.oauth2.client.oidc.session.TestOidcSessionInformations;
-import org.springframework.security.oauth2.client.oidc.web.logout.OidcBackChannelLogoutHandler;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
@@ -78,13 +78,15 @@ import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.TestOidcIdTokens;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtDecoderFactory;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.jwt.TestJwts;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationConverter;
-import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
@@ -175,19 +177,21 @@ public class OidcLogoutConfigurerTests {
 		String registrationId = this.clientRegistration.getRegistrationId();
 		AuthenticationConverter authenticationConverter = this.spring.getContext()
 				.getBean(AuthenticationConverter.class);
-		given(authenticationConverter.convert(any()))
-				.willReturn(new OidcLogoutAuthenticationToken("token", this.clientRegistration));
-		AuthenticationManager authenticationManager = this.spring.getContext().getBean(AuthenticationManager.class);
+		given(authenticationConverter.convert(any())).willReturn(new OidcLogoutAuthenticationToken("token",
+				this.clientRegistration, "http://localhost/logout/connect/back-channel/" + registrationId));
 		OidcLogoutToken logoutToken = TestOidcLogoutTokens.withSessionId("issuer", "provider").build();
-		given(authenticationManager.authenticate(any()))
-				.willReturn(new OidcBackChannelLogoutAuthentication(logoutToken));
-		OidcSessionRegistry sessionRegistry = this.spring.getContext().getBean(OidcSessionRegistry.class);
+		JwtDecoderFactory<ClientRegistration> decoderFactory = this.spring.getContext()
+				.getBean(JwtDecoderFactory.class);
+		JwtDecoder decoder = mock(JwtDecoder.class);
+		given(decoder.decode(any()))
+				.willReturn(TestJwts.jwt().claims((claims) -> claims.putAll(logoutToken.getClaims())).build());
+		given(decoderFactory.createDecoder(any())).willReturn(decoder);
 		Set<OidcSessionInformation> details = Set.of(TestOidcSessionInformations.create());
-		given(sessionRegistry.removeSessionInformation(logoutToken)).willReturn(details);
+		OidcSessionRegistry sessionRegistry = this.spring.getContext().getBean(OidcSessionRegistry.class);
+		given(sessionRegistry.removeSessionInformation(any(OidcLogoutToken.class))).willReturn(details);
 		this.mvc.perform(post("/logout/connect/back-channel/" + registrationId).param("logout_token", "token"))
 				.andExpect(status().isOk());
-		verify(authenticationManager).authenticate(any());
-		verify(this.spring.getContext().getBean(LogoutHandler.class)).logout(any(), any(), any());
+		verify(decoder).decode(any());
 		verify(sessionRegistry).removeSessionInformation(logoutToken);
 	}
 
@@ -241,24 +245,25 @@ public class OidcLogoutConfigurerTests {
 
 		AuthenticationConverter authenticationConverter = mock(AuthenticationConverter.class);
 
-		AuthenticationManager authenticationManager = mock(AuthenticationManager.class);
+		OidcBackChannelLogoutAuthenticationProvider authenticationProvider = spy(
+				new OidcBackChannelLogoutAuthenticationProvider());
+
+		JwtDecoderFactory<ClientRegistration> decoderFactory = mock(JwtDecoderFactory.class);
 
 		OidcSessionRegistry sessionRegistry = mock(OidcSessionRegistry.class);
-
-		OidcBackChannelLogoutHandler logoutHandler = spy(new OidcBackChannelLogoutHandler());
 
 		@Bean
 		@Order(1)
 		SecurityFilterChain filters(HttpSecurity http) throws Exception {
-			this.logoutHandler.setSessionRegistry(this.sessionRegistry);
+			this.authenticationProvider.setSessionRegistry(this.sessionRegistry);
+			this.authenticationProvider.setLogoutTokenDecoderFactory(this.decoderFactory);
 			// @formatter:off
 			http
 				.authorizeHttpRequests((authorize) -> authorize.anyRequest().authenticated())
 				.oauth2Login((oauth2) -> oauth2.oidcSessionRegistry(this.sessionRegistry))
 				.oidcLogout((oidc) -> oidc.backChannel((logout) -> logout
 					.authenticationConverter(this.authenticationConverter)
-					.authenticationManager(this.authenticationManager)
-					.logoutHandler(this.logoutHandler)
+					.authenticationManager(new ProviderManager(this.authenticationProvider))
 				));
 			// @formatter:on
 
@@ -271,8 +276,8 @@ public class OidcLogoutConfigurerTests {
 		}
 
 		@Bean
-		AuthenticationManager authenticationManager() {
-			return this.authenticationManager;
+		AuthenticationProvider authenticationProvider() {
+			return this.authenticationProvider;
 		}
 
 		@Bean
@@ -281,8 +286,8 @@ public class OidcLogoutConfigurerTests {
 		}
 
 		@Bean
-		LogoutHandler logoutHandler() {
-			return this.logoutHandler;
+		JwtDecoderFactory<ClientRegistration> jwtDecoderFactory() {
+			return this.decoderFactory;
 		}
 
 	}

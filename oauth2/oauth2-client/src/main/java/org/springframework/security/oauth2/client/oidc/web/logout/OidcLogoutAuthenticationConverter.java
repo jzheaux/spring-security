@@ -70,7 +70,7 @@ public final class OidcLogoutAuthenticationConverter implements AuthenticationCo
 			this.logger.debug("Failed to process OIDC Back-Channel Logout since no logout token was found");
 			throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_REQUEST);
 		}
-		return new OidcLogoutAuthenticationToken(logoutToken, clientRegistration);
+		return new OidcLogoutAuthenticationToken(logoutToken, clientRegistration, request.getRequestURL().toString());
 	}
 
 	/**

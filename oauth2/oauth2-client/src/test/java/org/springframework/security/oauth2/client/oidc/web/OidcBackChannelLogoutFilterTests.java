@@ -16,27 +16,19 @@
 
 package org.springframework.security.oauth2.client.oidc.web;
 
-import java.util.Set;
-
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcBackChannelLogoutAuthentication;
-import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
-import org.springframework.security.oauth2.client.oidc.authentication.logout.TestOidcLogoutTokens;
-import org.springframework.security.oauth2.client.oidc.session.OidcSessionInformation;
-import org.springframework.security.oauth2.client.oidc.session.OidcSessionRegistry;
-import org.springframework.security.oauth2.client.oidc.session.TestOidcSessionInformations;
-import org.springframework.security.oauth2.client.oidc.web.logout.OidcBackChannelLogoutHandler;
+import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutAuthenticationToken;
 import org.springframework.security.oauth2.client.oidc.web.logout.OidcLogoutAuthenticationConverter;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.TestClientRegistrations;
-import org.springframework.security.web.authentication.logout.LogoutHandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -101,17 +93,8 @@ public class OidcBackChannelLogoutFilterTests {
 		ClientRegistrationRepository clientRegistrationRepository = mock(ClientRegistrationRepository.class);
 		given(clientRegistrationRepository.findByRegistrationId(any())).willReturn(clientRegistration);
 		AuthenticationManager authenticationManager = mock(AuthenticationManager.class);
-		OidcLogoutToken token = TestOidcLogoutTokens.withSessionId("issuer", "provider").build();
-		Iterable<OidcSessionInformation> infos = Set.of(TestOidcSessionInformations.create("clientOne"),
-				TestOidcSessionInformations.create("clientTwo"));
-		given(authenticationManager.authenticate(any())).willReturn(new OidcBackChannelLogoutAuthentication(token));
-		OidcBackChannelLogoutHandler backChannelLogoutHandler = new OidcBackChannelLogoutHandler();
-		OidcSessionRegistry sessionRegistry = mock(OidcSessionRegistry.class);
-		given(sessionRegistry.removeSessionInformation(any(OidcLogoutToken.class))).willReturn(infos);
-		backChannelLogoutHandler.setSessionRegistry(sessionRegistry);
 		OidcBackChannelLogoutFilter filter = new OidcBackChannelLogoutFilter(
 				new OidcLogoutAuthenticationConverter(clientRegistrationRepository), authenticationManager);
-		filter.setLogoutHandler(backChannelLogoutHandler);
 		MockHttpServletRequest request = new MockHttpServletRequest("POST",
 				"/oauth2/" + clientRegistration.getRegistrationId() + "/logout");
 		request.setServletPath("/logout/connect/back-channel/id");
@@ -119,7 +102,10 @@ public class OidcBackChannelLogoutFilterTests {
 		MockHttpServletResponse response = new MockHttpServletResponse();
 		FilterChain chain = mock(FilterChain.class);
 		filter.doFilter(request, response, chain);
-		verify(sessionRegistry).removeSessionInformation(token);
+		ArgumentCaptor<OidcLogoutAuthenticationToken> authentication = ArgumentCaptor
+				.forClass(OidcLogoutAuthenticationToken.class);
+		verify(authenticationManager).authenticate(authentication.capture());
+		assertThat(authentication.getValue().getLogoutToken()).isEqualTo("logout_token");
 		verifyNoInteractions(chain);
 		assertThat(response.getStatus()).isEqualTo(200);
 	}
@@ -131,10 +117,8 @@ public class OidcBackChannelLogoutFilterTests {
 		given(clientRegistrationRepository.findByRegistrationId(any())).willReturn(clientRegistration);
 		AuthenticationManager authenticationManager = mock(AuthenticationManager.class);
 		given(authenticationManager.authenticate(any())).willThrow(new BadCredentialsException("bad"));
-		LogoutHandler logoutHandler = mock(LogoutHandler.class);
 		OidcBackChannelLogoutFilter backChannelLogoutFilter = new OidcBackChannelLogoutFilter(
 				new OidcLogoutAuthenticationConverter(clientRegistrationRepository), authenticationManager);
-		backChannelLogoutFilter.setLogoutHandler(logoutHandler);
 		MockHttpServletRequest request = new MockHttpServletRequest("POST",
 				"/oauth2/" + clientRegistration.getRegistrationId() + "/logout");
 		request.setServletPath("/logout/connect/back-channel/id");
@@ -142,7 +126,7 @@ public class OidcBackChannelLogoutFilterTests {
 		MockHttpServletResponse response = new MockHttpServletResponse();
 		FilterChain chain = mock(FilterChain.class);
 		backChannelLogoutFilter.doFilter(request, response, chain);
-		verifyNoInteractions(logoutHandler, chain);
+		verifyNoInteractions(chain);
 		assertThat(response.getStatus()).isEqualTo(400);
 		assertThat(response.getContentAsString()).contains("bad");
 	}

@@ -30,13 +30,11 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.oauth2.client.oidc.web.logout.OidcBackChannelLogoutHandler;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.core.http.converter.OAuth2ErrorHttpMessageConverter;
 import org.springframework.security.web.authentication.AuthenticationConverter;
-import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.util.Assert;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -58,8 +56,6 @@ public class OidcBackChannelLogoutFilter extends OncePerRequestFilter {
 	private final AuthenticationManager authenticationManager;
 
 	private final OAuth2ErrorHttpMessageConverter errorHttpMessageConverter = new OAuth2ErrorHttpMessageConverter();
-
-	private LogoutHandler logoutHandler = new OidcBackChannelLogoutHandler();
 
 	/**
 	 * Construct an {@link OidcBackChannelLogoutFilter}
@@ -98,9 +94,8 @@ public class OidcBackChannelLogoutFilter extends OncePerRequestFilter {
 			chain.doFilter(request, response);
 			return;
 		}
-		Authentication authentication;
 		try {
-			authentication = this.authenticationManager.authenticate(token);
+			this.authenticationManager.authenticate(token);
 		}
 		catch (AuthenticationServiceException ex) {
 			this.logger.debug("Failed to process OIDC Back-Channel Logout", ex);
@@ -108,9 +103,7 @@ public class OidcBackChannelLogoutFilter extends OncePerRequestFilter {
 		}
 		catch (AuthenticationException ex) {
 			handleAuthenticationFailure(response, ex);
-			return;
 		}
-		this.logoutHandler.logout(request, response, authentication);
 	}
 
 	private void handleAuthenticationFailure(HttpServletResponse response, AuthenticationException ex)
@@ -126,16 +119,6 @@ public class OidcBackChannelLogoutFilter extends OncePerRequestFilter {
 		}
 		return new OAuth2Error(OAuth2ErrorCodes.INVALID_REQUEST, ex.getMessage(),
 				"https://openid.net/specs/openid-connect-backchannel-1_0.html#Validation");
-	}
-
-	/**
-	 * The strategy for expiring all Client sessions indicated by the logout request.
-	 * Defaults to {@link OidcBackChannelLogoutHandler}.
-	 * @param logoutHandler the {@link LogoutHandler} to use
-	 */
-	public void setLogoutHandler(LogoutHandler logoutHandler) {
-		Assert.notNull(logoutHandler, "logoutHandler cannot be null");
-		this.logoutHandler = logoutHandler;
 	}
 
 }

@@ -33,16 +33,19 @@ public class OidcLogoutAuthenticationToken extends AbstractAuthenticationToken {
 
 	private final ClientRegistration clientRegistration;
 
+	private final String baseUrl;
+
 	/**
 	 * Construct an {@link OidcLogoutAuthenticationToken}
 	 * @param logoutToken a signed, serialized OIDC Logout token
 	 * @param clientRegistration the {@link ClientRegistration client} associated with
 	 * this token; this is usually derived from material in the logout HTTP request
 	 */
-	public OidcLogoutAuthenticationToken(String logoutToken, ClientRegistration clientRegistration) {
+	public OidcLogoutAuthenticationToken(String logoutToken, ClientRegistration clientRegistration, String baseUrl) {
 		super(AuthorityUtils.NO_AUTHORITIES);
 		this.logoutToken = logoutToken;
 		this.clientRegistration = clientRegistration;
+		this.baseUrl = baseUrl;
 	}
 
 	/**
@@ -75,6 +78,10 @@ public class OidcLogoutAuthenticationToken extends AbstractAuthenticationToken {
 	 */
 	public ClientRegistration getClientRegistration() {
 		return this.clientRegistration;
+	}
+
+	public String getBaseUrl() {
+		return this.baseUrl;
 	}
 
 }
