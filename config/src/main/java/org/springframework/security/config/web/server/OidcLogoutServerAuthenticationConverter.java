@@ -16,19 +16,21 @@
 
 package org.springframework.security.config.web.server;
 
-import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import reactor.core.publisher.Mono;
 
+import org.springframework.http.HttpMethod;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.client.registration.ClientRegistration;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.web.authentication.AuthenticationConverter;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
-import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.security.web.server.authentication.ServerAuthenticationConverter;
+import org.springframework.security.web.server.util.matcher.PathPatternParserServerWebExchangeMatcher;
+import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatcher;
 import org.springframework.util.Assert;
+import org.springframework.web.server.ServerWebExchange;
 
 /**
  * An {@link AuthenticationConverter} that extracts the OIDC Logout Token authentication
@@ -37,49 +39,50 @@ import org.springframework.util.Assert;
  * @author Josh Cummings
  * @since 6.2
  */
-final class OidcLogoutAuthenticationConverter implements AuthenticationConverter {
+final class OidcLogoutServerAuthenticationConverter implements ServerAuthenticationConverter {
 
 	private static final String DEFAULT_LOGOUT_URI = "/logout/connect/back-channel/{registrationId}";
 
 	private final Log logger = LogFactory.getLog(getClass());
 
-	private final ClientRegistrationRepository clientRegistrationRepository;
+	private final ReactiveClientRegistrationRepository clientRegistrationRepository;
 
-	private RequestMatcher requestMatcher = new AntPathRequestMatcher(DEFAULT_LOGOUT_URI, "POST");
+	private ServerWebExchangeMatcher exchangeMatcher = new PathPatternParserServerWebExchangeMatcher(DEFAULT_LOGOUT_URI,
+			HttpMethod.POST);
 
-	OidcLogoutAuthenticationConverter(ClientRegistrationRepository clientRegistrationRepository) {
+	OidcLogoutServerAuthenticationConverter(ReactiveClientRegistrationRepository clientRegistrationRepository) {
 		Assert.notNull(clientRegistrationRepository, "clientRegistrationRepository cannot be null");
 		this.clientRegistrationRepository = clientRegistrationRepository;
 	}
 
 	@Override
-	public Authentication convert(HttpServletRequest request) {
-		RequestMatcher.MatchResult result = this.requestMatcher.matcher(request);
-		if (!result.isMatch()) {
-			return null;
-		}
-		String registrationId = result.getVariables().get("registrationId");
-		ClientRegistration clientRegistration = this.clientRegistrationRepository.findByRegistrationId(registrationId);
-		if (clientRegistration == null) {
-			this.logger.debug("Did not process OIDC Back-Channel Logout since no ClientRegistration was found");
-			throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_REQUEST);
-		}
-		String logoutToken = request.getParameter("logout_token");
-		if (logoutToken == null) {
-			this.logger.debug("Failed to process OIDC Back-Channel Logout since no logout token was found");
-			throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_REQUEST);
-		}
-		return new OidcLogoutAuthenticationToken(logoutToken, clientRegistration);
+	public Mono<Authentication> convert(ServerWebExchange exchange) {
+		return this.exchangeMatcher.matches(exchange).filter(ServerWebExchangeMatcher.MatchResult::isMatch)
+				.flatMap((match) -> {
+					String registrationId = (String) match.getVariables().get("registrationId");
+					return this.clientRegistrationRepository.findByRegistrationId(registrationId)
+							.switchIfEmpty(Mono.error(() -> {
+								this.logger.debug(
+										"Did not process OIDC Back-Channel Logout since no ClientRegistration was found");
+								return new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_REQUEST);
+							}));
+				}).flatMap((clientRegistration) -> exchange.getFormData().map((data) -> {
+					String logoutToken = data.getFirst("logout_token");
+					return new OidcLogoutAuthenticationToken(logoutToken, clientRegistration);
+				}).switchIfEmpty(Mono.error(() -> {
+					this.logger.debug("Failed to process OIDC Back-Channel Logout since no logout token was found");
+					return new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_REQUEST);
+				})));
 	}
 
 	/**
 	 * The logout endpoint. Defaults to
 	 * {@code /logout/connect/back-channel/{registrationId}}.
-	 * @param requestMatcher the {@link RequestMatcher} to use
+	 * @param exchangeMatcher the {@link ServerWebExchangeMatcher} to use
 	 */
-	void setRequestMatcher(RequestMatcher requestMatcher) {
-		Assert.notNull(requestMatcher, "requestMatcher cannot be null");
-		this.requestMatcher = requestMatcher;
+	void setExchangeMatcher(ServerWebExchangeMatcher exchangeMatcher) {
+		Assert.notNull(exchangeMatcher, "exchangeMatcher cannot be null");
+		this.exchangeMatcher = exchangeMatcher;
 	}
 
 }

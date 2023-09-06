@@ -16,110 +16,38 @@
 
 package org.springframework.security.oauth2.client.oidc.server.session;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Predicate;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import org.springframework.security.oauth2.client.oidc.authentication.logout.LogoutTokenClaimNames;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
+import org.springframework.security.oauth2.client.oidc.session.InMemoryOidcSessionRegistry;
 import org.springframework.security.oauth2.client.oidc.session.OidcSessionInformation;
-import org.springframework.security.oauth2.client.oidc.session.OidcSessionRegistry;
 
 /**
- * An in-memory implementation of {@link org.springframework.security.oauth2.client.oidc.session.OidcSessionRegistry}
+ * An in-memory implementation of
+ * {@link org.springframework.security.oauth2.client.oidc.server.session.ReactiveOidcSessionRegistry}
  *
  * @author Josh Cummings
  * @since 6.2
  */
-public final class InMemoryOidcSessionRegistry implements OidcSessionRegistry {
+public final class InMemoryReactiveOidcSessionRegistry implements ReactiveOidcSessionRegistry {
 
-	private final Log logger = LogFactory.getLog(InMemoryOidcSessionRegistry.class);
-
-	private final Map<String, OidcSessionInformation> sessions = new ConcurrentHashMap<>();
+	private final InMemoryOidcSessionRegistry delegate = new InMemoryOidcSessionRegistry();
 
 	@Override
-	public void saveSessionInformation(OidcSessionInformation info) {
-		this.sessions.put(info.getSessionId(), info);
-	}
-
-	@Override
-	public OidcSessionInformation removeSessionInformation(String clientSessionId) {
-		OidcSessionInformation information = this.sessions.remove(clientSessionId);
-		if (information != null) {
-			this.logger.trace("Removed client session");
-		}
-		return information;
+	public Mono<Void> saveSessionInformation(OidcSessionInformation info) {
+		this.delegate.saveSessionInformation(info);
+		return Mono.empty();
 	}
 
 	@Override
-	public Iterable<OidcSessionInformation> removeSessionInformation(OidcLogoutToken token) {
-		List<String> audience = token.getAudience();
-		String issuer = token.getIssuer().toString();
-		String subject = token.getSubject();
-		String providerSessionId = token.getSessionId();
-		Predicate<OidcSessionInformation> matcher = (providerSessionId != null)
-				? sessionIdMatcher(audience, issuer, providerSessionId) : subjectMatcher(audience, issuer, subject);
-		if (this.logger.isTraceEnabled()) {
-			String message = "Looking up sessions by issuer [%s] and %s [%s]";
-			if (providerSessionId != null) {
-				this.logger.trace(String.format(message, issuer, LogoutTokenClaimNames.SID, providerSessionId));
-			}
-			else {
-				this.logger.trace(String.format(message, issuer, LogoutTokenClaimNames.SUB, subject));
-			}
-		}
-		int size = this.sessions.size();
-		Set<OidcSessionInformation> infos = new HashSet<>();
-		this.sessions.values().removeIf((info) -> {
-			boolean result = matcher.test(info);
-			if (result) {
-				infos.add(info);
-			}
-			return result;
-		});
-		if (infos.isEmpty()) {
-			this.logger.debug("Failed to remove any sessions since none matched");
-		}
-		else if (this.logger.isTraceEnabled()) {
-			String message = "Found and removed %d session(s) from mapping of %d session(s)";
-			this.logger.trace(String.format(message, infos.size(), size));
-		}
-		return infos;
+	public Mono<OidcSessionInformation> removeSessionInformation(String clientSessionId) {
+		return Mono.justOrEmpty(this.delegate.removeSessionInformation(clientSessionId));
 	}
 
-	private static Predicate<OidcSessionInformation> sessionIdMatcher(List<String> audience, String issuer,
-			String sessionId) {
-		return (session) -> {
-			List<String> thatAudience = session.getPrincipal().getAudience();
-			String thatIssuer = session.getPrincipal().getIssuer().toString();
-			String thatSessionId = session.getPrincipal().getClaimAsString(LogoutTokenClaimNames.SID);
-			if (thatAudience == null) {
-				return false;
-			}
-			return !Collections.disjoint(audience, thatAudience) && issuer.equals(thatIssuer)
-					&& sessionId.equals(thatSessionId);
-		};
-	}
-
-	private static Predicate<OidcSessionInformation> subjectMatcher(List<String> audience, String issuer,
-			String subject) {
-		return (session) -> {
-			List<String> thatAudience = session.getPrincipal().getAudience();
-			String thatIssuer = session.getPrincipal().getIssuer().toString();
-			String thatSubject = session.getPrincipal().getSubject();
-			if (thatAudience == null) {
-				return false;
-			}
-			return !Collections.disjoint(audience, thatAudience) && issuer.equals(thatIssuer)
-					&& subject.equals(thatSubject);
-		};
+	@Override
+	public Flux<OidcSessionInformation> removeSessionInformation(OidcLogoutToken token) {
+		return Flux.fromIterable(this.delegate.removeSessionInformation(token));
 	}
 
 }

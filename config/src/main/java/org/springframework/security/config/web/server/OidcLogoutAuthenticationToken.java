@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.springframework.security.config.annotation.web.configurers.oauth2.client;
+package org.springframework.security.config.web.server;
 
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.authority.AuthorityUtils;

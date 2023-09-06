@@ -16,6 +16,9 @@
 
 package org.springframework.security.oauth2.client.oidc.server.session;
 
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
 import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
 import org.springframework.security.oauth2.client.oidc.session.OidcSessionInformation;
 
@@ -30,14 +33,14 @@ import org.springframework.security.oauth2.client.oidc.session.OidcSessionInform
  * "https://openid.net/specs/openid-connect-backchannel-1_0.html#LogoutToken">Logout
  * Token</a>
  */
-public interface OidcSessionRegistry {
+public interface ReactiveOidcSessionRegistry {
 
 	/**
 	 * Register a OIDC Provider session with the provided client session. Generally
 	 * speaking, the client session should be the session tied to the current login.
 	 * @param info the {@link OidcSessionInformation} to use
 	 */
-	void saveSessionInformation(OidcSessionInformation info);
+	Mono<Void> saveSessionInformation(OidcSessionInformation info);
 
 	/**
 	 * Deregister the OIDC Provider session tied to the provided client session. Generally
@@ -45,7 +48,7 @@ public interface OidcSessionRegistry {
 	 * @param clientSessionId the client session
 	 * @return any found {@link OidcSessionInformation}, could be {@code null}
 	 */
-	OidcSessionInformation removeSessionInformation(String clientSessionId);
+	Mono<OidcSessionInformation> removeSessionInformation(String clientSessionId);
 
 	/**
 	 * Deregister the OIDC Provider sessions referenced by the provided OIDC Logout Token
@@ -55,6 +58,6 @@ public interface OidcSessionRegistry {
 	 * @param logoutToken the {@link OidcLogoutToken}
 	 * @return any found {@link OidcSessionInformation}s, could be empty
 	 */
-	Iterable<OidcSessionInformation> removeSessionInformation(OidcLogoutToken logoutToken);
+	Flux<OidcSessionInformation> removeSessionInformation(OidcLogoutToken logoutToken);
 
 }

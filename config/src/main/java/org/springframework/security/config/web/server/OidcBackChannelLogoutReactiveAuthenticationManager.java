@@ -16,11 +16,14 @@
 
 package org.springframework.security.config.web.server;
 
+import reactor.core.publisher.Mono;
+
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.oauth2.client.oidc.authentication.OidcIdTokenDecoderFactory;
+import org.springframework.security.oauth2.client.oidc.authentication.ReactiveOidcIdTokenDecoderFactory;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
@@ -30,6 +33,8 @@ import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtDecoderFactory;
+import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
+import org.springframework.security.oauth2.jwt.ReactiveJwtDecoderFactory;
 import org.springframework.util.Assert;
 
 /**
@@ -48,15 +53,15 @@ import org.springframework.util.Assert;
  * "https://openid.net/specs/openid-connect-backchannel-1_0.html">OIDC Back-Channel
  * Logout</a>
  */
-final class OidcBackChannelLogoutAuthenticationProvider implements AuthenticationProvider {
+final class OidcBackChannelLogoutReactiveAuthenticationManager implements ReactiveAuthenticationManager {
 
-	private JwtDecoderFactory<ClientRegistration> logoutTokenDecoderFactory;
+	private ReactiveJwtDecoderFactory<ClientRegistration> logoutTokenDecoderFactory;
 
 	/**
-	 * Construct an {@link OidcBackChannelLogoutAuthenticationProvider}
+	 * Construct an {@link OidcBackChannelLogoutReactiveAuthenticationManager}
 	 */
-	OidcBackChannelLogoutAuthenticationProvider() {
-		OidcIdTokenDecoderFactory logoutTokenDecoderFactory = new OidcIdTokenDecoderFactory();
+	OidcBackChannelLogoutReactiveAuthenticationManager() {
+		ReactiveOidcIdTokenDecoderFactory logoutTokenDecoderFactory = new ReactiveOidcIdTokenDecoderFactory();
 		logoutTokenDecoderFactory.setJwtValidatorFactory(new DefaultOidcLogoutTokenValidatorFactory());
 		this.logoutTokenDecoderFactory = logoutTokenDecoderFactory;
 	}
@@ -65,47 +70,41 @@ final class OidcBackChannelLogoutAuthenticationProvider implements Authenticatio
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+	public Mono<Authentication> authenticate(Authentication authentication) throws AuthenticationException {
 		if (!(authentication instanceof OidcLogoutAuthenticationToken token)) {
-			return null;
+			return Mono.empty();
 		}
 		String logoutToken = token.getLogoutToken();
 		ClientRegistration registration = token.getClientRegistration();
-		Jwt jwt = decode(registration, logoutToken);
-		OidcLogoutToken oidcLogoutToken = OidcLogoutToken.withTokenValue(logoutToken)
-				.claims((claims) -> claims.putAll(jwt.getClaims())).build();
-		return new OidcBackChannelLogoutAuthentication(oidcLogoutToken);
+		return decode(registration, logoutToken)
+				.map((jwt) -> OidcLogoutToken
+						.withTokenValue(logoutToken)
+						.claims((claims) -> claims.putAll(jwt.getClaims())).build()
+				)
+				.map(OidcBackChannelLogoutAuthentication::new);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public boolean supports(Class<?> authentication) {
-		return OidcLogoutAuthenticationToken.class.isAssignableFrom(authentication);
-	}
-
-	private Jwt decode(ClientRegistration registration, String token) {
-		JwtDecoder logoutTokenDecoder = this.logoutTokenDecoderFactory.createDecoder(registration);
+	private Mono<Jwt> decode(ClientRegistration registration, String token) {
+		ReactiveJwtDecoder logoutTokenDecoder = this.logoutTokenDecoderFactory.createDecoder(registration);
 		try {
 			return logoutTokenDecoder.decode(token);
 		}
 		catch (BadJwtException failed) {
 			OAuth2Error error = new OAuth2Error(OAuth2ErrorCodes.INVALID_REQUEST, failed.getMessage(),
 					"https://openid.net/specs/openid-connect-backchannel-1_0.html#Validation");
-			throw new OAuth2AuthenticationException(error, failed);
+			return Mono.error(new OAuth2AuthenticationException(error, failed));
 		}
 		catch (Exception failed) {
-			throw new AuthenticationServiceException(failed.getMessage(), failed);
+			return Mono.error(new AuthenticationServiceException(failed.getMessage(), failed));
 		}
 	}
 
 	/**
-	 * Use this {@link JwtDecoderFactory} to generate {@link JwtDecoder}s that correspond
-	 * to the {@link ClientRegistration} associated with the OIDC logout token.
+	 * Use this {@link ReactiveJwtDecoderFactory} to generate {@link JwtDecoder}s that
+	 * correspond to the {@link ClientRegistration} associated with the OIDC logout token.
 	 * @param logoutTokenDecoderFactory the {@link JwtDecoderFactory} to use
 	 */
-	void setLogoutTokenDecoderFactory(JwtDecoderFactory<ClientRegistration> logoutTokenDecoderFactory) {
+	void setLogoutTokenDecoderFactory(ReactiveJwtDecoderFactory<ClientRegistration> logoutTokenDecoderFactory) {
 		Assert.notNull(logoutTokenDecoderFactory, "logoutTokenDecoderFactory cannot be null");
 		this.logoutTokenDecoderFactory = logoutTokenDecoderFactory;
 	}

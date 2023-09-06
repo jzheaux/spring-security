@@ -16,28 +16,32 @@
 
 package org.springframework.security.config.web.server;
 
-import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import org.springframework.http.server.ServletServerHttpResponse;
+import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationServiceException;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
-import org.springframework.security.oauth2.core.http.converter.OAuth2ErrorHttpMessageConverter;
 import org.springframework.security.web.authentication.AuthenticationConverter;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
+import org.springframework.security.web.server.WebFilterExchange;
+import org.springframework.security.web.server.authentication.ServerAuthenticationConverter;
+import org.springframework.security.web.server.authentication.logout.ServerLogoutHandler;
 import org.springframework.util.Assert;
-import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.server.WebFilter;
+import org.springframework.web.server.WebFilterChain;
 
 /**
  * A filter for the Client-side OIDC Back-Channel Logout endpoint
@@ -48,74 +52,66 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * "https://openid.net/specs/openid-connect-backchannel-1_0.html">OIDC Back-Channel Logout
  * Spec</a>
  */
-class OidcBackChannelLogoutFilter extends OncePerRequestFilter {
+class OidcBackChannelLogoutWebFilter implements WebFilter {
 
 	private final Log logger = LogFactory.getLog(getClass());
 
-	private final AuthenticationConverter authenticationConverter;
+	private final ServerAuthenticationConverter authenticationConverter;
 
-	private final AuthenticationManager authenticationManager;
+	private final ReactiveAuthenticationManager authenticationManager;
 
-	private final OAuth2ErrorHttpMessageConverter errorHttpMessageConverter = new OAuth2ErrorHttpMessageConverter();
-
-	private LogoutHandler logoutHandler = new OidcBackChannelLogoutHandler();
+	private ServerLogoutHandler logoutHandler = new OidcBackChannelServerLogoutHandler();
 
 	/**
-	 * Construct an {@link OidcBackChannelLogoutFilter}
+	 * Construct an {@link OidcBackChannelLogoutWebFilter}
 	 * @param authenticationConverter the {@link AuthenticationConverter} for deriving
 	 * Logout Token authentication
 	 * @param authenticationManager the {@link AuthenticationManager} for authenticating
 	 * Logout Tokens
 	 */
-	OidcBackChannelLogoutFilter(AuthenticationConverter authenticationConverter,
-			AuthenticationManager authenticationManager) {
+	OidcBackChannelLogoutWebFilter(ServerAuthenticationConverter authenticationConverter,
+			ReactiveAuthenticationManager authenticationManager) {
 		Assert.notNull(authenticationConverter, "authenticationConverter cannot be null");
 		Assert.notNull(authenticationManager, "authenticationManager cannot be null");
 		this.authenticationConverter = authenticationConverter;
 		this.authenticationManager = authenticationManager;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
-	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
-			throws ServletException, IOException {
-		Authentication token;
-		try {
-			token = this.authenticationConverter.convert(request);
-		}
-		catch (AuthenticationServiceException ex) {
+	public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+		return this.authenticationConverter.convert(exchange).onErrorResume(AuthenticationException.class, (ex) -> {
 			this.logger.debug("Failed to process OIDC Back-Channel Logout", ex);
-			throw ex;
-		}
-		catch (AuthenticationException ex) {
-			handleAuthenticationFailure(response, ex);
-			return;
-		}
-		if (token == null) {
-			chain.doFilter(request, response);
-			return;
-		}
-		Authentication authentication;
-		try {
-			authentication = this.authenticationManager.authenticate(token);
-		}
-		catch (AuthenticationServiceException ex) {
-			this.logger.debug("Failed to process OIDC Back-Channel Logout", ex);
-			throw ex;
-		}
-		catch (AuthenticationException ex) {
-			handleAuthenticationFailure(response, ex);
-			return;
-		}
-		this.logoutHandler.logout(request, response, authentication);
+			if (ex instanceof AuthenticationServiceException) {
+				return Mono.error(ex);
+			}
+			return handleAuthenticationFailure(exchange.getResponse(), ex).then(Mono.empty());
+		}).switchIfEmpty(chain.filter(exchange).then(Mono.empty())).flatMap(this.authenticationManager::authenticate)
+				.onErrorResume(AuthenticationException.class, (ex) -> {
+					this.logger.debug("Failed to process OIDC Back-Channel Logout", ex);
+					if (ex instanceof AuthenticationServiceException) {
+						return Mono.error(ex);
+					}
+					return handleAuthenticationFailure(exchange.getResponse(), ex).then(Mono.empty());
+				}).flatMap((authentication) -> {
+					WebFilterExchange webFilterExchange = new WebFilterExchange(exchange, chain);
+					return this.logoutHandler.logout(webFilterExchange, authentication);
+				});
 	}
 
-	private void handleAuthenticationFailure(HttpServletResponse response, Exception ex) throws IOException {
+	private Mono<Void> handleAuthenticationFailure(ServerHttpResponse response, Exception ex) {
 		this.logger.debug("Failed to process OIDC Back-Channel Logout", ex);
-		response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-		this.errorHttpMessageConverter.write(oauth2Error(ex), null, new ServletServerHttpResponse(response));
+		response.setRawStatusCode(HttpServletResponse.SC_BAD_REQUEST);
+		OAuth2Error error = oauth2Error(ex);
+		byte[] bytes = String.format("""
+				{
+					"error_code": "%s",
+					"error_description": "%s",
+					"error_uri: "%s"
+				}
+				""", error.getErrorCode(), error.getDescription(), error.getUri())
+				.getBytes(StandardCharsets.UTF_8);
+		DataBuffer buffer = response.bufferFactory().wrap(bytes);
+		return response.writeWith(Flux.just(buffer));
 	}
 
 	private OAuth2Error oauth2Error(Exception ex) {
@@ -128,10 +124,10 @@ class OidcBackChannelLogoutFilter extends OncePerRequestFilter {
 
 	/**
 	 * The strategy for expiring all Client sessions indicated by the logout request.
-	 * Defaults to {@link OidcBackChannelLogoutHandler}.
+	 * Defaults to {@link OidcBackChannelServerLogoutHandler}.
 	 * @param logoutHandler the {@link LogoutHandler} to use
 	 */
-	void setLogoutHandler(LogoutHandler logoutHandler) {
+	void setLogoutHandler(ServerLogoutHandler logoutHandler) {
 		Assert.notNull(logoutHandler, "logoutHandler cannot be null");
 		this.logoutHandler = logoutHandler;
 	}
