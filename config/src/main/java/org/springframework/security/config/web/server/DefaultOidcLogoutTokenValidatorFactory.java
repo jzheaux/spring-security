@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.springframework.security.oauth2.client.oidc.authentication.logout;
+package org.springframework.security.config.annotation.web.configurers.oauth2.client;
 
 import java.util.function.Function;
 

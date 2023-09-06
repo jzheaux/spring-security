@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-package org.springframework.security.oauth2.client.oidc.authentication.logout;
+package org.springframework.security.config.annotation.web.configurers.oauth2.client;
 
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.client.oidc.authentication.OidcIdTokenDecoderFactory;
+import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
@@ -47,14 +48,14 @@ import org.springframework.util.Assert;
  * "https://openid.net/specs/openid-connect-backchannel-1_0.html">OIDC Back-Channel
  * Logout</a>
  */
-public final class OidcBackChannelLogoutAuthenticationProvider implements AuthenticationProvider {
+final class OidcBackChannelLogoutAuthenticationProvider implements AuthenticationProvider {
 
 	private JwtDecoderFactory<ClientRegistration> logoutTokenDecoderFactory;
 
 	/**
 	 * Construct an {@link OidcBackChannelLogoutAuthenticationProvider}
 	 */
-	public OidcBackChannelLogoutAuthenticationProvider() {
+	OidcBackChannelLogoutAuthenticationProvider() {
 		OidcIdTokenDecoderFactory logoutTokenDecoderFactory = new OidcIdTokenDecoderFactory();
 		logoutTokenDecoderFactory.setJwtValidatorFactory(new DefaultOidcLogoutTokenValidatorFactory());
 		this.logoutTokenDecoderFactory = logoutTokenDecoderFactory;
@@ -104,7 +105,7 @@ public final class OidcBackChannelLogoutAuthenticationProvider implements Authen
 	 * to the {@link ClientRegistration} associated with the OIDC logout token.
 	 * @param logoutTokenDecoderFactory the {@link JwtDecoderFactory} to use
 	 */
-	public void setLogoutTokenDecoderFactory(JwtDecoderFactory<ClientRegistration> logoutTokenDecoderFactory) {
+	void setLogoutTokenDecoderFactory(JwtDecoderFactory<ClientRegistration> logoutTokenDecoderFactory) {
 		Assert.notNull(logoutTokenDecoderFactory, "logoutTokenDecoderFactory cannot be null");
 		this.logoutTokenDecoderFactory = logoutTokenDecoderFactory;
 	}

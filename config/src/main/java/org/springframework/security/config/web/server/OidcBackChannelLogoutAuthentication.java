@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-package org.springframework.security.oauth2.client.oidc.authentication.logout;
+package org.springframework.security.config.annotation.web.configurers.oauth2.client;
 
 import java.util.Collections;
 
 import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
 
 /**
  * An {@link org.springframework.security.core.Authentication} implementation that
@@ -32,7 +33,7 @@ import org.springframework.security.authentication.AbstractAuthenticationToken;
  * "https://openid.net/specs/openid-connect-backchannel-1_0.html">OIDC Back-Channel
  * Logout</a>
  */
-public class OidcBackChannelLogoutAuthentication extends AbstractAuthenticationToken {
+class OidcBackChannelLogoutAuthentication extends AbstractAuthenticationToken {
 
 	private final OidcLogoutToken logoutToken;
 
@@ -40,7 +41,7 @@ public class OidcBackChannelLogoutAuthentication extends AbstractAuthenticationT
 	 * Construct an {@link OidcBackChannelLogoutAuthentication}
 	 * @param logoutToken a deserialized, verified OIDC Logout Token
 	 */
-	public OidcBackChannelLogoutAuthentication(OidcLogoutToken logoutToken) {
+	OidcBackChannelLogoutAuthentication(OidcLogoutToken logoutToken) {
 		super(Collections.emptyList());
 		this.logoutToken = logoutToken;
 		setAuthenticated(true);

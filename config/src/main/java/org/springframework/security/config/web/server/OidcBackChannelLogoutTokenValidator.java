@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.springframework.security.oauth2.client.oidc.authentication.logout;
+package org.springframework.security.config.annotation.web.configurers.oauth2.client;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -22,6 +22,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.security.oauth2.client.oidc.authentication.logout.LogoutTokenClaimAccessor;
+import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
@@ -43,7 +45,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
  * "https://openid.net/specs/openid-connect-backchannel-1_0.html#Validation">the OIDC
  * Back-Channel Logout spec</a>
  */
-public final class OidcBackChannelLogoutTokenValidator implements OAuth2TokenValidator<Jwt> {
+final class OidcBackChannelLogoutTokenValidator implements OAuth2TokenValidator<Jwt> {
 
 	private static final String LOGOUT_VALIDATION_URL = "https://openid.net/specs/openid-connect-backchannel-1_0.html#Validation";
 
@@ -53,7 +55,7 @@ public final class OidcBackChannelLogoutTokenValidator implements OAuth2TokenVal
 
 	private final String issuer;
 
-	public OidcBackChannelLogoutTokenValidator(ClientRegistration clientRegistration) {
+	OidcBackChannelLogoutTokenValidator(ClientRegistration clientRegistration) {
 		this.audience = clientRegistration.getClientId();
 		this.issuer = clientRegistration.getProviderDetails().getIssuerUri();
 	}

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.springframework.security.oauth2.client.oidc.authentication.logout;
+package org.springframework.security.config.annotation.web.configurers.oauth2.client;
 
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.authority.AuthorityUtils;
@@ -27,7 +27,7 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
  * @author Josh Cummings
  * @since 6.2
  */
-public class OidcLogoutAuthenticationToken extends AbstractAuthenticationToken {
+class OidcLogoutAuthenticationToken extends AbstractAuthenticationToken {
 
 	private final String logoutToken;
 
@@ -39,7 +39,7 @@ public class OidcLogoutAuthenticationToken extends AbstractAuthenticationToken {
 	 * @param clientRegistration the {@link ClientRegistration client} associated with
 	 * this token; this is usually derived from material in the logout HTTP request
 	 */
-	public OidcLogoutAuthenticationToken(String logoutToken, ClientRegistration clientRegistration) {
+	OidcLogoutAuthenticationToken(String logoutToken, ClientRegistration clientRegistration) {
 		super(AuthorityUtils.NO_AUTHORITIES);
 		this.logoutToken = logoutToken;
 		this.clientRegistration = clientRegistration;
@@ -65,7 +65,7 @@ public class OidcLogoutAuthenticationToken extends AbstractAuthenticationToken {
 	 * Get the signed, serialized OIDC Logout token
 	 * @return the logout token
 	 */
-	public String getLogoutToken() {
+	String getLogoutToken() {
 		return this.logoutToken;
 	}
 
@@ -73,7 +73,7 @@ public class OidcLogoutAuthenticationToken extends AbstractAuthenticationToken {
 	 * Get the {@link ClientRegistration} associated with this logout token
 	 * @return the {@link ClientRegistration}
 	 */
-	public ClientRegistration getClientRegistration() {
+	ClientRegistration getClientRegistration() {
 		return this.clientRegistration;
 	}
 

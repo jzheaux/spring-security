@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-package org.springframework.security.oauth2.client.oidc.web.logout;
+package org.springframework.security.config.annotation.web.configurers.oauth2.client;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutAuthenticationToken;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
@@ -38,7 +37,7 @@ import org.springframework.util.Assert;
  * @author Josh Cummings
  * @since 6.2
  */
-public final class OidcLogoutAuthenticationConverter implements AuthenticationConverter {
+final class OidcLogoutAuthenticationConverter implements AuthenticationConverter {
 
 	private static final String DEFAULT_LOGOUT_URI = "/logout/connect/back-channel/{registrationId}";
 
@@ -48,7 +47,7 @@ public final class OidcLogoutAuthenticationConverter implements AuthenticationCo
 
 	private RequestMatcher requestMatcher = new AntPathRequestMatcher(DEFAULT_LOGOUT_URI, "POST");
 
-	public OidcLogoutAuthenticationConverter(ClientRegistrationRepository clientRegistrationRepository) {
+	OidcLogoutAuthenticationConverter(ClientRegistrationRepository clientRegistrationRepository) {
 		Assert.notNull(clientRegistrationRepository, "clientRegistrationRepository cannot be null");
 		this.clientRegistrationRepository = clientRegistrationRepository;
 	}
@@ -78,7 +77,7 @@ public final class OidcLogoutAuthenticationConverter implements AuthenticationCo
 	 * {@code /logout/connect/back-channel/{registrationId}}.
 	 * @param requestMatcher the {@link RequestMatcher} to use
 	 */
-	public void setRequestMatcher(RequestMatcher requestMatcher) {
+	void setRequestMatcher(RequestMatcher requestMatcher) {
 		Assert.notNull(requestMatcher, "requestMatcher cannot be null");
 		this.requestMatcher = requestMatcher;
 	}

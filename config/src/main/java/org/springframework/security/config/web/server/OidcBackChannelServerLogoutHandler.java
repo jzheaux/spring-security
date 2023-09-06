@@ -14,23 +14,26 @@
  * limitations under the License.
  */
 
-package org.springframework.security.oauth2.client.oidc.web.logout;
+package org.springframework.security.config.web.server;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
+import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.server.ServletServerHttpResponse;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcBackChannelLogoutAuthentication;
 import org.springframework.security.oauth2.client.oidc.authentication.logout.OidcLogoutToken;
 import org.springframework.security.oauth2.client.oidc.session.InMemoryOidcSessionRegistry;
 import org.springframework.security.oauth2.client.oidc.session.OidcSessionInformation;
@@ -38,10 +41,12 @@ import org.springframework.security.oauth2.client.oidc.session.OidcSessionRegist
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.http.converter.OAuth2ErrorHttpMessageConverter;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
+import org.springframework.security.web.server.WebFilterExchange;
+import org.springframework.security.web.server.authentication.logout.ServerLogoutHandler;
 import org.springframework.util.Assert;
+import org.springframework.validation.Errors;
 import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestOperations;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
 /**
@@ -54,13 +59,13 @@ import org.springframework.web.util.UriComponentsBuilder;
  * "https://openid.net/specs/openid-connect-backchannel-1_0.html">OIDC Back-Channel Logout
  * Spec</a>
  */
-public final class OidcBackChannelLogoutHandler implements LogoutHandler {
+final class OidcBackChannelServerLogoutHandler implements ServerLogoutHandler {
 
 	private final Log logger = LogFactory.getLog(getClass());
 
 	private OidcSessionRegistry sessionRegistry = new InMemoryOidcSessionRegistry();
 
-	private RestOperations restOperations = new RestTemplate();
+	private WebClient web = WebClient.create();
 
 	private String logoutEndpointName = "/logout";
 
@@ -69,22 +74,42 @@ public final class OidcBackChannelLogoutHandler implements LogoutHandler {
 	private final OAuth2ErrorHttpMessageConverter errorHttpMessageConverter = new OAuth2ErrorHttpMessageConverter();
 
 	@Override
-	public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
+	public Mono<Void> logout(WebFilterExchange exchange, Authentication authentication) {
 		if (!(authentication instanceof OidcBackChannelLogoutAuthentication token)) {
 			if (this.logger.isDebugEnabled()) {
 				String message = "Did not perform OIDC Back-Channel Logout since authentication [%s] was of the wrong type";
 				this.logger.debug(String.format(message, authentication.getClass().getSimpleName()));
 			}
-			return;
+			return Mono.empty();
 		}
-		Iterable<OidcSessionInformation> sessions = this.sessionRegistry.removeSessionInformation(token.getPrincipal());
+		AtomicInteger totalCount = new AtomicInteger(0);
+		AtomicInteger invalidatedCount = new AtomicInteger(0);
+		Collection<String> errors = new CopyOnWriteArrayList<>();
+		Flux<OidcSessionInformation> sessions = this.sessionRegistry.removeSessionInformation(token.getPrincipal());
+		sessions.concatMap((session) -> {
+			totalCount.incrementAndGet();
+			return eachLogout(exchange, session)
+					.flatMap((response) -> {
+						invalidatedCount.incrementAndGet();
+						return Mono.empty();
+					})
+					.onErrorResume((ex) -> {
+						return this.sessionRegistry.saveSessionInformation(session)
+								.map((ignore) -> ex.getMessage());
+					});
+		})
+		.collectList().flatMap((list) ->
+			if (!errors.isEmpty()) {
+
+			}
+		});
 		Collection<String> errors = new ArrayList<>();
 		int totalCount = 0;
 		int invalidatedCount = 0;
 		for (OidcSessionInformation session : sessions) {
 			totalCount++;
 			try {
-				eachLogout(request, session);
+				eachLogout(exchange, session);
 				invalidatedCount++;
 			}
 			catch (RestClientException ex) {
@@ -97,21 +122,36 @@ public final class OidcBackChannelLogoutHandler implements LogoutHandler {
 			this.logger.trace(String.format("Invalidated %d out of %d sessions", invalidatedCount, totalCount));
 		}
 		if (!errors.isEmpty()) {
-			handleLogoutFailure(response, oauth2Error(errors));
+			handleLogoutFailure(exchange.getExchange().getResponse(), oauth2Error(errors));
 		}
 	}
 
-	private void eachLogout(HttpServletRequest request, OidcSessionInformation session) {
+	private Mono<ResponseEntity<Void>> eachLogout(WebFilterExchange exchange, OidcSessionInformation session) {
 		HttpHeaders headers = new HttpHeaders();
 		headers.add(HttpHeaders.COOKIE, this.sessionCookieName + "=" + session.getSessionId());
 		for (Map.Entry<String, String> credential : session.getAuthorities().entrySet()) {
 			headers.add(credential.getKey(), credential.getValue());
 		}
-		String url = request.getRequestURL().toString();
+		String url = exchange.getExchange().getRequest().getURI().toString();
 		String logout = UriComponentsBuilder.fromHttpUrl(url).replacePath(this.logoutEndpointName).build()
 				.toUriString();
-		HttpEntity<?> entity = new HttpEntity<>(null, headers);
-		this.restOperations.postForEntity(logout, entity, Object.class);
+		return this.web.post().uri(logout)
+				.headers((h) -> h.putAll(headers))
+				.retrieve().toBodilessEntity()
+				.onErrorMap((ex) -> new SessionInvalidationException(ex, session));
+	}
+
+	private static class Errors {
+		private Map<String, OidcSessionInformation> infos;
+
+	}
+	private static class SessionInvalidationException extends RuntimeException {
+		private final OidcSessionInformation session;
+
+		public SessionInvalidationException(Throwable cause, OidcSessionInformation session) {
+			super(cause);
+			this.session = session;
+		}
 	}
 
 	private OAuth2Error oauth2Error(Collection<String> errors) {
@@ -119,11 +159,12 @@ public final class OidcBackChannelLogoutHandler implements LogoutHandler {
 				"https://openid.net/specs/openid-connect-backchannel-1_0.html#Validation");
 	}
 
-	private void handleLogoutFailure(HttpServletResponse response, OAuth2Error error) {
-		response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+	private void handleLogoutFailure(ServerHttpResponse response, OAuth2Error error) {
+		response.setRawStatusCode(HttpServletResponse.SC_BAD_REQUEST);
 		try {
-			this.errorHttpMessageConverter.write(error, null, new ServletServerHttpResponse(response));
-		} catch (IOException ex) {
+			this.errorHttpMessageConverter.write(error, null, response);
+		}
+		catch (IOException ex) {
 			throw new IllegalStateException(ex);
 		}
 	}
@@ -135,18 +176,18 @@ public final class OidcBackChannelLogoutHandler implements LogoutHandler {
 	 * sessions.
 	 * @param sessionRegistry the {@link OidcSessionRegistry} to use
 	 */
-	public void setSessionRegistry(OidcSessionRegistry sessionRegistry) {
+	void setSessionRegistry(OidcSessionRegistry sessionRegistry) {
 		Assert.notNull(sessionRegistry, "sessionRegistry cannot be null");
 		this.sessionRegistry = sessionRegistry;
 	}
 
 	/**
-	 * Use this {@link RestOperations} to perform the per-session back-channel logout
-	 * @param restOperations the {@link RestOperations} to use
+	 * Use this {@link WebClient} to perform the per-session back-channel logout
+	 * @param web the {@link WebClient} to use
 	 */
-	public void setRestOperations(RestOperations restOperations) {
-		Assert.notNull(restOperations, "restOperations cannot be null");
-		this.restOperations = restOperations;
+	void setWebClient(WebClient web) {
+		Assert.notNull(web, "web cannot be null");
+		this.web = web;
 	}
 
 	/**
@@ -155,7 +196,7 @@ public final class OidcBackChannelLogoutHandler implements LogoutHandler {
 	 * {@link org.springframework.security.web.authentication.logout.LogoutFilter}.
 	 * @param logoutUri the URI to use
 	 */
-	public void setLogoutUri(String logoutUri) {
+	void setLogoutUri(String logoutUri) {
 		Assert.hasText(logoutUri, "logoutUri cannot be empty");
 		this.logoutEndpointName = logoutUri;
 	}
@@ -167,7 +208,7 @@ public final class OidcBackChannelLogoutHandler implements LogoutHandler {
 	 * Note that if you are using Spring Session, this likely needs to change to SESSION.
 	 * @param sessionCookieName the cookie name to use
 	 */
-	public void setSessionCookieName(String sessionCookieName) {
+	void setSessionCookieName(String sessionCookieName) {
 		Assert.hasText(sessionCookieName, "clientSessionCookieName cannot be empty");
 		this.sessionCookieName = sessionCookieName;
 	}
