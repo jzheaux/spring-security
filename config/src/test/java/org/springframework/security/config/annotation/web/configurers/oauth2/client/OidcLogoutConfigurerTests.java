@@ -91,7 +91,7 @@ import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.doThrow;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -177,7 +177,7 @@ public class OidcLogoutConfigurerTests {
 	void logoutWhenRemoteLogoutFailsThenReportsPartialLogout() throws Exception {
 		this.spring.register(WebServerConfig.class, OidcProviderConfig.class, WithBrokenLogoutConfig.class).autowire();
 		LogoutHandler logoutHandler = this.spring.getContext().getBean(LogoutHandler.class);
-		doThrow(IllegalStateException.class).when(logoutHandler).logout(any(), any(), any());
+		willThrow(IllegalStateException.class).given(logoutHandler).logout(any(), any(), any());
 		String registrationId = this.clientRegistration.getRegistrationId();
 		MockHttpSession one = login();
 		String logoutToken = this.mvc.perform(get("/token/logout/all").session(one)).andExpect(status().isOk())
@@ -499,8 +499,7 @@ public class OidcLogoutConfigurerTests {
 				MockHttpServletResponse mvcResponse = this.mvc.perform(builder.session(session)).andReturn().getResponse();
 				return toMockResponse(mvcResponse);
 			}
-			catch (Exception ex)
-			{
+			catch (Exception ex) {
 				MockResponse response = new MockResponse();
 				response.setResponseCode(500);
 				return response;
