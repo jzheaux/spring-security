@@ -12,9 +12,10 @@ Generally speaking, there are three use cases for you to consider:
 == Local Logout
 
 To perform a local logout, no special OIDC configuration is needed.
-Spring Security automatically stands up a local logout endpoint, which you can xref:servlet/authentication/logout.adoc[configure through the `logout()` DSL].
+Spring Security automatically stands up a local logout endpoint, which you can xref:reactive/authentication/logout.adoc[configure through the `logout()` DSL].
 
 [[configure-client-initiated-oidc-logout]]
+[[oauth2login-advanced-oidc-logout]]
 == OpenID Connect 1.0 Client-Initiated Logout
 
 OpenID Connect Session Management 1.0 allows the ability to log out the end user at the Provider by using the Client.
@@ -39,7 +40,7 @@ spring:
             issuer-uri: https://dev-1234.oktapreview.com
 ----
 
-Also, you should configure `OidcClientInitiatedLogoutSuccessHandler`, which implements RP-Initiated Logout, as follows:
+Also, you should configure `OidcClientInitiatedServerLogoutSuccessHandler`, which implements RP-Initiated Logout, as follows:
 
 [tabs]
 ======
@@ -48,28 +49,28 @@ Java::
 [source,java,role="primary"]
 ----
 @Configuration
-@EnableWebSecurity
+@EnableWebFluxSecurity
 public class OAuth2LoginSecurityConfig {
 
 	@Autowired
-	private ClientRegistrationRepository clientRegistrationRepository;
+	private ReactiveClientRegistrationRepository clientRegistrationRepository;
 
 	@Bean
-	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+	public SecurityWebFilterChain filterChain(ServerHttpSecurity http) throws Exception {
 		http
-			.authorizeHttpRequests(authorize -> authorize
-				.anyRequest().authenticated()
+			.authorizeExchange((authorize) -> authorize
+				.anyExchange().authenticated()
 			)
 			.oauth2Login(withDefaults())
-			.logout(logout -> logout
+			.logout((logout) -> logout
 				.logoutSuccessHandler(oidcLogoutSuccessHandler())
 			);
 		return http.build();
 	}
 
-	private LogoutSuccessHandler oidcLogoutSuccessHandler() {
-		OidcClientInitiatedLogoutSuccessHandler oidcLogoutSuccessHandler =
-				new OidcClientInitiatedLogoutSuccessHandler(this.clientRegistrationRepository);
+	private ServerLogoutSuccessHandler oidcLogoutSuccessHandler() {
+		OidcClientInitiatedServerLogoutSuccessHandler oidcLogoutSuccessHandler =
+				new OidcClientInitiatedServerLogoutSuccessHandler(this.clientRegistrationRepository);
 
 		// Sets the location that the End-User's User Agent will be redirected to
 		// after the logout has been performed at the Provider
@@ -85,16 +86,16 @@ Kotlin::
 [source,kotlin,role="secondary"]
 ----
 @Configuration
-@EnableWebSecurity
+@EnableWebFluxSecurity
 class OAuth2LoginSecurityConfig {
     @Autowired
-    private lateinit var clientRegistrationRepository: ClientRegistrationRepository
+    private lateinit var clientRegistrationRepository: ReactiveClientRegistrationRepository
 
     @Bean
-    open fun filterChain(http: HttpSecurity): SecurityFilterChain {
+    open fun filterChain(http: ServerHttpSecurity): SecurityWebFilterChain {
         http {
-            authorizeHttpRequests {
-                authorize(anyRequest, authenticated)
+            authorizeExchange {
+                authorize(anyExchange, authenticated)
             }
             oauth2Login { }
             logout {
@@ -104,8 +105,8 @@ class OAuth2LoginSecurityConfig {
         return http.build()
     }
 
-    private fun oidcLogoutSuccessHandler(): LogoutSuccessHandler {
-        val oidcLogoutSuccessHandler = OidcClientInitiatedLogoutSuccessHandler(clientRegistrationRepository)
+    private fun oidcLogoutSuccessHandler(): ServerLogoutSuccessHandler {
+        val oidcLogoutSuccessHandler = OidcClientInitiatedServerLogoutSuccessHandler(clientRegistrationRepository)
 
         // Sets the location that the End-User's User Agent will be redirected to
         // after the logout has been performed at the Provider
@@ -118,7 +119,7 @@ class OAuth2LoginSecurityConfig {
 
 [NOTE]
 ====
-`OidcClientInitiatedLogoutSuccessHandler` supports the `+{baseUrl}+` placeholder.
+`OidcClientInitiatedServerLogoutSuccessHandler` supports the `+{baseUrl}+` placeholder.
 If used, the application's base URL, such as `https://app.example.org`, replaces it at request time.
 ====
 
@@ -137,10 +138,10 @@ Java::
 [source=java,role="primary"]
 ----
 @Bean
-public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+public SecurityWebFilterChain filterChain(ServerHttpSecurity http) throws Exception {
     http
-        .authorizeHttpRequests((authorize) -> authorize
-            .anyRequest().authenticated()
+        .authorizeExchange((authorize) -> authorize
+            .anyExchange().authenticated()
         )
         .oauth2Login(withDefaults())
         .oidcLogout((logout) -> logout
@@ -155,10 +156,10 @@ Kotlin::
 [source=kotlin,role="secondary"]
 ----
 @Bean
-open fun filterChain(http: HttpSecurity): SecurityFilterChain {
+open fun filterChain(http: ServerHttpSecurity): SecurityWebFilterChain {
     http {
-        authorizeRequests {
-            authorize(anyRequest, authenticated)
+        authorizeExchange {
+            authorize(anyExchange, authenticated)
         }
         oauth2Login { }
         oidcLogout {
@@ -186,7 +187,7 @@ Consider a `ClientRegistration` whose identifier is `registrationId`.
 
 The overall flow for a Back-Channel logout is like this:
 
-1. At login time, Spring Security correlates the ID Token, CSRF Token, and Provider Session ID (if any) to your application's session id in its `OidcSessionStrategy` implementation.
+1. At login time, Spring Security correlates the ID Token, CSRF Token, and Provider Session ID (if any) to your application's session id in its `ReactiveOidcSessionStrategy` implementation.
 2. Then at logout time, your OIDC Provider makes an API call to `/logout/connect/back-channel/registrationId` including a Logout Token that indicates either the `sub` (the End User) or the `sid` (the Provider Session ID) to logout.
 3. Spring Security validates the token's signature and claims.
 4. If the token contains a `sid` claim, then only the Client's session that correlates to that provider session is terminated.
@@ -202,7 +203,7 @@ By default, Spring Security stores in-memory all links between the OIDC Provider
 
 There are a number of circumstances, like a clustered application, where it would be nice to store this instead in a separate location, like a database.
 
-You can achieve this by configuring a custom `OidcSessionStrategy`, like so:
+You can achieve this by configuring a custom `ReactiveOidcSessionStrategy`, like so:
 
 [tabs]
 ======
@@ -240,23 +241,23 @@ Kotlin::
 [source=kotlin,role="secondary"]
 ----
 @Component
-class MySpringDataOidcSessionStrategy: OidcSessionStrategy {
+class MySpringDataOidcSessionStrategy: ReactiveOidcSessionStrategy {
     val sessions: OidcProviderSessionRepository
 
     // ...
 
     @Override
-    fun saveSessionInformation(info: OidcSessionInformation) {
-        this.sessions.save(info)
+    fun saveSessionInformation(info: OidcSessionInformation): Mono<Void> {
+        return this.sessions.save(info)
     }
 
     @Override
-    fun removeSessionInformation(clientSessionId: String): OidcSessionInformation {
+    fun removeSessionInformation(clientSessionId: String): Mono<OidcSessionInformation> {
        return this.sessions.removeByClientSessionId(clientSessionId);
     }
 
     @Override
-    fun removeSessionInformation(token: OidcLogoutToken): Iterable<OidcSessionInformation> {
+    fun removeSessionInformation(token: OidcLogoutToken): Flux<OidcSessionInformation> {
         return token.getSessionId() != null ?
             this.sessions.removeBySessionIdAndIssuerAndAudience(...) :
             this.sessions.removeBySubjectAndIssuerAndAudience(...);
@@ -264,4 +265,3 @@ class MySpringDataOidcSessionStrategy: OidcSessionStrategy {
 }
 ----
 ======
-
