@@ -27,7 +27,7 @@ import org.springframework.security.config.annotation.web.configurers.oauth2.cli
  * @since 6.2
  */
 @OAuth2LoginSecurityMarker
-class BackChannelLogoutDsl {
+class OidcBackChannelLogoutDsl {
     internal fun get(): (OidcLogoutConfigurer<HttpSecurity>.BackChannelLogoutConfigurer) -> Unit {
         return { backChannel -> }
     }

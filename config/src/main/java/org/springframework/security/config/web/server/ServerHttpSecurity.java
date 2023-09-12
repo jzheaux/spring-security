@@ -3731,6 +3731,14 @@ public class ServerHttpSecurity {
 			return this;
 		}
 
+		/**
+		 * Configures the {@link ReactiveOidcSessionRegistry} to use when logins use OIDC.
+		 * Default is to look the value up as a Bean, or else use an
+		 * {@link InMemoryReactiveOidcSessionRegistry}.
+		 * @param oidcSessionRegistry the registry to use
+		 * @return the {@link OidcLogoutSpec} to customize
+		 * @since 6.2
+		 */
 		public OAuth2LoginSpec oidcSessionRegistry(ReactiveOidcSessionRegistry oidcSessionRegistry) {
 			Assert.notNull(oidcSessionRegistry, "oidcSessionRegistry cannot be null");
 			this.oidcSessionRegistry = oidcSessionRegistry;
@@ -3930,8 +3938,9 @@ public class ServerHttpSecurity {
 			oauthRedirectFilter.setRequestCache(http.requestCache.requestCache);
 
 			ReactiveAuthenticationManager manager = getAuthenticationManager();
+			ReactiveOidcSessionRegistry sessionRegistry = getOidcSessionRegistry();
 			AuthenticationWebFilter authenticationFilter = new OidcSessionRegistryAuthenticationWebFilter(manager,
-					authorizedClientRepository, getOidcSessionRegistry(http));
+					authorizedClientRepository, sessionRegistry);
 			authenticationFilter.setRequiresAuthenticationMatcher(getAuthenticationMatcher());
 			authenticationFilter
 					.setServerAuthenticationConverter(getAuthenticationConverter(clientRegistrationRepository));
@@ -3940,7 +3949,7 @@ public class ServerHttpSecurity {
 			authenticationFilter.setSecurityContextRepository(this.securityContextRepository);
 
 			setDefaultEntryPoints(http);
-			http.addFilterAfter(new OidcSessionRegistryWebFilter(getOidcSessionRegistry(http)),
+			http.addFilterAfter(new OidcSessionRegistryWebFilter(sessionRegistry),
 					SecurityWebFiltersOrder.HTTP_HEADERS_WRITER);
 			http.addFilterAt(oauthRedirectFilter, SecurityWebFiltersOrder.HTTP_BASIC);
 			http.addFilterAt(authenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION);
@@ -3986,7 +3995,7 @@ public class ServerHttpSecurity {
 			http.defaultEntryPoints.add(new DelegateEntry(defaultEntryPointMatcher, defaultEntryPoint));
 		}
 
-		private ReactiveOidcSessionRegistry getOidcSessionRegistry(ServerHttpSecurity http) {
+		private ReactiveOidcSessionRegistry getOidcSessionRegistry() {
 			if (this.oidcSessionRegistry == null) {
 				this.oidcSessionRegistry = getBeanOrNull(ReactiveOidcSessionRegistry.class);
 			}
@@ -4932,6 +4941,12 @@ public class ServerHttpSecurity {
 
 	}
 
+	/**
+	 * Configures OIDC 1.0 Logout support
+	 *
+	 * @author Josh Cummings
+	 * @since 6.2
+	 */
 	public final class OidcLogoutSpec {
 
 		private ReactiveClientRegistrationRepository clientRegistrationRepository;
@@ -4940,6 +4955,12 @@ public class ServerHttpSecurity {
 
 		private BackChannelLogoutConfigurer backChannel;
 
+		/**
+		 * Configures the {@link ReactiveClientRegistrationRepository}. Default is to look
+		 * the value up as a Bean.
+		 * @param clientRegistrationRepository the repository to use
+		 * @return the {@link OidcLogoutSpec} to customize
+		 */
 		public OidcLogoutSpec clientRegistrationRepository(
 				ReactiveClientRegistrationRepository clientRegistrationRepository) {
 			Assert.notNull(clientRegistrationRepository, "clientRegistrationRepository cannot be null");
@@ -4947,6 +4968,13 @@ public class ServerHttpSecurity {
 			return this;
 		}
 
+		/**
+		 * Configures the {@link ReactiveOidcSessionRegistry}. Default is to use the value
+		 * from {@link OAuth2LoginSpec#oidcSessionRegistry}, then look the value up as a
+		 * Bean, or else use an {@link InMemoryReactiveOidcSessionRegistry}.
+		 * @param sessionRegistry the registry to use
+		 * @return the {@link OidcLogoutSpec} to customize
+		 */
 		public OidcLogoutSpec oidcSessionRegistry(ReactiveOidcSessionRegistry sessionRegistry) {
 			Assert.notNull(sessionRegistry, "sessionRegistry cannot be null");
 			this.sessionRegistry = sessionRegistry;
@@ -4985,8 +5013,7 @@ public class ServerHttpSecurity {
 
 		private ReactiveOidcSessionRegistry getSessionRegistry() {
 			if (this.sessionRegistry == null && ServerHttpSecurity.this.oauth2Login == null) {
-				throw new IllegalArgumentException("when using oidcLogout, you must either configure "
-						+ "oidcLogout#oidcSessionRegistry or ServerHttpSecurity#oauth2Login");
+				return new InMemoryReactiveOidcSessionRegistry();
 			}
 			if (this.sessionRegistry == null) {
 				return ServerHttpSecurity.this.oauth2Login.oidcSessionRegistry;

@@ -16,20 +16,24 @@
 
 package org.springframework.security.config.web.server
 
+import org.springframework.security.oauth2.client.oidc.server.session.ReactiveOidcSessionRegistry
+import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository
+
 /**
  * A Kotlin DSL to configure [ServerHttpSecurity] OIDC 1.0 login using idiomatic Kotlin code.
  *
- * @author Eleftheria Stein
+ * @author Josh Cummings
  * @since 6.2
  */
 @ServerSecurityMarker
 class ServerOidcLogoutDsl {
+    var clientRegistrationRepository: ReactiveClientRegistrationRepository? = null
+    var oidcSessionRegistry: ReactiveOidcSessionRegistry? = null
 
     private var backChannel: ((ServerHttpSecurity.OidcLogoutSpec.BackChannelLogoutConfigurer) -> Unit)? = null
 
     /**
      * Enables OIDC 1.0 Back-Channel Logout support.
-     * Requires oauth2Login configuration.
      *
      * Example:
      *
@@ -59,6 +63,8 @@ class ServerOidcLogoutDsl {
 
     internal fun get(): (ServerHttpSecurity.OidcLogoutSpec) -> Unit {
         return { oidcLogout ->
+            clientRegistrationRepository?.also { oidcLogout.clientRegistrationRepository(clientRegistrationRepository) }
+            oidcSessionRegistry?.also { oidcLogout.oidcSessionRegistry(oidcSessionRegistry) }
             backChannel?.also { oidcLogout.backChannel(backChannel) }
         }
     }

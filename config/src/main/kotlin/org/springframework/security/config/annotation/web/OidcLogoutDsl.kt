@@ -18,7 +18,9 @@ package org.springframework.security.config.annotation.web
 
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configurers.oauth2.client.OidcLogoutConfigurer
-import org.springframework.security.config.annotation.web.oauth2.login.BackChannelLogoutDsl
+import org.springframework.security.config.annotation.web.oauth2.login.OidcBackChannelLogoutDsl
+import org.springframework.security.oauth2.client.oidc.session.OidcSessionRegistry
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository
 
 /**
  * A Kotlin DSL to configure [HttpSecurity] OAuth 1.0 Logout using idiomatic Kotlin code.
@@ -28,11 +30,13 @@ import org.springframework.security.config.annotation.web.oauth2.login.BackChann
  */
 @SecurityMarker
 class OidcLogoutDsl {
+    var clientRegistrationRepository: ClientRegistrationRepository? = null
+    var oidcSessionRegistry: OidcSessionRegistry? = null
+
     private var backChannel: ((OidcLogoutConfigurer<HttpSecurity>.BackChannelLogoutConfigurer) -> Unit)? = null
 
     /**
      * Configures the OIDC 1.0 Back-Channel endpoint.
-     * Requires oauth2Login configuration.
      *
      * Example:
      *
@@ -55,14 +59,16 @@ class OidcLogoutDsl {
      * ```
      *
      * @param backChannelConfig custom configurations to configure the back-channel endpoint
-     * @see [BackChannelLogoutDsl]
+     * @see [OidcBackChannelLogoutDsl]
      */
-    fun backChannel(backChannelConfig: BackChannelLogoutDsl.() -> Unit) {
-        this.backChannel = BackChannelLogoutDsl().apply(backChannelConfig).get()
+    fun backChannel(backChannelConfig: OidcBackChannelLogoutDsl.() -> Unit) {
+        this.backChannel = OidcBackChannelLogoutDsl().apply(backChannelConfig).get()
     }
 
     internal fun get(): (OidcLogoutConfigurer<HttpSecurity>) -> Unit {
         return { oidcLogout ->
+            clientRegistrationRepository?.also { oidcLogout.clientRegistrationRepository(clientRegistrationRepository) }
+            oidcSessionRegistry?.also { oidcLogout.oidcSessionRegistry(oidcSessionRegistry) }
             backChannel?.also { oidcLogout.backChannel(backChannel) }
         }
     }

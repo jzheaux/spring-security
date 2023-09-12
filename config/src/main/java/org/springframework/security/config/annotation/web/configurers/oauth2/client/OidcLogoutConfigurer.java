@@ -24,10 +24,12 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.oauth2.client.oidc.session.OidcSessionRegistry;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.web.authentication.AuthenticationConverter;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.csrf.CsrfFilter;
+import org.springframework.util.Assert;
 
 /**
  * An {@link AbstractHttpConfigurer} for OIDC Logout flows
@@ -63,6 +65,29 @@ public final class OidcLogoutConfigurer<B extends HttpSecurityBuilder<B>>
 		extends AbstractHttpConfigurer<OidcLogoutConfigurer<B>, B> {
 
 	private BackChannelLogoutConfigurer backChannel;
+
+	/**
+	 * Sets the repository of client registrations.
+	 * @param clientRegistrationRepository the repository of client registrations
+	 * @return the {@link OAuth2LoginConfigurer} for further configuration
+	 */
+	public OidcLogoutConfigurer<B> clientRegistrationRepository(
+			ClientRegistrationRepository clientRegistrationRepository) {
+		Assert.notNull(clientRegistrationRepository, "clientRegistrationRepository cannot be null");
+		this.getBuilder().setSharedObject(ClientRegistrationRepository.class, clientRegistrationRepository);
+		return this;
+	}
+
+	/**
+	 * Sets the registry for managing the OIDC client-provider session link
+	 * @param oidcSessionRegistry the {@link OidcSessionRegistry} to use
+	 * @return the {@link OAuth2LoginConfigurer} for further configuration
+	 */
+	public OidcLogoutConfigurer<B> oidcSessionRegistry(OidcSessionRegistry oidcSessionRegistry) {
+		Assert.notNull(oidcSessionRegistry, "oidcSessionRegistry cannot be null");
+		getBuilder().setSharedObject(OidcSessionRegistry.class, oidcSessionRegistry);
+		return this;
+	}
 
 	/**
 	 * Configure OIDC Back-Channel Logout using the provided {@link Consumer}

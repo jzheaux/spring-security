@@ -225,12 +225,13 @@ public final class OAuth2LoginConfigurer<B extends HttpSecurityBuilder<B>>
 
 	/**
 	 * Sets the registry for managing the OIDC client-provider session link
-	 * @param sessionRegistry the {@link OidcSessionRegistry} to use
+	 * @param oidcSessionRegistry the {@link OidcSessionRegistry} to use
 	 * @return the {@link OAuth2LoginConfigurer} for further configuration
+	 * @since 6.2
 	 */
-	public OAuth2LoginConfigurer<B> oidcSessionRegistry(OidcSessionRegistry sessionRegistry) {
-		Assert.notNull(sessionRegistry, "sessionRegistry cannot be null");
-		this.getBuilder().setSharedObject(OidcSessionRegistry.class, sessionRegistry);
+	public OAuth2LoginConfigurer<B> oidcSessionRegistry(OidcSessionRegistry oidcSessionRegistry) {
+		Assert.notNull(oidcSessionRegistry, "oidcSessionRegistry cannot be null");
+		getBuilder().setSharedObject(OidcSessionRegistry.class, oidcSessionRegistry);
 		return this;
 	}
 
