@@ -262,7 +262,13 @@ public class RequestMatchersBuilder {
 		}
 
 		private String prependServletPath(String pattern) {
-			return (this.servletPath != null && !"/".equals(this.servletPath)) ? this.servletPath + pattern : pattern;
+			if (this.servletPath == null) {
+				return pattern;
+			}
+			if (this.servletPath.startsWith("/") && this.servletPath.length() > 1) {
+				return this.servletPath + pattern;
+			}
+			return pattern;
 		}
 
 	}
