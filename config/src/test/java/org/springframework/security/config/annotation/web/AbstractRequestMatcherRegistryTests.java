@@ -23,7 +23,6 @@ import jakarta.servlet.Servlet;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.MockServletContext;
@@ -38,6 +37,7 @@ import org.springframework.web.servlet.DispatcherServlet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
@@ -65,6 +65,7 @@ public class AbstractRequestMatcherRegistryTests {
 		this.matcherRegistry = new TestRequestMatcherRegistry();
 		this.context = mock(WebApplicationContext.class);
 		given(this.context.getBean(ObjectPostProcessor.class)).willReturn(NO_OP_OBJECT_POST_PROCESSOR);
+		given(this.context.getBeanNamesForType((Class<?>) any())).willReturn(new String[0]);
 		given(this.context.getServletContext()).willReturn(MockServletContext.mvc());
 		this.matcherRegistry.setApplicationContext(this.context);
 		mockMvcIntrospector(true);
@@ -147,11 +148,12 @@ public class AbstractRequestMatcherRegistryTests {
 	}
 
 	@Test
-	public void requestMatchersWhenMvcPresentInClassPathAndMvcIntrospectorBeanNotAvailableThenException() {
+	public void requestMatchersWhenMvcPresentInClassPathAndMvcIntrospectorBeanNotAvailableThenAnt() {
 		mockMvcIntrospector(false);
-		assertThatExceptionOfType(NoSuchBeanDefinitionException.class)
-				.isThrownBy(() -> this.matcherRegistry.requestMatchers("/path")).withMessageContaining(
-						"Please ensure Spring Security & Spring MVC are configured in a shared ApplicationContext");
+		List<RequestMatcher> requestMatchers = this.matcherRegistry.requestMatchers("/path");
+		assertThat(requestMatchers).isNotEmpty();
+		assertThat(requestMatchers).hasSize(1);
+		assertThat(requestMatchers.get(0)).isExactlyInstanceOf(AntPathRequestMatcher.class);
 	}
 
 	@Test
@@ -175,7 +177,7 @@ public class AbstractRequestMatcherRegistryTests {
 		MockServletContext servletContext = new MockServletContext();
 		given(this.context.getServletContext()).willReturn(servletContext);
 		servletContext.addServlet("dispatcherServlet", DispatcherServlet.class).addMapping("/");
-		servletContext.addServlet("servletTwo", Servlet.class).addMapping("/servlet/**");
+		servletContext.addServlet("servletTwo", Servlet.class).addMapping("/servlet/*");
 		assertThatExceptionOfType(IllegalArgumentException.class)
 				.isThrownBy(() -> this.matcherRegistry.requestMatchers("/**"));
 	}

@@ -120,7 +120,7 @@ public class AuthorizeHttpRequestsConfigurerTests {
 	public void configureWhenMvcMatcherAfterAnyRequestThenException() {
 		assertThatExceptionOfType(BeanCreationException.class)
 				.isThrownBy(() -> this.spring.register(AfterAnyRequestConfig.class).autowire())
-				.withMessageContaining("Can't configure mvcMatchers after anyRequest");
+				.withMessageContaining("Can't configure requestMatchers after anyRequest");
 	}
 
 	@Test
