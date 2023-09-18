@@ -160,13 +160,9 @@ public class AbstractRequestMatcherRegistryTests {
 	public void requestMatchersWhenNoDispatcherServletThenAntPathRequestMatcherType() {
 		MockServletContext servletContext = new MockServletContext();
 		given(this.context.getServletContext()).willReturn(servletContext);
+		servletContext.addServlet("servletOne", Servlet.class).addMapping("/one");
+		servletContext.addServlet("servletTwo", Servlet.class).addMapping("/two");
 		List<RequestMatcher> requestMatchers = this.matcherRegistry.requestMatchers("/**");
-		assertThat(requestMatchers).isNotEmpty();
-		assertThat(requestMatchers).hasSize(1);
-		assertThat(requestMatchers.get(0)).isExactlyInstanceOf(AntPathRequestMatcher.class);
-		servletContext.addServlet("servletOne", Servlet.class);
-		servletContext.addServlet("servletTwo", Servlet.class);
-		requestMatchers = this.matcherRegistry.requestMatchers("/**");
 		assertThat(requestMatchers).isNotEmpty();
 		assertThat(requestMatchers).hasSize(1);
 		assertThat(requestMatchers.get(0)).isExactlyInstanceOf(AntPathRequestMatcher.class);
@@ -177,7 +173,7 @@ public class AbstractRequestMatcherRegistryTests {
 		MockServletContext servletContext = new MockServletContext();
 		given(this.context.getServletContext()).willReturn(servletContext);
 		servletContext.addServlet("dispatcherServlet", DispatcherServlet.class).addMapping("/");
-		servletContext.addServlet("servletTwo", Servlet.class).addMapping("/servlet/*");
+		servletContext.addServlet("servletTwo", DispatcherServlet.class).addMapping("/servlet/*");
 		assertThatExceptionOfType(IllegalArgumentException.class)
 				.isThrownBy(() -> this.matcherRegistry.requestMatchers("/**"));
 	}
