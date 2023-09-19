@@ -27,7 +27,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpMethod;
 import org.springframework.lang.Nullable;
 import org.springframework.security.config.annotation.ObjectPostProcessor;
-import org.springframework.security.config.annotation.web.builders.RequestMatchersBuilder;
+import org.springframework.security.config.annotation.web.builders.ServletRequestMatcherBuilder;
 import org.springframework.security.config.annotation.web.configurers.AbstractConfigAttributeRequestMatcherRegistry;
 import org.springframework.security.web.servlet.util.matcher.MvcRequestMatcher;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
@@ -180,7 +180,7 @@ public abstract class AbstractRequestMatcherRegistry<C> {
 	 * @since 5.8
 	 */
 	public C requestMatchers(HttpMethod method, String... patterns) {
-		RequestMatchersBuilder builder = getRequestMatchersBuilder();
+		ServletRequestMatcherBuilder builder = getRequestMatchersBuilder();
 		return requestMatchers(builder.matchers(method, patterns));
 	}
 
@@ -237,14 +237,14 @@ public abstract class AbstractRequestMatcherRegistry<C> {
 	 */
 	protected abstract C chainRequestMatchers(List<RequestMatcher> requestMatchers);
 
-	private RequestMatchersBuilder getRequestMatchersBuilder() {
+	private ServletRequestMatcherBuilder getRequestMatchersBuilder() {
 		if (this.context == null) {
-			return new RequestMatchersBuilder(null);
+			return new ServletRequestMatcherBuilder(null);
 		}
-		if (this.context.getBeanNamesForType(RequestMatchersBuilder.class).length > 0) {
-			return this.context.getBean(RequestMatchersBuilder.class);
+		if (this.context.getBeanNamesForType(ServletRequestMatcherBuilder.class).length > 0) {
+			return this.context.getBean(ServletRequestMatcherBuilder.class);
 		}
-		return new RequestMatchersBuilder(this.context);
+		return new ServletRequestMatcherBuilder(this.context);
 	}
 
 	/**

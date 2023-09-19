@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.MockServletContext;
-import org.springframework.security.config.annotation.web.builders.RequestMatchersBuilder.ServletPathAwareRequestMatcher;
+import org.springframework.security.config.annotation.web.builders.ServletRequestMatcherBuilder.ServletPathAwareRequestMatcher;
 import org.springframework.security.web.servlet.util.matcher.MvcRequestMatcher;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
@@ -36,12 +36,12 @@ import org.springframework.web.servlet.handler.HandlerMappingIntrospector;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
-class RequestMatchersBuilderTests {
+class ServletRequestMatcherBuilderTests {
 
 	@Test
 	void matchersWhenDefaultDispatcherServletThenMvc() {
 		MockServletContext servletContext = MockServletContext.mvc();
-		RequestMatchersBuilder builder = requestMatchersBuilder(servletContext);
+		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		RequestMatcher[] matchers = builder.matchers("/mvc");
 		assertThat(matchers[0]).isInstanceOf(MvcRequestMatcher.class);
 		MvcRequestMatcher matcher = (MvcRequestMatcher) matchers[0];
@@ -52,7 +52,7 @@ class RequestMatchersBuilderTests {
 	@Test
 	void httpMethodMatchersWhenDefaultDispatcherServletThenMvc() {
 		MockServletContext servletContext = MockServletContext.mvc();
-		RequestMatchersBuilder builder = requestMatchersBuilder(servletContext);
+		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		RequestMatcher[] matchers = builder.matchers(HttpMethod.GET, "/mvc");
 		assertThat(matchers[0]).isInstanceOf(MvcRequestMatcher.class);
 		MvcRequestMatcher matcher = (MvcRequestMatcher) matchers[0];
@@ -65,7 +65,7 @@ class RequestMatchersBuilderTests {
 	void matchersWhenPathDispatcherServletThenMvc() {
 		MockServletContext servletContext = new MockServletContext();
 		servletContext.addServlet("dispatcherServlet", DispatcherServlet.class).addMapping("/mvc/*");
-		RequestMatchersBuilder builder = requestMatchersBuilder(servletContext);
+		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		RequestMatcher[] matchers = builder.matchers("/controller");
 		assertThat(matchers[0]).isInstanceOf(MvcRequestMatcher.class);
 		MvcRequestMatcher matcher = (MvcRequestMatcher) matchers[0];
@@ -79,7 +79,7 @@ class RequestMatchersBuilderTests {
 		servletContext.addServlet("default", Servlet.class);
 		servletContext.addServlet("jspServlet", Servlet.class).addMapping("*.jsp", "*.jspx");
 		servletContext.addServlet("dispatcherServlet", DispatcherServlet.class).addMapping("/mvc/*");
-		RequestMatchersBuilder builder = requestMatchersBuilder(servletContext);
+		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		RequestMatcher[] matchers = builder.matchers("/controller");
 		assertThat(matchers[0]).isInstanceOf(ServletPathAwareRequestMatcher.class);
 		MvcRequestMatcher matcher = ((ServletPathAwareRequestMatcher) matchers[0]).mvc;
@@ -91,7 +91,7 @@ class RequestMatchersBuilderTests {
 	void matchersWhenOnlyDefaultServletThenAnt() {
 		MockServletContext servletContext = new MockServletContext();
 		servletContext.addServlet("default", Servlet.class).addMapping("/");
-		RequestMatchersBuilder builder = requestMatchersBuilder(servletContext);
+		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		RequestMatcher[] matchers = builder.matchers("/controller");
 		assertThat(matchers[0]).isInstanceOf(AntPathRequestMatcher.class);
 		AntPathRequestMatcher matcher = (AntPathRequestMatcher) matchers[0];
@@ -101,7 +101,7 @@ class RequestMatchersBuilderTests {
 	@Test
 	void matchersWhenNoHandlerMappingIntrospectorThenAnt() {
 		MockServletContext servletContext = MockServletContext.mvc();
-		RequestMatchersBuilder builder = requestMatchersBuilder(servletContext, (context) -> {
+		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext, (context) -> {
 		});
 		RequestMatcher[] matchers = builder.matchers("/controller");
 		assertThat(matchers[0]).isInstanceOf(AntPathRequestMatcher.class);
@@ -114,7 +114,7 @@ class RequestMatchersBuilderTests {
 		MockServletContext servletContext = new MockServletContext();
 		servletContext.addServlet("default", Servlet.class).addMapping("/");
 		servletContext.addServlet("messageDispatcherServlet", Servlet.class).addMapping("/services/*");
-		RequestMatchersBuilder builder = requestMatchersBuilder(servletContext);
+		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		RequestMatcher[] matchers = builder.matchers("/services/endpoint");
 		assertThat(matchers[0]).isInstanceOf(AntPathRequestMatcher.class);
 		AntPathRequestMatcher matcher = (AntPathRequestMatcher) matchers[0];
@@ -125,7 +125,7 @@ class RequestMatchersBuilderTests {
 	void matchersWhenMixedServletsThenRequiresServletPath() {
 		MockServletContext servletContext = MockServletContext.mvc();
 		servletContext.addServlet("messageDispatcherServlet", Servlet.class).addMapping("/services/*");
-		RequestMatchersBuilder builder = requestMatchersBuilder(servletContext);
+		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		assertThat(builder.matchers("/services/endpoint")[0]).isInstanceOf(ServletPathAwareRequestMatcher.class);
 		RequestMatcher[] matchers = builder.servletPath("/services").matchers("/endpoint");
 		assertThat(matchers[0]).isInstanceOf(AntPathRequestMatcher.class);
@@ -141,7 +141,7 @@ class RequestMatchersBuilderTests {
 		MockServletContext servletContext = new MockServletContext();
 		servletContext.addServlet("default", Servlet.class).addMapping("/");
 		servletContext.addServlet("dispatcherServlet", DispatcherServlet.class).addMapping("/mvc/*");
-		RequestMatchersBuilder builder = requestMatchersBuilder(servletContext);
+		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		assertThat(builder.matchers("/controller")[0]).isInstanceOf(ServletPathAwareRequestMatcher.class);
 		RequestMatcher[] matchers = builder.servletPath("/mvc").matchers("/controller");
 		assertThat(matchers[0]).isInstanceOf(MvcRequestMatcher.class);
@@ -157,7 +157,7 @@ class RequestMatchersBuilderTests {
 		MockServletContext servletContext = new MockServletContext();
 		servletContext.addServlet("default", Servlet.class).addMapping("/");
 		servletContext.addServlet("dispatcherServlet", DispatcherServlet.class).addMapping("/mvc/*");
-		RequestMatchersBuilder builder = requestMatchersBuilder(servletContext);
+		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		assertThat(builder.matchers(HttpMethod.GET, "/controller")[0])
 				.isInstanceOf(ServletPathAwareRequestMatcher.class);
 		RequestMatcher[] matchers = builder.servletPath("/mvc").matchers(HttpMethod.GET, "/controller");
@@ -175,7 +175,7 @@ class RequestMatchersBuilderTests {
 	void matchersWhenTwoDispatcherServletsThenRequiresServletPath() {
 		MockServletContext servletContext = MockServletContext.mvc();
 		servletContext.addServlet("two", DispatcherServlet.class).addMapping("/other/*");
-		RequestMatchersBuilder builder = requestMatchersBuilder(servletContext);
+		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> builder.matchers("/controller"));
 		RequestMatcher[] matchers = builder.servletPath("/").matchers("/controller");
 		assertThat(matchers[0]).isInstanceOf(MvcRequestMatcher.class);
@@ -191,7 +191,7 @@ class RequestMatchersBuilderTests {
 	void matchersWhenMoreThanOneMappingThenRequiresServletPath() {
 		MockServletContext servletContext = new MockServletContext();
 		servletContext.addServlet("dispatcherServlet", DispatcherServlet.class).addMapping("/", "/two/*");
-		RequestMatchersBuilder builder = requestMatchersBuilder(servletContext);
+		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> builder.matchers("/controller"));
 		RequestMatcher[] matchers = builder.servletPath("/").matchers("/controller");
 		assertThat(matchers[0]).isInstanceOf(MvcRequestMatcher.class);
@@ -208,7 +208,7 @@ class RequestMatchersBuilderTests {
 		MockServletContext servletContext = new MockServletContext();
 		servletContext.addServlet("dispatcherServlet", DispatcherServlet.class).addMapping("/", "/two/*");
 		servletContext.addServlet("jspServlet", Servlet.class).addMapping("*.jsp", "*.jspx");
-		RequestMatchersBuilder builder = requestMatchersBuilder(servletContext);
+		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> builder.matchers("/controller"));
 		RequestMatcher[] matchers = builder.servletPath("/").matchers("/controller");
 		assertThat(matchers[0]).isInstanceOf(MvcRequestMatcher.class);
@@ -224,7 +224,7 @@ class RequestMatchersBuilderTests {
 	void mvcMatchersWhenDispatcherServletThenMvc() {
 		MockServletContext servletContext = MockServletContext.mvc();
 		servletContext.addServlet("messageDispatcherServlet", Servlet.class).addMapping("/services/*");
-		RequestMatchersBuilder builder = requestMatchersBuilder(servletContext);
+		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		assertThat(builder.matchers("/controller")[0]).isInstanceOf(ServletPathAwareRequestMatcher.class);
 		RequestMatcher[] matchers = builder.mvc().matchers("/controller");
 		assertThat(matchers[0]).isInstanceOf(MvcRequestMatcher.class);
@@ -239,7 +239,7 @@ class RequestMatchersBuilderTests {
 	void mvcMatchersWhenNoDispatcherServletThenException() {
 		MockServletContext servletContext = new MockServletContext();
 		servletContext.addServlet("messageDispatcherServlet", Servlet.class).addMapping("/services/*");
-		RequestMatchersBuilder builder = requestMatchersBuilder(servletContext);
+		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		assertThatExceptionOfType(IllegalArgumentException.class)
 				.isThrownBy(() -> builder.mvc().matchers("/controller"));
 	}
@@ -248,7 +248,7 @@ class RequestMatchersBuilderTests {
 	void mvcMatchersWhenTwoDispatcherServletsThenRequiresServletPath() {
 		MockServletContext servletContext = MockServletContext.mvc();
 		servletContext.addServlet("two", DispatcherServlet.class).addMapping("/other/*");
-		RequestMatchersBuilder builder = requestMatchersBuilder(servletContext);
+		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		assertThatExceptionOfType(IllegalArgumentException.class)
 				.isThrownBy(() -> builder.mvc().matchers("/controller"));
 		RequestMatcher[] matchers = builder.servletPath("/").matchers("/controller");
@@ -265,7 +265,7 @@ class RequestMatchersBuilderTests {
 	void mvcMatchersWhenMoreThanOneMappingThenRequiresServletPath() {
 		MockServletContext servletContext = new MockServletContext();
 		servletContext.addServlet("dispatcherServlet", DispatcherServlet.class).addMapping("/", "/two/*");
-		RequestMatchersBuilder builder = requestMatchersBuilder(servletContext);
+		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		assertThatExceptionOfType(IllegalArgumentException.class)
 				.isThrownBy(() -> builder.mvc().matchers("/controller"));
 		RequestMatcher[] matchers = builder.servletPath("/").matchers("/controller");
@@ -282,8 +282,8 @@ class RequestMatchersBuilderTests {
 	void matcherWhenFacesServletThenAnt() {
 		MockServletContext servletContext = MockServletContext.mvc();
 		servletContext.addServlet("facesServlet", Servlet.class).addMapping("/faces/", "*.jsf", "*.faces", "*.xhtml");
-		RequestMatchersBuilder builder = requestMatchersBuilder(servletContext);
-		RequestMatcher matcher = builder.servletPath("/faces/").matcher();
+		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
+		RequestMatcher matcher = builder.servletPathMatcher("/faces/");
 		assertThat(matcher).isInstanceOf(AntPathRequestMatcher.class);
 		assertThat(ReflectionTestUtils.getField(matcher, "pattern")).isEqualTo("/faces/");
 	}
@@ -291,22 +291,21 @@ class RequestMatchersBuilderTests {
 	@Test
 	void servletPathWhenNoMatchingServletThenException() {
 		MockServletContext servletContext = MockServletContext.mvc();
-		RequestMatchersBuilder builder = requestMatchersBuilder(servletContext);
-		assertThatExceptionOfType(IllegalArgumentException.class)
-				.isThrownBy(() -> builder.servletPath("/wrong").matcher());
+		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
+		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> builder.servletPath("/wrong"));
 	}
 
-	RequestMatchersBuilder requestMatchersBuilder(ServletContext servletContext) {
+	ServletRequestMatcherBuilder requestMatchersBuilder(ServletContext servletContext) {
 		return requestMatchersBuilder(servletContext,
 				(context) -> context.registerBean("mvcHandlerMappingIntrospector", HandlerMappingIntrospector.class));
 	}
 
-	RequestMatchersBuilder requestMatchersBuilder(ServletContext servletContext,
+	ServletRequestMatcherBuilder requestMatchersBuilder(ServletContext servletContext,
 			Consumer<GenericWebApplicationContext> consumer) {
 		GenericWebApplicationContext context = new GenericWebApplicationContext(servletContext);
 		consumer.accept(context);
 		context.refresh();
-		return new RequestMatchersBuilder(context);
+		return new ServletRequestMatcherBuilder(context);
 	}
 
 }
