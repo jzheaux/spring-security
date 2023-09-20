@@ -16,12 +16,13 @@
 
 package org.springframework.security.config.annotation.web.builders;
 
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.web.servlet.util.matcher.MvcRequestMatcher;
 import org.springframework.web.servlet.handler.HandlerMappingIntrospector;
 
-public final class MvcRequestMatcherBuilder extends AbstractRequestMatcherBuilder {
+final class MvcRequestMatcherBuilder extends AbstractRequestMatcherBuilder {
 
 	private static final String HANDLER_MAPPING_INTROSPECTOR_BEAN_NAME = "mvcHandlerMappingIntrospector";
 
@@ -30,14 +31,13 @@ public final class MvcRequestMatcherBuilder extends AbstractRequestMatcherBuilde
 	private final String servletPath;
 
 	MvcRequestMatcherBuilder(ApplicationContext context, String servletPath) {
+		if (!context.containsBean(HANDLER_MAPPING_INTROSPECTOR_BEAN_NAME)) {
+			throw new NoSuchBeanDefinitionException("A Bean named " + HANDLER_MAPPING_INTROSPECTOR_BEAN_NAME
+					+ " of type " + HandlerMappingIntrospector.class.getName()
+					+ " is required to use MvcRequestMatcher. Please ensure Spring Security & Spring MVC are configured in a shared ApplicationContext.");
+		}
 		this.introspector = context.getBean(HANDLER_MAPPING_INTROSPECTOR_BEAN_NAME, HandlerMappingIntrospector.class);
-		// TODO ensure that only DEFAULT and PATH mappings are used
-		if (servletPath != null && servletPath.endsWith("/*")) {
-			this.servletPath = servletPath.substring(0, servletPath.length() - 2);
-		}
-		else {
-			this.servletPath = servletPath;
-		}
+		this.servletPath = servletPath;
 	}
 
 	@Override

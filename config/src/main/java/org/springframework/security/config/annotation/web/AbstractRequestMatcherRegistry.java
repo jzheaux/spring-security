@@ -27,6 +27,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpMethod;
 import org.springframework.lang.Nullable;
 import org.springframework.security.config.annotation.ObjectPostProcessor;
+import org.springframework.security.config.annotation.web.builders.RequestMatcherBuilder;
 import org.springframework.security.config.annotation.web.builders.ServletRequestMatcherBuilder;
 import org.springframework.security.config.annotation.web.configurers.AbstractConfigAttributeRequestMatcherRegistry;
 import org.springframework.security.web.servlet.util.matcher.MvcRequestMatcher;
@@ -57,6 +58,8 @@ public abstract class AbstractRequestMatcherRegistry<C> {
 	private static final boolean mvcPresent;
 
 	private static final RequestMatcher ANY_REQUEST = AnyRequestMatcher.INSTANCE;
+
+	private RequestMatcherBuilder builder;
 
 	private ApplicationContext context;
 
@@ -180,7 +183,7 @@ public abstract class AbstractRequestMatcherRegistry<C> {
 	 * @since 5.8
 	 */
 	public C requestMatchers(HttpMethod method, String... patterns) {
-		ServletRequestMatcherBuilder builder = getRequestMatchersBuilder();
+		RequestMatcherBuilder builder = getRequestMatcherBuilder();
 		return requestMatchers(builder.matchers(method, patterns));
 	}
 
@@ -237,14 +240,20 @@ public abstract class AbstractRequestMatcherRegistry<C> {
 	 */
 	protected abstract C chainRequestMatchers(List<RequestMatcher> requestMatchers);
 
-	private ServletRequestMatcherBuilder getRequestMatchersBuilder() {
+	private RequestMatcherBuilder getRequestMatcherBuilder() {
+		if (this.builder != null) {
+			return this.builder;
+		}
 		if (this.context == null) {
-			return new ServletRequestMatcherBuilder(null);
+			this.builder = new ServletRequestMatcherBuilder(null);
 		}
-		if (this.context.getBeanNamesForType(ServletRequestMatcherBuilder.class).length > 0) {
-			return this.context.getBean(ServletRequestMatcherBuilder.class);
+		else if (this.context.getBeanNamesForType(RequestMatcherBuilder.class).length > 0) {
+			this.builder = this.context.getBean(RequestMatcherBuilder.class);
 		}
-		return new ServletRequestMatcherBuilder(this.context);
+		else {
+			this.builder = new ServletRequestMatcherBuilder(this.context);
+		}
+		return this.builder;
 	}
 
 	/**

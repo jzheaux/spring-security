@@ -19,7 +19,7 @@ package org.springframework.security.config.annotation.web.builders;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
-public final class AntPathRequestMatcherBuilder extends AbstractRequestMatcherBuilder {
+final class AntPathRequestMatcherBuilder extends AbstractRequestMatcherBuilder {
 
 	private final String servletPath;
 

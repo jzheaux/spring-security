@@ -37,8 +37,6 @@ import org.springframework.security.config.annotation.authentication.configurers
 import org.springframework.security.config.annotation.authentication.configurers.provisioning.JdbcUserDetailsManagerConfigurer;
 import org.springframework.security.config.annotation.authentication.configurers.userdetails.DaoAuthenticationConfigurer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.builders.MvcRequestMatcherBuilder;
-import org.springframework.security.config.annotation.web.builders.ServletRequestMatcherBuilder;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.DefaultLoginPageConfigurer;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -130,17 +128,6 @@ class HttpSecurityConfiguration {
 		applyCorsIfAvailable(http);
 		applyDefaultConfigurers(http);
 		return http;
-	}
-
-	@Bean
-	ServletRequestMatcherBuilder requestMatchersBuilder(ApplicationContext context) {
-		return new ServletRequestMatcherBuilder(context);
-	}
-
-	@Bean
-	@Scope("prototype")
-	MvcRequestMatcherBuilder mvcRequestMatcherBuilder(ServletRequestMatcherBuilder builder) {
-		return builder.mvc();
 	}
 
 	private void applyCorsIfAvailable(HttpSecurity http) throws Exception {

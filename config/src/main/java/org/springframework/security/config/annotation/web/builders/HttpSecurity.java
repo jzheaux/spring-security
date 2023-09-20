@@ -29,7 +29,6 @@ import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 
-import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.OrderComparator;
 import org.springframework.core.Ordered;
@@ -153,6 +152,8 @@ public final class HttpSecurity extends AbstractConfiguredSecurityBuilder<Defaul
 	private final RequestMatcherConfigurer requestMatcherConfigurer;
 
 	private List<OrderedFilter> filters = new ArrayList<>();
+
+	private RequestMatcherBuilder builder;
 
 	private RequestMatcher requestMatcher = AnyRequestMatcher.INSTANCE;
 
@@ -3626,38 +3627,29 @@ public final class HttpSecurity extends AbstractConfiguredSecurityBuilder<Defaul
 	 * @see MvcRequestMatcher
 	 */
 	public HttpSecurity securityMatcher(String... patterns) {
-		if (mvcPresent) {
-			this.requestMatcher = new OrRequestMatcher(createMvcMatchers(patterns));
-			return this;
+		ObjectPostProcessor<Object> opp = getContext().getBean(ObjectPostProcessor.class);
+		RequestMatcherBuilder builder = getRequestMatcherBuilder();
+		RequestMatcher[] matchers = builder.matchers(patterns);
+		for (int index = 0; index < matchers.length; index++) {
+			if (matchers[index] instanceof MvcRequestMatcher mvc) {
+				matchers[index] = opp.postProcess(mvc);
+			}
 		}
-		this.requestMatcher = new OrRequestMatcher(createAntMatchers(patterns));
+		this.requestMatcher = new OrRequestMatcher(matchers);
 		return this;
 	}
 
-	private List<RequestMatcher> createAntMatchers(String... patterns) {
-		List<RequestMatcher> matchers = new ArrayList<>(patterns.length);
-		for (String pattern : patterns) {
-			matchers.add(new AntPathRequestMatcher(pattern));
+	private RequestMatcherBuilder getRequestMatcherBuilder() {
+		if (this.builder != null) {
+			return this.builder;
 		}
-		return matchers;
-	}
-
-	private List<RequestMatcher> createMvcMatchers(String... mvcPatterns) {
-		ObjectPostProcessor<Object> opp = getContext().getBean(ObjectPostProcessor.class);
-		if (!getContext().containsBean(HANDLER_MAPPING_INTROSPECTOR_BEAN_NAME)) {
-			throw new NoSuchBeanDefinitionException("A Bean named " + HANDLER_MAPPING_INTROSPECTOR_BEAN_NAME
-					+ " of type " + HandlerMappingIntrospector.class.getName()
-					+ " is required to use MvcRequestMatcher. Please ensure Spring Security & Spring MVC are configured in a shared ApplicationContext.");
+		else if (getContext().getBeanNamesForType(RequestMatcherBuilder.class).length > 0) {
+			this.builder = getContext().getBean(RequestMatcherBuilder.class);
 		}
-		HandlerMappingIntrospector introspector = getContext().getBean(HANDLER_MAPPING_INTROSPECTOR_BEAN_NAME,
-				HandlerMappingIntrospector.class);
-		List<RequestMatcher> matchers = new ArrayList<>(mvcPatterns.length);
-		for (String mvcPattern : mvcPatterns) {
-			MvcRequestMatcher matcher = new MvcRequestMatcher(introspector, mvcPattern);
-			opp.postProcess(matcher);
-			matchers.add(matcher);
+		else {
+			this.builder = new ServletRequestMatcherBuilder(getContext());
 		}
-		return matchers;
+		return this.builder;
 	}
 
 	/**

@@ -692,6 +692,7 @@ public class AuthorizeHttpRequestsConfigurerTests {
 
 	@Configuration
 	@EnableWebSecurity
+	@EnableWebMvc
 	static class AfterAnyRequestConfig {
 
 		@Bean

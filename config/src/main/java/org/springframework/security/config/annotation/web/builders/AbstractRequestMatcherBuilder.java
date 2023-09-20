@@ -19,7 +19,7 @@ package org.springframework.security.config.annotation.web.builders;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
-public abstract class AbstractRequestMatcherBuilder implements RequestMatcherBuilder {
+abstract class AbstractRequestMatcherBuilder implements RequestMatcherBuilder {
 
 	@Override
 	public RequestMatcher[] matchers(HttpMethod method, String... patterns) {

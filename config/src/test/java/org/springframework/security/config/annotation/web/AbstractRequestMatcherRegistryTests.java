@@ -23,6 +23,7 @@ import jakarta.servlet.Servlet;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.MockServletContext;
@@ -148,12 +149,11 @@ public class AbstractRequestMatcherRegistryTests {
 	}
 
 	@Test
-	public void requestMatchersWhenMvcPresentInClassPathAndMvcIntrospectorBeanNotAvailableThenAnt() {
+	public void requestMatchersWhenMvcPresentInClassPathAndMvcIntrospectorBeanNotAvailableThenException() {
 		mockMvcIntrospector(false);
-		List<RequestMatcher> requestMatchers = this.matcherRegistry.requestMatchers("/path");
-		assertThat(requestMatchers).isNotEmpty();
-		assertThat(requestMatchers).hasSize(1);
-		assertThat(requestMatchers.get(0)).isExactlyInstanceOf(AntPathRequestMatcher.class);
+		assertThatExceptionOfType(NoSuchBeanDefinitionException.class)
+				.isThrownBy(() -> this.matcherRegistry.requestMatchers("/path")).withMessageContaining(
+						"Please ensure Spring Security & Spring MVC are configured in a shared ApplicationContext");
 	}
 
 	@Test
