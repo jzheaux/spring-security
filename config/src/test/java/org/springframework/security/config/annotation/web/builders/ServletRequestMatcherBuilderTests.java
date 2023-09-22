@@ -25,7 +25,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.MockServletContext;
-import org.springframework.security.config.annotation.web.builders.ServletRequestMatcherBuilder.ServletPathAwareRequestMatcher;
+import org.springframework.security.config.annotation.ObjectPostProcessor;
+import org.springframework.security.config.annotation.web.builders.ServletRequestMatcherBuilder.ServletPathDelegatingRequestMatcher;
 import org.springframework.security.web.servlet.util.matcher.MvcRequestMatcher;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
@@ -36,6 +37,7 @@ import org.springframework.web.servlet.handler.HandlerMappingIntrospector;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.mockito.Mockito.mock;
 
 class ServletRequestMatcherBuilderTests {
 
@@ -83,8 +85,8 @@ class ServletRequestMatcherBuilderTests {
 		servletContext.addServlet("dispatcherServlet", DispatcherServlet.class).addMapping("/mvc/*");
 		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		RequestMatcher[] matchers = builder.matchers("/controller");
-		assertThat(matchers[0]).isInstanceOf(ServletPathAwareRequestMatcher.class);
-		MvcRequestMatcher matcher = ((ServletPathAwareRequestMatcher) matchers[0]).mvc;
+		assertThat(matchers[0]).isInstanceOf(ServletPathDelegatingRequestMatcher.class);
+		MvcRequestMatcher matcher = ((ServletPathDelegatingRequestMatcher) matchers[0]).mvc;
 		assertThat(ReflectionTestUtils.getField(matcher, "servletPath")).isEqualTo("/mvc");
 		assertThat(ReflectionTestUtils.getField(matcher, "pattern")).isEqualTo("/controller");
 	}
@@ -125,7 +127,7 @@ class ServletRequestMatcherBuilderTests {
 		MockServletContext servletContext = MockServletContext.mvc();
 		servletContext.addServlet("messageDispatcherServlet", Servlet.class).addMapping("/services/*");
 		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
-		assertThat(builder.matchers("/services/endpoint")[0]).isInstanceOf(ServletPathAwareRequestMatcher.class);
+		assertThat(builder.matchers("/services/endpoint")[0]).isInstanceOf(ServletPathDelegatingRequestMatcher.class);
 		RequestMatcher[] matchers = builder.servletPath("/services").matchers("/endpoint");
 		assertThat(matchers[0]).isInstanceOf(AntPathRequestMatcher.class);
 		assertThat(ReflectionTestUtils.getField(matchers[0], "pattern")).isEqualTo("/services/endpoint");
@@ -141,7 +143,7 @@ class ServletRequestMatcherBuilderTests {
 		servletContext.addServlet("default", Servlet.class).addMapping("/");
 		servletContext.addServlet("dispatcherServlet", DispatcherServlet.class).addMapping("/mvc/*");
 		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
-		assertThat(builder.matchers("/controller")[0]).isInstanceOf(ServletPathAwareRequestMatcher.class);
+		assertThat(builder.matchers("/controller")[0]).isInstanceOf(ServletPathDelegatingRequestMatcher.class);
 		RequestMatcher[] matchers = builder.servletPath("/mvc").matchers("/controller");
 		assertThat(matchers[0]).isInstanceOf(MvcRequestMatcher.class);
 		assertThat(ReflectionTestUtils.getField(matchers[0], "servletPath")).isEqualTo("/mvc");
@@ -158,7 +160,7 @@ class ServletRequestMatcherBuilderTests {
 		servletContext.addServlet("dispatcherServlet", DispatcherServlet.class).addMapping("/mvc/*");
 		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		assertThat(builder.matchers(HttpMethod.GET, "/controller")[0])
-				.isInstanceOf(ServletPathAwareRequestMatcher.class);
+				.isInstanceOf(ServletPathDelegatingRequestMatcher.class);
 		RequestMatcher[] matchers = builder.servletPath("/mvc").matchers(HttpMethod.GET, "/controller");
 		assertThat(matchers[0]).isInstanceOf(MvcRequestMatcher.class);
 		assertThat(ReflectionTestUtils.getField(matchers[0], "method")).isEqualTo(HttpMethod.GET);
@@ -192,11 +194,11 @@ class ServletRequestMatcherBuilderTests {
 		servletContext.addServlet("dispatcherServlet", DispatcherServlet.class).addMapping("/", "/two/*");
 		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> builder.matchers("/controller"));
-		RequestMatcher[] matchers = builder.defaultServlet().matchers("/controller");
+		RequestMatcher[] matchers = builder.mvc().matchers("/controller");
 		assertThat(matchers[0]).isInstanceOf(MvcRequestMatcher.class);
 		assertThat(ReflectionTestUtils.getField(matchers[0], "servletPath")).isNull();
 		assertThat(ReflectionTestUtils.getField(matchers[0], "pattern")).isEqualTo("/controller");
-		matchers = builder.servletPath("/two").matchers("/endpoint");
+		matchers = builder.mvc("/two").matchers("/endpoint");
 		assertThat(matchers[0]).isInstanceOf(MvcRequestMatcher.class);
 		assertThat(ReflectionTestUtils.getField(matchers[0], "servletPath")).isEqualTo("/two");
 		assertThat(ReflectionTestUtils.getField(matchers[0], "pattern")).isEqualTo("/endpoint");
@@ -224,7 +226,7 @@ class ServletRequestMatcherBuilderTests {
 		MockServletContext servletContext = MockServletContext.mvc();
 		servletContext.addServlet("messageDispatcherServlet", Servlet.class).addMapping("/services/*");
 		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
-		assertThat(builder.matchers("/controller")[0]).isInstanceOf(ServletPathAwareRequestMatcher.class);
+		assertThat(builder.matchers("/controller")[0]).isInstanceOf(ServletPathDelegatingRequestMatcher.class);
 		RequestMatcher[] matchers = builder.mvc().matchers("/controller");
 		assertThat(matchers[0]).isInstanceOf(MvcRequestMatcher.class);
 		assertThat(ReflectionTestUtils.getField(matchers[0], "servletPath")).isNull();
@@ -248,8 +250,7 @@ class ServletRequestMatcherBuilderTests {
 		MockServletContext servletContext = MockServletContext.mvc();
 		servletContext.addServlet("two", DispatcherServlet.class).addMapping("/other/*");
 		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
-		assertThatExceptionOfType(IllegalArgumentException.class)
-				.isThrownBy(() -> builder.mvc().matchers("/controller"));
+		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> builder.matchers("/controller"));
 		RequestMatcher[] matchers = builder.defaultServlet().matchers("/controller");
 		assertThat(matchers[0]).isInstanceOf(MvcRequestMatcher.class);
 		assertThat(ReflectionTestUtils.getField(matchers[0], "servletPath")).isNull();
@@ -265,8 +266,7 @@ class ServletRequestMatcherBuilderTests {
 		MockServletContext servletContext = new MockServletContext();
 		servletContext.addServlet("dispatcherServlet", DispatcherServlet.class).addMapping("/", "/two/*");
 		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
-		assertThatExceptionOfType(IllegalArgumentException.class)
-				.isThrownBy(() -> builder.mvc().matchers("/controller"));
+		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> builder.matchers("/controller"));
 		RequestMatcher[] matchers = builder.defaultServlet().matchers("/controller");
 		assertThat(matchers[0]).isInstanceOf(MvcRequestMatcher.class);
 		assertThat(ReflectionTestUtils.getField(matchers[0], "servletPath")).isNull();
@@ -278,6 +278,17 @@ class ServletRequestMatcherBuilderTests {
 	}
 
 	@Test
+	void mvcWhenNotDispatcherServletThenException() {
+		MockServletContext servletContext = new MockServletContext();
+		servletContext.addServlet("dispatcherServlet", Servlet.class).addMapping("/", "/two/*");
+		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
+		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> builder.mvc())
+				.withMessageContaining("Spring MVC's DispatcherServlet is not mapped");
+		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> builder.mvc("/two"))
+				.withMessageContaining("Spring MVC's DispatcherServlet is not mapped");
+	}
+
+	@Test
 	void servletPathWhenNoMatchingServletThenException() {
 		MockServletContext servletContext = MockServletContext.mvc();
 		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
@@ -285,8 +296,10 @@ class ServletRequestMatcherBuilderTests {
 	}
 
 	ServletRequestMatcherBuilder requestMatchersBuilder(ServletContext servletContext) {
-		return requestMatchersBuilder(servletContext,
-				(context) -> context.registerBean("mvcHandlerMappingIntrospector", HandlerMappingIntrospector.class));
+		return requestMatchersBuilder(servletContext, (context) -> {
+			context.registerBean("mvcHandlerMappingIntrospector", HandlerMappingIntrospector.class);
+			context.registerBean(ObjectPostProcessor.class, () -> mock(ObjectPostProcessor.class));
+		});
 	}
 
 	ServletRequestMatcherBuilder requestMatchersBuilder(ServletContext servletContext,

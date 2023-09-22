@@ -34,10 +34,8 @@ import org.springframework.security.web.servlet.util.matcher.MvcRequestMatcher;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.AnyRequestMatcher;
 import org.springframework.security.web.util.matcher.DispatcherTypeRequestMatcher;
-import org.springframework.security.web.util.matcher.RegexRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
-import org.springframework.util.ClassUtils;
 import org.springframework.web.servlet.handler.HandlerMappingIntrospector;
 
 /**
@@ -53,10 +51,6 @@ public abstract class AbstractRequestMatcherRegistry<C> {
 
 	private static final String HANDLER_MAPPING_INTROSPECTOR_BEAN_NAME = "mvcHandlerMappingIntrospector";
 
-	private static final String HANDLER_MAPPING_INTROSPECTOR = "org.springframework.web.servlet.handler.HandlerMappingIntrospector";
-
-	private static final boolean mvcPresent;
-
 	private static final RequestMatcher ANY_REQUEST = AnyRequestMatcher.INSTANCE;
 
 	private RequestMatcherBuilder builder;
@@ -64,11 +58,6 @@ public abstract class AbstractRequestMatcherRegistry<C> {
 	private ApplicationContext context;
 
 	private boolean anyRequestConfigured = false;
-
-	static {
-		mvcPresent = ClassUtils.isPresent(HANDLER_MAPPING_INTROSPECTOR,
-				AbstractRequestMatcherRegistry.class.getClassLoader());
-	}
 
 	protected final void setApplicationContext(ApplicationContext context) {
 		this.context = context;
@@ -244,89 +233,13 @@ public abstract class AbstractRequestMatcherRegistry<C> {
 		if (this.builder != null) {
 			return this.builder;
 		}
-		if (this.context == null) {
-			this.builder = new ServletRequestMatcherBuilder(null);
-		}
-		else if (this.context.getBeanNamesForType(RequestMatcherBuilder.class).length > 0) {
+		if (this.context.getBeanNamesForType(RequestMatcherBuilder.class).length > 0) {
 			this.builder = this.context.getBean(RequestMatcherBuilder.class);
 		}
 		else {
 			this.builder = new ServletRequestMatcherBuilder(this.context);
 		}
 		return this.builder;
-	}
-
-	/**
-	 * Utilities for creating {@link RequestMatcher} instances.
-	 *
-	 * @author Rob Winch
-	 * @since 3.2
-	 */
-	private static final class RequestMatchers {
-
-		private RequestMatchers() {
-		}
-
-		/**
-		 * Create a {@link List} of {@link AntPathRequestMatcher} instances.
-		 * @param httpMethod the {@link HttpMethod} to use or {@code null} for any
-		 * {@link HttpMethod}.
-		 * @param antPatterns the ant patterns to create {@link AntPathRequestMatcher}
-		 * from
-		 * @return a {@link List} of {@link AntPathRequestMatcher} instances
-		 */
-		static List<RequestMatcher> antMatchers(HttpMethod httpMethod, String... antPatterns) {
-			return Arrays.asList(antMatchersAsArray(httpMethod, antPatterns));
-		}
-
-		/**
-		 * Create a {@link List} of {@link AntPathRequestMatcher} instances that do not
-		 * specify an {@link HttpMethod}.
-		 * @param antPatterns the ant patterns to create {@link AntPathRequestMatcher}
-		 * from
-		 * @return a {@link List} of {@link AntPathRequestMatcher} instances
-		 */
-		static List<RequestMatcher> antMatchers(String... antPatterns) {
-			return antMatchers(null, antPatterns);
-		}
-
-		static RequestMatcher[] antMatchersAsArray(HttpMethod httpMethod, String... antPatterns) {
-			String method = (httpMethod != null) ? httpMethod.toString() : null;
-			RequestMatcher[] matchers = new RequestMatcher[antPatterns.length];
-			for (int index = 0; index < antPatterns.length; index++) {
-				matchers[index] = new AntPathRequestMatcher(antPatterns[index], method);
-			}
-			return matchers;
-		}
-
-		/**
-		 * Create a {@link List} of {@link RegexRequestMatcher} instances.
-		 * @param httpMethod the {@link HttpMethod} to use or {@code null} for any
-		 * {@link HttpMethod}.
-		 * @param regexPatterns the regular expressions to create
-		 * {@link RegexRequestMatcher} from
-		 * @return a {@link List} of {@link RegexRequestMatcher} instances
-		 */
-		static List<RequestMatcher> regexMatchers(HttpMethod httpMethod, String... regexPatterns) {
-			String method = (httpMethod != null) ? httpMethod.toString() : null;
-			List<RequestMatcher> matchers = new ArrayList<>();
-			for (String pattern : regexPatterns) {
-				matchers.add(new RegexRequestMatcher(pattern, method));
-			}
-			return matchers;
-		}
-
-		/**
-		 * Create a {@link List} of {@link RegexRequestMatcher} instances that do not
-		 * specify an {@link HttpMethod}.
-		 * @param regexPatterns the regular expressions to create
-		 * {@link RegexRequestMatcher} from
-		 * @return a {@link List} of {@link RegexRequestMatcher} instances
-		 */
-		static List<RequestMatcher> regexMatchers(String... regexPatterns) {
-			return regexMatchers(null, regexPatterns);
-		}
-
 	}
 
 }

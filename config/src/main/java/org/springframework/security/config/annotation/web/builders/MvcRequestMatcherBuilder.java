@@ -19,6 +19,7 @@ package org.springframework.security.config.annotation.web.builders;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.ObjectPostProcessor;
 import org.springframework.security.web.servlet.util.matcher.MvcRequestMatcher;
 import org.springframework.web.servlet.handler.HandlerMappingIntrospector;
 
@@ -27,6 +28,8 @@ final class MvcRequestMatcherBuilder extends AbstractRequestMatcherBuilder {
 	private static final String HANDLER_MAPPING_INTROSPECTOR_BEAN_NAME = "mvcHandlerMappingIntrospector";
 
 	private final HandlerMappingIntrospector introspector;
+
+	private final ObjectPostProcessor<Object> objectPostProcessor;
 
 	private final String servletPath;
 
@@ -37,6 +40,7 @@ final class MvcRequestMatcherBuilder extends AbstractRequestMatcherBuilder {
 					+ " is required to use MvcRequestMatcher. Please ensure Spring Security & Spring MVC are configured in a shared ApplicationContext.");
 		}
 		this.introspector = context.getBean(HANDLER_MAPPING_INTROSPECTOR_BEAN_NAME, HandlerMappingIntrospector.class);
+		this.objectPostProcessor = context.getBean(ObjectPostProcessor.class);
 		this.servletPath = servletPath;
 	}
 
@@ -51,6 +55,7 @@ final class MvcRequestMatcherBuilder extends AbstractRequestMatcherBuilder {
 	@Override
 	public MvcRequestMatcher matcher(String pattern) {
 		MvcRequestMatcher matcher = new MvcRequestMatcher(this.introspector, pattern);
+		this.objectPostProcessor.postProcess(matcher);
 		if (this.servletPath != null) {
 			matcher.setServletPath(this.servletPath);
 		}
@@ -60,6 +65,7 @@ final class MvcRequestMatcherBuilder extends AbstractRequestMatcherBuilder {
 	@Override
 	public MvcRequestMatcher matcher(HttpMethod method, String pattern) {
 		MvcRequestMatcher matcher = new MvcRequestMatcher(this.introspector, pattern);
+		this.objectPostProcessor.postProcess(matcher);
 		matcher.setMethod(method);
 		if (this.servletPath != null) {
 			matcher.setServletPath(this.servletPath);

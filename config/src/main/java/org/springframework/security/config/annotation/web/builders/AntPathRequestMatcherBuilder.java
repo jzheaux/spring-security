@@ -53,10 +53,7 @@ final class AntPathRequestMatcherBuilder extends AbstractRequestMatcherBuilder {
 		if (this.servletPath == null) {
 			return pattern;
 		}
-		if (this.servletPath.startsWith("/") && this.servletPath.length() > 1) {
-			return this.servletPath + pattern;
-		}
-		return pattern;
+		return this.servletPath + pattern;
 	}
 
 }
