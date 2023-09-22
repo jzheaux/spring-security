@@ -58,8 +58,7 @@ final class ServletRegistrationUtils {
 		return filtered;
 	}
 
-	static ServletRegistration findRegistrationByServletPath(Collection<ServletRegistration> registrations,
-			String target) {
+	static ServletRegistration registrationByServletPath(Collection<ServletRegistration> registrations, String target) {
 		for (ServletRegistration registration : registrations) {
 			for (String mapping : registration.getMappings()) {
 				if (target.equals(mapping) || (target + "/*").equals(mapping)) {

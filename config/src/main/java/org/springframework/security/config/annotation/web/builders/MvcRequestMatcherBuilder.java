@@ -30,7 +30,7 @@ final class MvcRequestMatcherBuilder extends AbstractRequestMatcherBuilder {
 
 	private final String servletPath;
 
-	MvcRequestMatcherBuilder(ApplicationContext context, String servletPath) {
+	private MvcRequestMatcherBuilder(ApplicationContext context, String servletPath) {
 		if (!context.containsBean(HANDLER_MAPPING_INTROSPECTOR_BEAN_NAME)) {
 			throw new NoSuchBeanDefinitionException("A Bean named " + HANDLER_MAPPING_INTROSPECTOR_BEAN_NAME
 					+ " of type " + HandlerMappingIntrospector.class.getName()
@@ -38,6 +38,14 @@ final class MvcRequestMatcherBuilder extends AbstractRequestMatcherBuilder {
 		}
 		this.introspector = context.getBean(HANDLER_MAPPING_INTROSPECTOR_BEAN_NAME, HandlerMappingIntrospector.class);
 		this.servletPath = servletPath;
+	}
+
+	static MvcRequestMatcherBuilder absolute(ApplicationContext context) {
+		return new MvcRequestMatcherBuilder(context, null);
+	}
+
+	static MvcRequestMatcherBuilder relativeTo(ApplicationContext context, String path) {
+		return new MvcRequestMatcherBuilder(context, path);
 	}
 
 	@Override

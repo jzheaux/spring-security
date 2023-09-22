@@ -129,7 +129,7 @@ class ServletRequestMatcherBuilderTests {
 		RequestMatcher[] matchers = builder.servletPath("/services").matchers("/endpoint");
 		assertThat(matchers[0]).isInstanceOf(AntPathRequestMatcher.class);
 		assertThat(ReflectionTestUtils.getField(matchers[0], "pattern")).isEqualTo("/services/endpoint");
-		matchers = builder.servletPath("/").matchers("/controller");
+		matchers = builder.defaultServlet().matchers("/controller");
 		assertThat(matchers[0]).isInstanceOf(MvcRequestMatcher.class);
 		assertThat(ReflectionTestUtils.getField(matchers[0], "servletPath")).isNull();
 		assertThat(ReflectionTestUtils.getField(matchers[0], "pattern")).isEqualTo("/controller");
@@ -146,7 +146,7 @@ class ServletRequestMatcherBuilderTests {
 		assertThat(matchers[0]).isInstanceOf(MvcRequestMatcher.class);
 		assertThat(ReflectionTestUtils.getField(matchers[0], "servletPath")).isEqualTo("/mvc");
 		assertThat(ReflectionTestUtils.getField(matchers[0], "pattern")).isEqualTo("/controller");
-		matchers = builder.servletPath("/").matchers("/endpoint");
+		matchers = builder.defaultServlet().matchers("/endpoint");
 		assertThat(matchers[0]).isInstanceOf(AntPathRequestMatcher.class);
 		assertThat(ReflectionTestUtils.getField(matchers[0], "pattern")).isEqualTo("/endpoint");
 	}
@@ -164,7 +164,7 @@ class ServletRequestMatcherBuilderTests {
 		assertThat(ReflectionTestUtils.getField(matchers[0], "method")).isEqualTo(HttpMethod.GET);
 		assertThat(ReflectionTestUtils.getField(matchers[0], "servletPath")).isEqualTo("/mvc");
 		assertThat(ReflectionTestUtils.getField(matchers[0], "pattern")).isEqualTo("/controller");
-		matchers = builder.servletPath("/").matchers(HttpMethod.GET, "/endpoint");
+		matchers = builder.defaultServlet().matchers(HttpMethod.GET, "/endpoint");
 		assertThat(matchers[0]).isInstanceOf(AntPathRequestMatcher.class);
 		assertThat(ReflectionTestUtils.getField(matchers[0], "httpMethod")).isEqualTo(HttpMethod.GET);
 		assertThat(ReflectionTestUtils.getField(matchers[0], "pattern")).isEqualTo("/endpoint");
@@ -176,7 +176,7 @@ class ServletRequestMatcherBuilderTests {
 		servletContext.addServlet("two", DispatcherServlet.class).addMapping("/other/*");
 		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> builder.matchers("/controller"));
-		RequestMatcher[] matchers = builder.servletPath("/").matchers("/controller");
+		RequestMatcher[] matchers = builder.defaultServlet().matchers("/controller");
 		assertThat(matchers[0]).isInstanceOf(MvcRequestMatcher.class);
 		assertThat(ReflectionTestUtils.getField(matchers[0], "servletPath")).isNull();
 		assertThat(ReflectionTestUtils.getField(matchers[0], "pattern")).isEqualTo("/controller");
@@ -192,7 +192,7 @@ class ServletRequestMatcherBuilderTests {
 		servletContext.addServlet("dispatcherServlet", DispatcherServlet.class).addMapping("/", "/two/*");
 		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> builder.matchers("/controller"));
-		RequestMatcher[] matchers = builder.servletPath("/").matchers("/controller");
+		RequestMatcher[] matchers = builder.defaultServlet().matchers("/controller");
 		assertThat(matchers[0]).isInstanceOf(MvcRequestMatcher.class);
 		assertThat(ReflectionTestUtils.getField(matchers[0], "servletPath")).isNull();
 		assertThat(ReflectionTestUtils.getField(matchers[0], "pattern")).isEqualTo("/controller");
@@ -209,7 +209,7 @@ class ServletRequestMatcherBuilderTests {
 		servletContext.addServlet("jspServlet", Servlet.class).addMapping("*.jsp", "*.jspx");
 		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> builder.matchers("/controller"));
-		RequestMatcher[] matchers = builder.servletPath("/").matchers("/controller");
+		RequestMatcher[] matchers = builder.defaultServlet().matchers("/controller");
 		assertThat(matchers[0]).isInstanceOf(MvcRequestMatcher.class);
 		assertThat(ReflectionTestUtils.getField(matchers[0], "servletPath")).isNull();
 		assertThat(ReflectionTestUtils.getField(matchers[0], "pattern")).isEqualTo("/controller");
@@ -250,7 +250,7 @@ class ServletRequestMatcherBuilderTests {
 		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		assertThatExceptionOfType(IllegalArgumentException.class)
 				.isThrownBy(() -> builder.mvc().matchers("/controller"));
-		RequestMatcher[] matchers = builder.servletPath("/").matchers("/controller");
+		RequestMatcher[] matchers = builder.defaultServlet().matchers("/controller");
 		assertThat(matchers[0]).isInstanceOf(MvcRequestMatcher.class);
 		assertThat(ReflectionTestUtils.getField(matchers[0], "servletPath")).isNull();
 		assertThat(ReflectionTestUtils.getField(matchers[0], "pattern")).isEqualTo("/controller");
@@ -267,7 +267,7 @@ class ServletRequestMatcherBuilderTests {
 		ServletRequestMatcherBuilder builder = requestMatchersBuilder(servletContext);
 		assertThatExceptionOfType(IllegalArgumentException.class)
 				.isThrownBy(() -> builder.mvc().matchers("/controller"));
-		RequestMatcher[] matchers = builder.servletPath("/").matchers("/controller");
+		RequestMatcher[] matchers = builder.defaultServlet().matchers("/controller");
 		assertThat(matchers[0]).isInstanceOf(MvcRequestMatcher.class);
 		assertThat(ReflectionTestUtils.getField(matchers[0], "servletPath")).isNull();
 		assertThat(ReflectionTestUtils.getField(matchers[0], "pattern")).isEqualTo("/controller");

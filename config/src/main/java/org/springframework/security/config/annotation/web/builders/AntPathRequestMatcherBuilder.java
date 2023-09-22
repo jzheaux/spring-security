@@ -23,13 +23,16 @@ final class AntPathRequestMatcherBuilder extends AbstractRequestMatcherBuilder {
 
 	private final String servletPath;
 
-	AntPathRequestMatcherBuilder(String servletPath) {
-		if (servletPath != null && servletPath.endsWith("/*")) {
-			this.servletPath = servletPath.substring(0, servletPath.length() - 2);
-		}
-		else {
-			this.servletPath = servletPath;
-		}
+	private AntPathRequestMatcherBuilder(String servletPath) {
+		this.servletPath = servletPath;
+	}
+
+	static AntPathRequestMatcherBuilder absolute() {
+		return new AntPathRequestMatcherBuilder(null);
+	}
+
+	static AntPathRequestMatcherBuilder relativeTo(String path) {
+		return new AntPathRequestMatcherBuilder(path);
 	}
 
 	@Override
