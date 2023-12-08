@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
@@ -37,6 +38,7 @@ import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
  * @see OAuth2ClientJackson2Module
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
+@JsonDeserialize(using = DefaultOAuth2UserDeserializer.class)
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.NONE,
 		isGetterVisibility = JsonAutoDetect.Visibility.NONE)
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -46,6 +48,12 @@ abstract class DefaultOAuth2UserMixin {
 	DefaultOAuth2UserMixin(@JsonProperty("authorities") Collection<? extends GrantedAuthority> authorities,
 			@JsonProperty("attributes") Map<String, Object> attributes,
 			@JsonProperty("nameAttributeKey") String nameAttributeKey) {
+	}
+
+	@JsonCreator
+	DefaultOAuth2UserMixin(@JsonProperty("attributes") Map<String, Object> attributes,
+			@JsonProperty("authorities") Collection<? extends GrantedAuthority> authorities,
+			@JsonProperty("name") String name) {
 	}
 
 }

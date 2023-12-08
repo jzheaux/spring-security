@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,7 +55,7 @@ public class DefaultOAuth2User implements OAuth2User, Serializable {
 
 	private final Map<String, Object> attributes;
 
-	private final String nameAttributeKey;
+	private final String name;
 
 	/**
 	 * Constructs a {@code DefaultOAuth2User} using the provided parameters.
@@ -63,6 +63,9 @@ public class DefaultOAuth2User implements OAuth2User, Serializable {
 	 * @param attributes the attributes about the user
 	 * @param nameAttributeKey the key used to access the user's &quot;name&quot; from
 	 * {@link #getAttributes()}
+	 * @deprecated Use
+	 * {@link #DefaultOAuth2User(Map attributes, Collection authorities, String name)}
+	 * instead
 	 */
 	public DefaultOAuth2User(Collection<? extends GrantedAuthority> authorities, Map<String, Object> attributes,
 			String nameAttributeKey) {
@@ -75,12 +78,30 @@ public class DefaultOAuth2User implements OAuth2User, Serializable {
 				? Collections.unmodifiableSet(new LinkedHashSet<>(this.sortAuthorities(authorities)))
 				: Collections.unmodifiableSet(new LinkedHashSet<>(AuthorityUtils.NO_AUTHORITIES));
 		this.attributes = Collections.unmodifiableMap(new LinkedHashMap<>(attributes));
-		this.nameAttributeKey = nameAttributeKey;
+		this.name = getAttribute(nameAttributeKey);
+	}
+
+	/**
+	 * Constructs a {@code DefaultOAuth2User} using the provided parameters.
+	 * @param attributes the attributes about the user
+	 * @param authorities the authorities granted to the user
+	 * @param name user's &quot;name&quot; from {@link #getAttributes()}
+	 * @since 6.3
+	 */
+	public DefaultOAuth2User(Map<String, Object> attributes, Collection<? extends GrantedAuthority> authorities,
+			String name) {
+		Assert.notEmpty(attributes, "attributes cannot be empty");
+		Assert.hasText(name, "name cannot be empty");
+		this.authorities = (authorities != null)
+				? Collections.unmodifiableSet(new LinkedHashSet<>(this.sortAuthorities(authorities)))
+				: Collections.unmodifiableSet(new LinkedHashSet<>(AuthorityUtils.NO_AUTHORITIES));
+		this.attributes = Collections.unmodifiableMap(new LinkedHashMap<>(attributes));
+		this.name = name;
 	}
 
 	@Override
 	public String getName() {
-		return this.getAttribute(this.nameAttributeKey).toString();
+		return this.name;
 	}
 
 	@Override
@@ -130,7 +151,7 @@ public class DefaultOAuth2User implements OAuth2User, Serializable {
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("Name: [");
-		sb.append(this.getName());
+		sb.append(getName());
 		sb.append("], Granted Authorities: [");
 		sb.append(getAuthorities());
 		sb.append("], User Attributes: [");

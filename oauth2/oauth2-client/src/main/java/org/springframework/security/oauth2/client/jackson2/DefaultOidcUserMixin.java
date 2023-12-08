@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
@@ -38,6 +39,7 @@ import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
  * @see OAuth2ClientJackson2Module
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
+@JsonDeserialize(using = DefaultOidcUserDeserializer.class)
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.NONE,
 		isGetterVisibility = JsonAutoDetect.Visibility.NONE)
 @JsonIgnoreProperties(value = { "attributes" }, ignoreUnknown = true)
@@ -47,6 +49,12 @@ abstract class DefaultOidcUserMixin {
 	DefaultOidcUserMixin(@JsonProperty("authorities") Collection<? extends GrantedAuthority> authorities,
 			@JsonProperty("idToken") OidcIdToken idToken, @JsonProperty("userInfo") OidcUserInfo userInfo,
 			@JsonProperty("nameAttributeKey") String nameAttributeKey) {
+	}
+
+	@JsonCreator
+	DefaultOidcUserMixin(@JsonProperty("idToken") OidcIdToken idToken, @JsonProperty("userInfo") OidcUserInfo userInfo,
+			@JsonProperty("authorities") Collection<? extends GrantedAuthority> authorities,
+			@JsonProperty("name") String name) {
 	}
 
 }

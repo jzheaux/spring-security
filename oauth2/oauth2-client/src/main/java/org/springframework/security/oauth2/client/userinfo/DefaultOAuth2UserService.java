@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,16 @@
 
 package org.springframework.security.oauth2.client.userinfo;
 
+import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.Set;
 
+import org.springframework.context.expression.MapAccessor;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.expression.Expression;
+import org.springframework.expression.spel.standard.SpelExpressionParser;
+import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.GrantedAuthority;
@@ -76,6 +80,8 @@ public class DefaultOAuth2UserService implements OAuth2UserService<OAuth2UserReq
 
 	private Converter<OAuth2UserRequest, RequestEntity<?>> requestEntityConverter = new OAuth2UserRequestEntityConverter();
 
+	private final SpelExpressionParser parser = new SpelExpressionParser();
+
 	private RestOperations restOperations;
 
 	public DefaultOAuth2UserService() {
@@ -87,35 +93,14 @@ public class DefaultOAuth2UserService implements OAuth2UserService<OAuth2UserReq
 	@Override
 	public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
 		Assert.notNull(userRequest, "userRequest cannot be null");
-		if (!StringUtils
-			.hasText(userRequest.getClientRegistration().getProviderDetails().getUserInfoEndpoint().getUri())) {
-			OAuth2Error oauth2Error = new OAuth2Error(MISSING_USER_INFO_URI_ERROR_CODE,
-					"Missing required UserInfo Uri in UserInfoEndpoint for Client Registration: "
-							+ userRequest.getClientRegistration().getRegistrationId(),
-					null);
-			throw new OAuth2AuthenticationException(oauth2Error, oauth2Error.toString());
-		}
-		String userNameAttributeName = userRequest.getClientRegistration()
-			.getProviderDetails()
-			.getUserInfoEndpoint()
-			.getUserNameAttributeName();
-		if (!StringUtils.hasText(userNameAttributeName)) {
-			OAuth2Error oauth2Error = new OAuth2Error(MISSING_USER_NAME_ATTRIBUTE_ERROR_CODE,
-					"Missing required \"user name\" attribute name in UserInfoEndpoint for Client Registration: "
-							+ userRequest.getClientRegistration().getRegistrationId(),
-					null);
-			throw new OAuth2AuthenticationException(oauth2Error, oauth2Error.toString());
-		}
+		String userNameAttributeName = getUserNameAttributeName(userRequest);
 		RequestEntity<?> request = this.requestEntityConverter.convert(userRequest);
 		ResponseEntity<Map<String, Object>> response = getResponse(userRequest, request);
-		Map<String, Object> userAttributes = response.getBody();
-		Set<GrantedAuthority> authorities = new LinkedHashSet<>();
-		authorities.add(new OAuth2UserAuthority(userAttributes));
 		OAuth2AccessToken token = userRequest.getAccessToken();
-		for (String authority : token.getScopes()) {
-			authorities.add(new SimpleGrantedAuthority("SCOPE_" + authority));
-		}
-		return new DefaultOAuth2User(authorities, userAttributes, userNameAttributeName);
+		Map<String, Object> attributes = response.getBody();
+		Collection<GrantedAuthority> authorities = getAuthorities(token, attributes);
+		String name = getName(attributes, userNameAttributeName);
+		return new DefaultOAuth2User(attributes, authorities, name);
 	}
 
 	private ResponseEntity<Map<String, Object>> getResponse(OAuth2UserRequest userRequest, RequestEntity<?> request) {
@@ -155,6 +140,48 @@ public class DefaultOAuth2UserService implements OAuth2UserService<OAuth2UserReq
 					"An error occurred while attempting to retrieve the UserInfo Resource: " + ex.getMessage(), null);
 			throw new OAuth2AuthenticationException(oauth2Error, oauth2Error.toString(), ex);
 		}
+	}
+
+	private String getUserNameAttributeName(OAuth2UserRequest userRequest) {
+		if (!StringUtils
+			.hasText(userRequest.getClientRegistration().getProviderDetails().getUserInfoEndpoint().getUri())) {
+			OAuth2Error oauth2Error = new OAuth2Error(MISSING_USER_INFO_URI_ERROR_CODE,
+					"Missing required UserInfo Uri in UserInfoEndpoint for Client Registration: "
+							+ userRequest.getClientRegistration().getRegistrationId(),
+					null);
+			throw new OAuth2AuthenticationException(oauth2Error, oauth2Error.toString());
+		}
+		String userNameAttributeName = userRequest.getClientRegistration()
+			.getProviderDetails()
+			.getUserInfoEndpoint()
+			.getUserNameAttributeName();
+		if (!StringUtils.hasText(userNameAttributeName)) {
+			OAuth2Error oauth2Error = new OAuth2Error(MISSING_USER_NAME_ATTRIBUTE_ERROR_CODE,
+					"Missing required \"user name\" attribute name in UserInfoEndpoint for Client Registration: "
+							+ userRequest.getClientRegistration().getRegistrationId(),
+					null);
+			throw new OAuth2AuthenticationException(oauth2Error, oauth2Error.toString());
+		}
+		return userNameAttributeName;
+	}
+
+	private Collection<GrantedAuthority> getAuthorities(OAuth2AccessToken token, Map<String, Object> attributes) {
+		Collection<GrantedAuthority> authorities = new LinkedHashSet<>();
+		authorities.add(new OAuth2UserAuthority(attributes));
+		for (String authority : token.getScopes()) {
+			authorities.add(new SimpleGrantedAuthority("SCOPE_" + authority));
+		}
+		return authorities;
+	}
+
+	private String getName(Map<String, Object> attributes, String userNameAttributeName) {
+		Assert.notEmpty(attributes, "attributes cannot be empty");
+		Assert.hasText(userNameAttributeName, "userNameAttributeName cannot be empty");
+		SimpleEvaluationContext context = SimpleEvaluationContext.forPropertyAccessors(new MapAccessor())
+			.withRootObject(attributes)
+			.build();
+		Expression expression = this.parser.parseExpression(userNameAttributeName);
+		return expression.getValue(context, String.class);
 	}
 
 	/**

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,7 +36,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.jackson2.SecurityJackson2Modules;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.client.authentication.TestOAuth2AuthenticationTokens;
-import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
 import org.springframework.security.oauth2.core.oidc.StandardClaimNames;
@@ -194,7 +193,7 @@ public class OAuth2AuthenticationTokenMixinTests {
 				"      \"@class\": \"java.util.Collections$UnmodifiableMap\",\n" +
 				"      \"username\": \"user\"\n" +
 				"    },\n" +
-				"    \"nameAttributeKey\": \"username\"\n" +
+				"    \"name\": \"user\"\n" +
 				"  }";
 		// @formatter:on
 	}
@@ -206,7 +205,7 @@ public class OAuth2AuthenticationTokenMixinTests {
 				"    \"authorities\": " + asJson(oidcUser.getAuthorities(), "java.util.Collections$UnmodifiableSet") + ",\n" +
 				"    \"idToken\": " + asJson(oidcUser.getIdToken()) + ",\n" +
 				"    \"userInfo\": " + asJson(oidcUser.getUserInfo()) + ",\n" +
-				"    \"nameAttributeKey\": \"" + IdTokenClaimNames.SUB + "\"\n" +
+				"    \"name\": \"" + oidcUser.getName() + "\"\n" +
 				"  }";
 		// @formatter:on
 	}
