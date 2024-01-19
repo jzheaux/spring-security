@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -140,7 +140,7 @@ public class DefaultOAuth2UserServiceTests {
 		String userInfoUri = this.server.url("/user").toString();
 		ClientRegistration clientRegistration = this.clientRegistrationBuilder.userInfoUri(userInfoUri)
 			.userInfoAuthenticationMethod(AuthenticationMethod.HEADER)
-			.userNameAttributeName("['user-name']")
+			.userNameAttributeName("user-name")
 			.build();
 		OAuth2User user = this.userService.loadUser(new OAuth2UserRequest(clientRegistration, this.accessToken));
 		assertThat(user.getName()).isEqualTo("user1");
@@ -174,11 +174,17 @@ public class DefaultOAuth2UserServiceTests {
 		String userInfoUri = this.server.url("/user").toString();
 		ClientRegistration clientRegistration = this.clientRegistrationBuilder.userInfoUri(userInfoUri)
 			.userInfoAuthenticationMethod(AuthenticationMethod.HEADER)
-			.userNameAttributeName("user['user-name']")
+			.userNameAttributeName("user-name")
 			.build();
-		OAuth2User user = this.userService.loadUser(new OAuth2UserRequest(clientRegistration, this.accessToken));
+		DefaultOAuth2UserService userService = new DefaultOAuth2UserService();
+		userService.setAttributesConverter((request) -> (attributes) -> {
+			Map<String, Object> user = (Map<String, Object>) attributes.get("user");
+			attributes.put("user-name", user.get("user-name"));
+			return attributes;
+		});
+		OAuth2User user = userService.loadUser(new OAuth2UserRequest(clientRegistration, this.accessToken));
 		assertThat(user.getName()).isEqualTo("user1");
-		assertThat(user.getAttributes()).hasSize(6);
+		assertThat(user.getAttributes()).hasSize(7);
 		assertThat(((Map<?, ?>) user.getAttribute("user")).get("user-name")).isEqualTo("user1");
 		assertThat((String) user.getAttribute("first-name")).isEqualTo("first");
 		assertThat((String) user.getAttribute("last-name")).isEqualTo("last");
@@ -196,7 +202,7 @@ public class DefaultOAuth2UserServiceTests {
 	public void loadUserWhenUserInfoSuccessResponseInvalidThenThrowOAuth2AuthenticationException() {
 		// @formatter:off
 		String userInfoResponse = "{\n"
-			+ "	\"username\": \"user1\",\n"
+			+ "	\"user-name\": \"user1\",\n"
 			+ "   \"first-name\": \"first\",\n"
 			+ "   \"last-name\": \"last\",\n"
 			+ "   \"middle-name\": \"middle\",\n"
@@ -208,7 +214,7 @@ public class DefaultOAuth2UserServiceTests {
 		String userInfoUri = this.server.url("/user").toString();
 		ClientRegistration clientRegistration = this.clientRegistrationBuilder.userInfoUri(userInfoUri)
 			.userInfoAuthenticationMethod(AuthenticationMethod.HEADER)
-			.userNameAttributeName("['user-name']")
+			.userNameAttributeName("user-name")
 			.build();
 		assertThatExceptionOfType(OAuth2AuthenticationException.class)
 			.isThrownBy(() -> this.userService.loadUser(new OAuth2UserRequest(clientRegistration, this.accessToken)))
@@ -226,7 +232,7 @@ public class DefaultOAuth2UserServiceTests {
 		String userInfoUri = this.server.url("/user").toString();
 		ClientRegistration clientRegistration = this.clientRegistrationBuilder.userInfoUri(userInfoUri)
 			.userInfoAuthenticationMethod(AuthenticationMethod.HEADER)
-			.userNameAttributeName("['user-name']")
+			.userNameAttributeName("user-name")
 			.build();
 		assertThatExceptionOfType(OAuth2AuthenticationException.class)
 			.isThrownBy(() -> this.userService.loadUser(new OAuth2UserRequest(clientRegistration, this.accessToken)))
@@ -246,7 +252,7 @@ public class DefaultOAuth2UserServiceTests {
 		String userInfoUri = this.server.url("/user").toString();
 		ClientRegistration clientRegistration = this.clientRegistrationBuilder.userInfoUri(userInfoUri)
 			.userInfoAuthenticationMethod(AuthenticationMethod.HEADER)
-			.userNameAttributeName("['user-name']")
+			.userNameAttributeName("user-name")
 			.build();
 		assertThatExceptionOfType(OAuth2AuthenticationException.class)
 			.isThrownBy(() -> this.userService.loadUser(new OAuth2UserRequest(clientRegistration, this.accessToken)))
@@ -261,7 +267,7 @@ public class DefaultOAuth2UserServiceTests {
 		String userInfoUri = this.server.url("/user").toString();
 		ClientRegistration clientRegistration = this.clientRegistrationBuilder.userInfoUri(userInfoUri)
 			.userInfoAuthenticationMethod(AuthenticationMethod.HEADER)
-			.userNameAttributeName("['user-name']")
+			.userNameAttributeName("user-name")
 			.build();
 		assertThatExceptionOfType(OAuth2AuthenticationException.class)
 			.isThrownBy(() -> this.userService.loadUser(new OAuth2UserRequest(clientRegistration, this.accessToken)))
@@ -274,7 +280,7 @@ public class DefaultOAuth2UserServiceTests {
 		String userInfoUri = "https://invalid-provider.com/user";
 		ClientRegistration clientRegistration = this.clientRegistrationBuilder.userInfoUri(userInfoUri)
 			.userInfoAuthenticationMethod(AuthenticationMethod.HEADER)
-			.userNameAttributeName("['user-name']")
+			.userNameAttributeName("user-name")
 			.build();
 		assertThatExceptionOfType(OAuth2AuthenticationException.class)
 			.isThrownBy(() -> this.userService.loadUser(new OAuth2UserRequest(clientRegistration, this.accessToken)))
@@ -299,7 +305,7 @@ public class DefaultOAuth2UserServiceTests {
 		String userInfoUri = this.server.url("/user").toString();
 		ClientRegistration clientRegistration = this.clientRegistrationBuilder.userInfoUri(userInfoUri)
 			.userInfoAuthenticationMethod(AuthenticationMethod.HEADER)
-			.userNameAttributeName("['user-name']")
+			.userNameAttributeName("user-name")
 			.build();
 		this.userService.loadUser(new OAuth2UserRequest(clientRegistration, this.accessToken));
 		assertThat(this.server.takeRequest(1, TimeUnit.SECONDS).getHeader(HttpHeaders.ACCEPT))
@@ -323,7 +329,7 @@ public class DefaultOAuth2UserServiceTests {
 		String userInfoUri = this.server.url("/user").toString();
 		ClientRegistration clientRegistration = this.clientRegistrationBuilder.userInfoUri(userInfoUri)
 			.userInfoAuthenticationMethod(AuthenticationMethod.HEADER)
-			.userNameAttributeName("['user-name']")
+			.userNameAttributeName("user-name")
 			.build();
 		this.userService.loadUser(new OAuth2UserRequest(clientRegistration, this.accessToken));
 		RecordedRequest request = this.server.takeRequest();
@@ -350,7 +356,7 @@ public class DefaultOAuth2UserServiceTests {
 		String userInfoUri = this.server.url("/user").toString();
 		ClientRegistration clientRegistration = this.clientRegistrationBuilder.userInfoUri(userInfoUri)
 			.userInfoAuthenticationMethod(AuthenticationMethod.FORM)
-			.userNameAttributeName("['user-name']")
+			.userNameAttributeName("user-name")
 			.build();
 		this.userService.loadUser(new OAuth2UserRequest(clientRegistration, this.accessToken));
 		RecordedRequest request = this.server.takeRequest();
@@ -398,7 +404,7 @@ public class DefaultOAuth2UserServiceTests {
 		this.server.enqueue(response);
 		ClientRegistration clientRegistration = this.clientRegistrationBuilder.userInfoUri(userInfoUri)
 			.userInfoAuthenticationMethod(AuthenticationMethod.HEADER)
-			.userNameAttributeName("['user-name']")
+			.userNameAttributeName("user-name")
 			.build();
 		assertThatExceptionOfType(OAuth2AuthenticationException.class)
 			.isThrownBy(() -> this.userService.loadUser(new OAuth2UserRequest(clientRegistration, this.accessToken)))

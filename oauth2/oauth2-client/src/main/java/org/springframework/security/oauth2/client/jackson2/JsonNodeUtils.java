@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,12 @@
 
 package org.springframework.security.oauth2.client.jackson2;
 
-import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
-import org.springframework.security.core.GrantedAuthority;
 
 /**
  * Utility class for {@code JsonNode}.
@@ -38,9 +35,6 @@ abstract class JsonNodeUtils {
 	};
 
 	static final TypeReference<Map<String, Object>> STRING_OBJECT_MAP = new TypeReference<Map<String, Object>>() {
-	};
-
-	static final TypeReference<Collection<? extends GrantedAuthority>> GRANTED_AUTHORITY_COLLECTION = new TypeReference<Collection<? extends GrantedAuthority>>() {
 	};
 
 	static String findStringValue(JsonNode jsonNode, String fieldName) {
@@ -66,14 +60,6 @@ abstract class JsonNodeUtils {
 		}
 		JsonNode value = jsonNode.findValue(fieldName);
 		return (value != null && value.isObject()) ? value : null;
-	}
-
-	static <T> T findValueByPath(JsonNode jsonNode, String path, Class<T> type, ObjectMapper mapper) {
-		if (jsonNode == null) {
-			return null;
-		}
-		JsonNode value = jsonNode.path(path);
-		return (value != null && !value.isMissingNode()) ? mapper.convertValue(value, type) : null;
 	}
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -87,26 +87,10 @@ public class DefaultOidcUser extends DefaultOAuth2User implements OidcUser {
 	 * may be {@code null}
 	 * @param nameAttributeKey the key used to access the user's &quot;name&quot; from
 	 * {@link #getAttributes()}
-	 * @deprecated Use
-	 * {@link #DefaultOidcUser(OidcIdToken, OidcUserInfo, Collection, String)} instead
 	 */
 	public DefaultOidcUser(Collection<? extends GrantedAuthority> authorities, OidcIdToken idToken,
 			OidcUserInfo userInfo, String nameAttributeKey) {
 		super(authorities, OidcUserAuthority.collectClaims(idToken, userInfo), nameAttributeKey);
-		this.idToken = idToken;
-		this.userInfo = userInfo;
-	}
-
-	/**
-	 * Constructs a {@code DefaultOidcUser} using the provided parameters.
-	 * @param idToken the {@link OidcIdToken ID Token} containing claims about the user
-	 * @param userInfo the {@link OidcUserInfo UserInfo} containing claims about the user,
-	 * @param authorities the authorities granted to the user may be {@code null}
-	 * @param name the user's &quot;name&quot; from {@link #getAttributes()}
-	 */
-	public DefaultOidcUser(OidcIdToken idToken, OidcUserInfo userInfo,
-			Collection<? extends GrantedAuthority> authorities, String name) {
-		super(OidcUserAuthority.collectClaims(idToken, userInfo), authorities, name);
 		this.idToken = idToken;
 		this.userInfo = userInfo;
 	}

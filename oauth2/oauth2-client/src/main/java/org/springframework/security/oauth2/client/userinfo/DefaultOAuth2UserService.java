@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,12 +20,8 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Map;
 
-import org.springframework.context.expression.MapAccessor;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.convert.converter.Converter;
-import org.springframework.expression.Expression;
-import org.springframework.expression.spel.standard.SpelExpressionParser;
-import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.GrantedAuthority;
@@ -80,7 +76,8 @@ public class DefaultOAuth2UserService implements OAuth2UserService<OAuth2UserReq
 
 	private Converter<OAuth2UserRequest, RequestEntity<?>> requestEntityConverter = new OAuth2UserRequestEntityConverter();
 
-	private final SpelExpressionParser parser = new SpelExpressionParser();
+	private Converter<OAuth2UserRequest, Converter<Map<String, Object>, Map<String, Object>>> attributesConverter = (
+			request) -> (attributes) -> attributes;
 
 	private RestOperations restOperations;
 
@@ -97,10 +94,35 @@ public class DefaultOAuth2UserService implements OAuth2UserService<OAuth2UserReq
 		RequestEntity<?> request = this.requestEntityConverter.convert(userRequest);
 		ResponseEntity<Map<String, Object>> response = getResponse(userRequest, request);
 		OAuth2AccessToken token = userRequest.getAccessToken();
-		Map<String, Object> attributes = response.getBody();
+		Map<String, Object> attributes = this.attributesConverter.convert(userRequest).convert(response.getBody());
 		Collection<GrantedAuthority> authorities = getAuthorities(token, attributes);
-		String name = getName(attributes, userNameAttributeName);
-		return new DefaultOAuth2User(attributes, authorities, name);
+		return new DefaultOAuth2User(authorities, attributes, userNameAttributeName);
+	}
+
+	/**
+	 * Use this strategy to adapt user attributes into a format understood by Spring
+	 * Security; by default, the original attributes are preserved.
+	 *
+	 * <p>
+	 * This can be helpful, for example, if the user attribute is nested. Since Spring
+	 * Security needs the username attribute to be at the top level, you can use this
+	 * method to do:
+	 *
+	 * <pre>
+	 *     DefaultOAuth2UserService userService = new DefaultOAuth2UserService();
+	 *     userService.setAttributesConverter((userRequest) -> (attributes) ->
+	 *         Map&lt;String, Object&gt; userObject = (Map&lt;String, Object&gt;) attributes.get("user");
+	 *         attributes.put("user-name", userObject.get("user-name"));
+	 *         return attributes;
+	 *     });
+	 * </pre>
+	 * @param attributesConverter the attribute adaptation strategy to use
+	 * @since 6.3
+	 */
+	public void setAttributesConverter(
+			Converter<OAuth2UserRequest, Converter<Map<String, Object>, Map<String, Object>>> attributesConverter) {
+		Assert.notNull(attributesConverter, "attributesConverter cannot be null");
+		this.attributesConverter = attributesConverter;
 	}
 
 	private ResponseEntity<Map<String, Object>> getResponse(OAuth2UserRequest userRequest, RequestEntity<?> request) {
@@ -172,16 +194,6 @@ public class DefaultOAuth2UserService implements OAuth2UserService<OAuth2UserReq
 			authorities.add(new SimpleGrantedAuthority("SCOPE_" + authority));
 		}
 		return authorities;
-	}
-
-	private String getName(Map<String, Object> attributes, String userNameAttributeName) {
-		Assert.notEmpty(attributes, "attributes cannot be empty");
-		Assert.hasText(userNameAttributeName, "userNameAttributeName cannot be empty");
-		SimpleEvaluationContext context = SimpleEvaluationContext.forPropertyAccessors(new MapAccessor())
-			.withRootObject(attributes)
-			.build();
-		Expression expression = this.parser.parseExpression(userNameAttributeName);
-		return expression.getValue(context, String.class);
 	}
 
 	/**
