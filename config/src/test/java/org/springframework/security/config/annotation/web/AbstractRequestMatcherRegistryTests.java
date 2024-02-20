@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -212,12 +212,20 @@ public class AbstractRequestMatcherRegistryTests {
 		assertThat(requestMatchers).isNotEmpty();
 		assertThat(requestMatchers).hasSize(1);
 		assertThat(requestMatchers.get(0)).isExactlyInstanceOf(AntPathRequestMatcher.class);
+	}
+
+	// gh-13849
+	@Test
+	public void requestMatchersWhenNoMappableServletsThenMvcRequestMatcherType() {
+		mockMvcIntrospector(true);
+		MockServletContext servletContext = new MockServletContext();
+		given(this.context.getServletContext()).willReturn(servletContext);
 		servletContext.addServlet("servletOne", Servlet.class);
 		servletContext.addServlet("servletTwo", Servlet.class);
-		requestMatchers = this.matcherRegistry.requestMatchers("/**");
+		List<RequestMatcher> requestMatchers = this.matcherRegistry.requestMatchers("/**");
 		assertThat(requestMatchers).isNotEmpty();
 		assertThat(requestMatchers).hasSize(1);
-		assertThat(requestMatchers.get(0)).isExactlyInstanceOf(AntPathRequestMatcher.class);
+		assertThat(requestMatchers.get(0)).isExactlyInstanceOf(MvcRequestMatcher.class);
 	}
 
 	@Test
