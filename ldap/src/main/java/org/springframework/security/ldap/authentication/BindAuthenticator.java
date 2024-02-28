@@ -16,8 +16,11 @@
 
 package org.springframework.security.ldap.authentication;
 
+import javax.naming.NamingEnumeration;
+import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
+import javax.naming.ldap.LdapName;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -27,7 +30,11 @@ import org.springframework.ldap.NamingException;
 import org.springframework.ldap.core.DirContextAdapter;
 import org.springframework.ldap.core.DirContextOperations;
 import org.springframework.ldap.core.DistinguishedName;
+import org.springframework.ldap.core.LdapClient;
+import org.springframework.ldap.core.NameAwareAttributes;
 import org.springframework.ldap.core.support.BaseLdapPathContextSource;
+import org.springframework.ldap.core.support.LookupAttemptingCallback;
+import org.springframework.ldap.query.LdapQueryBuilder;
 import org.springframework.ldap.support.LdapUtils;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -35,6 +42,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.ldap.ppolicy.PasswordPolicyControl;
 import org.springframework.security.ldap.ppolicy.PasswordPolicyControlExtractor;
 import org.springframework.util.Assert;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 /**
@@ -47,6 +55,8 @@ public class BindAuthenticator extends AbstractLdapAuthenticator {
 
 	private static final Log logger = LogFactory.getLog(BindAuthenticator.class);
 
+	private final LdapClient ldap;
+
 	/**
 	 * Create an initialized instance using the {@link BaseLdapPathContextSource}
 	 * provided.
@@ -55,6 +65,7 @@ public class BindAuthenticator extends AbstractLdapAuthenticator {
 	 */
 	public BindAuthenticator(BaseLdapPathContextSource contextSource) {
 		super(contextSource);
+		this.ldap = LdapClient.create(contextSource);
 	}
 
 	@Override
@@ -101,43 +112,38 @@ public class BindAuthenticator extends AbstractLdapAuthenticator {
 	}
 
 	private DirContextOperations bindWithDn(String userDnStr, String username, String password, Attributes attrs) {
-		BaseLdapPathContextSource ctxSource = (BaseLdapPathContextSource) getContextSource();
-		DistinguishedName userDn = new DistinguishedName(userDnStr);
-		DistinguishedName fullDn = new DistinguishedName(userDn);
-		fullDn.prepend(ctxSource.getBaseLdapPath());
-		logger.trace(LogMessage.format("Attempting to bind as %s", fullDn));
-		DirContext ctx = null;
+		LdapName userDn = LdapUtils.newLdapName(userDnStr);
+		logger.trace(LogMessage.format("Attempting to bind as %s", userDn));
 		try {
-			ctx = getContextSource().getContext(fullDn.toString(), password);
-			// Check for password policy control
-			PasswordPolicyControl ppolicy = PasswordPolicyControlExtractor.extractControl(ctx);
-			if (attrs == null || attrs.size() == 0) {
-				attrs = ctx.getAttributes(userDn, getUserAttributes());
+			String[] attributes = getUserAttributes();
+			if (attrs != null && attrs.size() > 0) {
+				attributes = CollectionUtils.toArray(attrs.getIDs(), new String[attrs.size()]);
 			}
-			DirContextAdapter result = new DirContextAdapter(attrs, userDn, ctxSource.getBaseLdapPath());
-			if (ppolicy != null) {
-				result.setAttributeValue(ppolicy.getID(), ppolicy);
-			}
-			logger.debug(LogMessage.format("Bound %s", fullDn));
-			return result;
+			return this.ldap.authenticate()
+					.query(LdapQueryBuilder.query().base(userDn).attributes(attributes).where("objectclass").is("person"))
+					.password(password)
+					.execute((ctx, entry) -> {
+						PasswordPolicyControl ppolicy = PasswordPolicyControlExtractor.extractControl(ctx);
+						DirContextOperations result = new LookupAttemptingCallback().mapWithContext(ctx, entry);
+						if (ppolicy != null) {
+							result.setAttributeValue(ppolicy.getID(), ppolicy);
+						}
+						logger.debug(LogMessage.format("Bound %s", userDn));
+						return result;
+					});
 		}
 		catch (NamingException ex) {
 			// This will be thrown if an invalid user name is used and the method may
 			// be called multiple times to try different names, so we trap the exception
 			// unless a subclass wishes to implement more specialized behaviour.
 			if ((ex instanceof org.springframework.ldap.AuthenticationException)
+					|| (ex instanceof org.springframework.ldap.NameNotFoundException)
 					|| (ex instanceof org.springframework.ldap.OperationNotSupportedException)) {
 				handleBindException(userDnStr, username, ex);
 			}
 			else {
 				throw ex;
 			}
-		}
-		catch (javax.naming.NamingException ex) {
-			throw LdapUtils.convertLdapException(ex);
-		}
-		finally {
-			LdapUtils.closeContext(ctx);
 		}
 		return null;
 	}
