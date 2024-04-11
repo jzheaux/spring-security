@@ -90,6 +90,7 @@ public final class AuthorizationManagerAfterMethodInterceptor implements Authori
 	 */
 	public static AuthorizationManagerAfterMethodInterceptor postAuthorize(
 			PostAuthorizeAuthorizationManager authorizationManager) {
+		Assert.notNull(authorizationManager, "authorizationManager cannot be null");
 		AuthorizationManagerAfterMethodInterceptor interceptor = new AuthorizationManagerAfterMethodInterceptor(
 				AuthorizationMethodPointcuts.forAnnotations(PostAuthorize.class), authorizationManager);
 		interceptor.setOrder(AuthorizationInterceptorsOrder.POST_AUTHORIZE.getOrder());
@@ -104,6 +105,7 @@ public final class AuthorizationManagerAfterMethodInterceptor implements Authori
 	 */
 	public static AuthorizationManagerAfterMethodInterceptor postAuthorize(
 			AuthorizationManager<MethodInvocationResult> authorizationManager) {
+		Assert.notNull(authorizationManager, "authorizationManager cannot be null");
 		AuthorizationManagerAfterMethodInterceptor interceptor = new AuthorizationManagerAfterMethodInterceptor(
 				AuthorizationMethodPointcuts.forAnnotations(PostAuthorize.class), authorizationManager);
 		interceptor.setOrder(AuthorizationInterceptorsOrder.POST_AUTHORIZE.getOrder());
@@ -167,6 +169,7 @@ public final class AuthorizationManagerAfterMethodInterceptor implements Authori
 	 * @since 5.8
 	 */
 	public void setSecurityContextHolderStrategy(SecurityContextHolderStrategy strategy) {
+		Assert.notNull(strategy, "securityContextHolderStrategy cannot be null");
 		this.securityContextHolderStrategy = () -> strategy;
 	}
 

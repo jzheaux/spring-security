@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,6 +65,22 @@ public class AuthorizationManagerAfterMethodInterceptorTests {
 		assertThatIllegalArgumentException()
 			.isThrownBy(() -> new AuthorizationManagerAfterMethodInterceptor(mock(Pointcut.class), null))
 			.withMessage("authorizationManager cannot be null");
+		assertThatIllegalArgumentException()
+			.isThrownBy(() -> AuthorizationManagerAfterMethodInterceptor
+				.postAuthorize((PostAuthorizeAuthorizationManager) null))
+			.withMessage("authorizationManager cannot be null");
+		assertThatIllegalArgumentException()
+			.isThrownBy(() -> AuthorizationManagerAfterMethodInterceptor
+				.postAuthorize((AuthorizationManager<MethodInvocationResult>) null))
+			.withMessage("authorizationManager cannot be null");
+	}
+
+	@Test
+	public void setSecurityContextHolderStrategyWhenNullThenException() {
+		AuthorizationManagerAfterMethodInterceptor advice = new AuthorizationManagerAfterMethodInterceptor(
+				Pointcut.TRUE, AuthenticatedAuthorizationManager.authenticated());
+		assertThatIllegalArgumentException().isThrownBy(() -> advice.setSecurityContextHolderStrategy(null))
+			.withMessage("securityContextHolderStrategy cannot be null");
 	}
 
 	@Test

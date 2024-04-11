@@ -95,6 +95,7 @@ public final class AuthorizationManagerBeforeMethodInterceptor implements Author
 	 */
 	public static AuthorizationManagerBeforeMethodInterceptor preAuthorize(
 			PreAuthorizeAuthorizationManager authorizationManager) {
+		Assert.notNull(authorizationManager, "authorizationManager cannot be null");
 		AuthorizationManagerBeforeMethodInterceptor interceptor = new AuthorizationManagerBeforeMethodInterceptor(
 				AuthorizationMethodPointcuts.forAnnotations(PreAuthorize.class), authorizationManager);
 		interceptor.setOrder(AuthorizationInterceptorsOrder.PRE_AUTHORIZE.getOrder());
@@ -109,6 +110,7 @@ public final class AuthorizationManagerBeforeMethodInterceptor implements Author
 	 */
 	public static AuthorizationManagerBeforeMethodInterceptor preAuthorize(
 			AuthorizationManager<MethodInvocation> authorizationManager) {
+		Assert.notNull(authorizationManager, "authorizationManager cannot be null");
 		AuthorizationManagerBeforeMethodInterceptor interceptor = new AuthorizationManagerBeforeMethodInterceptor(
 				AuthorizationMethodPointcuts.forAnnotations(PreAuthorize.class), authorizationManager);
 		interceptor.setOrder(AuthorizationInterceptorsOrder.PRE_AUTHORIZE.getOrder());
@@ -130,6 +132,7 @@ public final class AuthorizationManagerBeforeMethodInterceptor implements Author
 	 */
 	public static AuthorizationManagerBeforeMethodInterceptor secured(
 			SecuredAuthorizationManager authorizationManager) {
+		Assert.notNull(authorizationManager, "authorizationManager cannot be null");
 		AuthorizationManagerBeforeMethodInterceptor interceptor = new AuthorizationManagerBeforeMethodInterceptor(
 				AuthorizationMethodPointcuts.forAnnotations(Secured.class), authorizationManager);
 		interceptor.setOrder(AuthorizationInterceptorsOrder.SECURED.getOrder());
@@ -144,6 +147,7 @@ public final class AuthorizationManagerBeforeMethodInterceptor implements Author
 	 */
 	public static AuthorizationManagerBeforeMethodInterceptor secured(
 			AuthorizationManager<MethodInvocation> authorizationManager) {
+		Assert.notNull(authorizationManager, "authorizationManager cannot be null");
 		AuthorizationManagerBeforeMethodInterceptor interceptor = new AuthorizationManagerBeforeMethodInterceptor(
 				AuthorizationMethodPointcuts.forAnnotations(Secured.class), authorizationManager);
 		interceptor.setOrder(AuthorizationInterceptorsOrder.SECURED.getOrder());
@@ -164,6 +168,7 @@ public final class AuthorizationManagerBeforeMethodInterceptor implements Author
 	 * @return the interceptor
 	 */
 	public static AuthorizationManagerBeforeMethodInterceptor jsr250(Jsr250AuthorizationManager authorizationManager) {
+		Assert.notNull(authorizationManager, "authorizationManager cannot be null");
 		AuthorizationManagerBeforeMethodInterceptor interceptor = new AuthorizationManagerBeforeMethodInterceptor(
 				AuthorizationMethodPointcuts.forAnnotations(RolesAllowed.class, DenyAll.class, PermitAll.class),
 				authorizationManager);
@@ -179,6 +184,7 @@ public final class AuthorizationManagerBeforeMethodInterceptor implements Author
 	 */
 	public static AuthorizationManagerBeforeMethodInterceptor jsr250(
 			AuthorizationManager<MethodInvocation> authorizationManager) {
+		Assert.notNull(authorizationManager, "authorizationManager cannot be null");
 		AuthorizationManagerBeforeMethodInterceptor interceptor = new AuthorizationManagerBeforeMethodInterceptor(
 				AuthorizationMethodPointcuts.forAnnotations(RolesAllowed.class, DenyAll.class, PermitAll.class),
 				authorizationManager);
@@ -242,6 +248,7 @@ public final class AuthorizationManagerBeforeMethodInterceptor implements Author
 	 * @since 5.8
 	 */
 	public void setSecurityContextHolderStrategy(SecurityContextHolderStrategy securityContextHolderStrategy) {
+		Assert.notNull(securityContextHolderStrategy, "securityContextHolderStrategy cannot be null");
 		this.securityContextHolderStrategy = () -> securityContextHolderStrategy;
 	}
 
