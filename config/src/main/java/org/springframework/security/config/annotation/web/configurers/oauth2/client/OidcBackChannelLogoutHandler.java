@@ -27,6 +27,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.ServletServerHttpResponse;
@@ -66,7 +67,7 @@ final class OidcBackChannelLogoutHandler implements LogoutHandler {
 
 	private String logoutUri = "{baseScheme}://localhost{basePort}/logout";
 
-	private String sessionCookieName = "JSESSIONID";
+	private Converter<OidcSessionInformation, String> cookieHeaderConverter = (session) -> "JSESSIONID=" + session.getSessionId();
 
 	private final OAuth2ErrorHttpMessageConverter errorHttpMessageConverter = new OAuth2ErrorHttpMessageConverter();
 
@@ -105,12 +106,12 @@ final class OidcBackChannelLogoutHandler implements LogoutHandler {
 
 	private void eachLogout(HttpServletRequest request, OidcSessionInformation session) {
 		HttpHeaders headers = new HttpHeaders();
-		headers.add(HttpHeaders.COOKIE, this.sessionCookieName + "=" + session.getSessionId());
+		headers.add(HttpHeaders.COOKIE, this.cookieHeaderConverter.convert(session));
 		for (Map.Entry<String, String> credential : session.getAuthorities().entrySet()) {
 			headers.add(credential.getKey(), credential.getValue());
 		}
-		String logout = computeLogoutEndpoint(request);
 		HttpEntity<?> entity = new HttpEntity<>(null, headers);
+		String logout = computeLogoutEndpoint(request);
 		this.restOperations.postForEntity(logout, entity, Object.class);
 	}
 
@@ -185,21 +186,25 @@ final class OidcBackChannelLogoutHandler implements LogoutHandler {
 	 * {@link org.springframework.security.web.authentication.logout.LogoutFilter}.
 	 * @param logoutUri the URI to use
 	 */
-	void setLogoutUri(String logoutUri) {
+	public void setLogoutUri(String logoutUri) {
 		Assert.hasText(logoutUri, "logoutUri cannot be empty");
 		this.logoutUri = logoutUri;
 	}
 
 	/**
-	 * Use this cookie name for the session identifier. Defaults to {@code JSESSIONID}.
+	 * Use this strategy to derive the cookie header for the session identifier
 	 *
 	 * <p>
-	 * Note that if you are using Spring Session, this likely needs to change to SESSION.
-	 * @param sessionCookieName the cookie name to use
+	 * Note that if you are using Spring Session, this likely needs to change to SESSION and may require
+	 * Base64-encoding the cookie value like so:
+	 *
+	 * <pre>
+	 *     setCookieHeaderConverter((session) -> "SESSION=" + Base64.getEncoder().encodeToString(session.getId().getBytes()))
+	 * </pre>
+	 * @param cookieHeaderConverter the cookie name to use
 	 */
-	void setSessionCookieName(String sessionCookieName) {
-		Assert.hasText(sessionCookieName, "clientSessionCookieName cannot be empty");
-		this.sessionCookieName = sessionCookieName;
+	public void setCookieHeaderConverter(Converter<OidcSessionInformation, String> cookieHeaderConverter) {
+		this.cookieHeaderConverter = cookieHeaderConverter;
 	}
 
 }
