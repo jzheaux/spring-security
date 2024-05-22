@@ -18,6 +18,7 @@ package org.springframework.security.saml2.provider.service.registration;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collection;
 
 import org.springframework.core.io.DefaultResourceLoader;
@@ -34,7 +35,7 @@ import org.springframework.security.saml2.Saml2Exception;
  */
 public final class RelyingPartyRegistrations {
 
-	private static final OpenSamlMetadataRelyingPartyRegistrationConverter relyingPartyRegistrationConverter = new OpenSamlMetadataRelyingPartyRegistrationConverter();
+	private static final OpenSamlRelyingPartyRegistrationsDecoder relyingPartyRegistrationConverter = new OpenSamlRelyingPartyRegistrationsDecoder();
 
 	private static final ResourceLoader resourceLoader = new DefaultResourceLoader();
 
@@ -213,7 +214,11 @@ public final class RelyingPartyRegistrations {
 	 * @since 5.7
 	 */
 	public static Collection<RelyingPartyRegistration.Builder> collectionFromMetadata(InputStream source) {
-		return relyingPartyRegistrationConverter.convert(source);
+		Collection<RelyingPartyRegistration.Builder> builders = new ArrayList<>();
+		for (RelyingPartyRegistration registration : relyingPartyRegistrationConverter.decode(source)) {
+			builders.add(registration.mutate());
+		}
+		return builders;
 	}
 
 }

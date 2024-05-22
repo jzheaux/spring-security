@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 import net.shibboleth.utilities.java.support.xml.ParserPool;
 import org.opensaml.core.config.ConfigurationService;
@@ -31,6 +32,9 @@ import org.opensaml.core.xml.config.XMLObjectProviderRegistry;
 import org.opensaml.core.xml.io.Unmarshaller;
 import org.opensaml.saml.common.xml.SAMLConstants;
 import org.opensaml.saml.ext.saml2alg.SigningMethod;
+import org.opensaml.saml.metadata.resolver.filter.MetadataFilter;
+import org.opensaml.saml.metadata.resolver.filter.MetadataFilterContext;
+import org.opensaml.saml.metadata.resolver.filter.impl.SignatureValidationFilter;
 import org.opensaml.saml.saml2.metadata.EntitiesDescriptor;
 import org.opensaml.saml.saml2.metadata.EntityDescriptor;
 import org.opensaml.saml.saml2.metadata.Extensions;
@@ -38,16 +42,24 @@ import org.opensaml.saml.saml2.metadata.IDPSSODescriptor;
 import org.opensaml.saml.saml2.metadata.KeyDescriptor;
 import org.opensaml.saml.saml2.metadata.SingleLogoutService;
 import org.opensaml.saml.saml2.metadata.SingleSignOnService;
+import org.opensaml.security.credential.Credential;
+import org.opensaml.security.credential.CredentialResolver;
 import org.opensaml.security.credential.UsageType;
+import org.opensaml.security.credential.impl.CollectionCredentialResolver;
+import org.opensaml.xmlsec.config.impl.DefaultSecurityConfigurationBootstrap;
 import org.opensaml.xmlsec.keyinfo.KeyInfoSupport;
+import org.opensaml.xmlsec.signature.support.SignatureTrustEngine;
+import org.opensaml.xmlsec.signature.support.impl.ExplicitKeySignatureTrustEngine;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
+import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.saml2.Saml2Exception;
 import org.springframework.security.saml2.core.OpenSamlInitializationService;
 import org.springframework.security.saml2.core.Saml2X509Credential;
+import org.springframework.util.Assert;
 
-class OpenSamlMetadataRelyingPartyRegistrationConverter {
+public final class OpenSamlRelyingPartyRegistrationsDecoder implements RelyingPartyRegistrationsDecoder {
 
 	static {
 		OpenSamlInitializationService.initialize();
@@ -57,12 +69,32 @@ class OpenSamlMetadataRelyingPartyRegistrationConverter {
 
 	private final ParserPool parserPool;
 
+	private final MetadataFilter filter;
+
+	private Converter<RelyingPartyRegistration.Builder, RelyingPartyRegistration> relyingPartyRegistrationBuilder = RelyingPartyRegistration.Builder::build;
+
 	/**
-	 * Creates a {@link OpenSamlMetadataRelyingPartyRegistrationConverter}
+	 * Creates a {@link OpenSamlRelyingPartyRegistrationsDecoder}
 	 */
-	OpenSamlMetadataRelyingPartyRegistrationConverter() {
+	public OpenSamlRelyingPartyRegistrationsDecoder() {
+		this((xmlObject, metadataFilterContent) -> xmlObject);
+	}
+
+	public OpenSamlRelyingPartyRegistrationsDecoder(Set<Credential> verificationCredentials) {
+		this(metadataFilter(verificationCredentials));
+	}
+
+	static MetadataFilter metadataFilter(Set<Credential> credentials) {
+		CredentialResolver credentialsResolver = new CollectionCredentialResolver(credentials);
+		SignatureTrustEngine engine = new ExplicitKeySignatureTrustEngine(credentialsResolver,
+				DefaultSecurityConfigurationBootstrap.buildBasicInlineKeyInfoCredentialResolver());
+		return new SignatureValidationFilter(engine);
+	}
+
+	OpenSamlRelyingPartyRegistrationsDecoder(MetadataFilter filter) {
 		this.registry = ConfigurationService.get(XMLObjectProviderRegistry.class);
 		this.parserPool = this.registry.getParserPool();
+		this.filter = filter;
 	}
 
 	OpenSamlRelyingPartyRegistration.Builder convert(EntityDescriptor descriptor) {
@@ -152,24 +184,25 @@ class OpenSamlMetadataRelyingPartyRegistrationConverter {
 		return builder;
 	}
 
-	Collection<RelyingPartyRegistration.Builder> convert(InputStream inputStream) {
-		List<RelyingPartyRegistration.Builder> builders = new ArrayList<>();
+	@Override
+	public Collection<RelyingPartyRegistration> decode(InputStream inputStream) {
+		List<RelyingPartyRegistration> registrations = new ArrayList<>();
 		XMLObject xmlObject = xmlObject(inputStream);
 		if (xmlObject instanceof EntitiesDescriptor) {
 			EntitiesDescriptor descriptors = (EntitiesDescriptor) xmlObject;
 			for (EntityDescriptor descriptor : descriptors.getEntityDescriptors()) {
 				if (descriptor.getIDPSSODescriptor(SAMLConstants.SAML20P_NS) != null) {
-					builders.add(convert(descriptor));
+					registrations.add(this.relyingPartyRegistrationBuilder.convert(convert(descriptor)));
 				}
 			}
-			if (builders.isEmpty()) {
+			if (registrations.isEmpty()) {
 				throw new Saml2Exception("Metadata contains no IDPSSODescriptor elements");
 			}
-			return builders;
+			return registrations;
 		}
 		if (xmlObject instanceof EntityDescriptor) {
 			EntityDescriptor descriptor = (EntityDescriptor) xmlObject;
-			return Arrays.asList(convert(descriptor));
+			return Arrays.asList(this.relyingPartyRegistrationBuilder.convert(convert(descriptor)));
 		}
 		throw new Saml2Exception("Unsupported element of type " + xmlObject.getClass());
 	}
@@ -202,7 +235,7 @@ class OpenSamlMetadataRelyingPartyRegistrationConverter {
 			throw new Saml2Exception("Unsupported element of type " + element.getTagName());
 		}
 		try {
-			return unmarshaller.unmarshall(element);
+			return this.filter.filter(unmarshaller.unmarshall(element), new MetadataFilterContext());
 		}
 		catch (Exception ex) {
 			throw new Saml2Exception(ex);
@@ -223,6 +256,12 @@ class OpenSamlMetadataRelyingPartyRegistrationConverter {
 			return (List<T>) extensions.getUnknownXMLObjects(SigningMethod.DEFAULT_ELEMENT_NAME);
 		}
 		return new ArrayList<>();
+	}
+
+	public void setRelyingPartyRegistrationBuilder(
+			Converter<RelyingPartyRegistration.Builder, RelyingPartyRegistration> relyingPartyRegistrationBuilder) {
+		Assert.notNull(relyingPartyRegistrationBuilder, "relyingPartyRegistrationBuilder cannot be null");
+		this.relyingPartyRegistrationBuilder = relyingPartyRegistrationBuilder;
 	}
 
 }

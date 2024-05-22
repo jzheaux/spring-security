@@ -62,13 +62,13 @@ public class OpenSamlRelyingPartyRegistrationBuilderHttpMessageConverter
 		OpenSamlInitializationService.initialize();
 	}
 
-	private final OpenSamlMetadataRelyingPartyRegistrationConverter converter;
+	private final OpenSamlRelyingPartyRegistrationsDecoder converter;
 
 	/**
 	 * Creates a {@link OpenSamlRelyingPartyRegistrationBuilderHttpMessageConverter}
 	 */
 	public OpenSamlRelyingPartyRegistrationBuilderHttpMessageConverter() {
-		this.converter = new OpenSamlMetadataRelyingPartyRegistrationConverter();
+		this.converter = new OpenSamlRelyingPartyRegistrationsDecoder();
 	}
 
 	@Override
@@ -89,7 +89,7 @@ public class OpenSamlRelyingPartyRegistrationBuilderHttpMessageConverter
 	@Override
 	public RelyingPartyRegistration.Builder read(Class<? extends RelyingPartyRegistration.Builder> clazz,
 			HttpInputMessage inputMessage) throws IOException, HttpMessageNotReadableException {
-		return this.converter.convert(inputMessage.getBody()).iterator().next();
+		return this.converter.decode(inputMessage.getBody()).iterator().next().mutate();
 	}
 
 	@Override

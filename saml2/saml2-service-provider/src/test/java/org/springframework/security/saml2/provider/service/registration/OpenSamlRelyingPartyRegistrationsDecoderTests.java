@@ -37,7 +37,7 @@ import org.springframework.security.saml2.Saml2Exception;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
-public class OpenSamlMetadataRelyingPartyRegistrationConverterTests {
+public class OpenSamlRelyingPartyRegistrationsDecoderTests {
 
 	private static final String CERTIFICATE = "MIIEEzCCAvugAwIBAgIJAIc1qzLrv+5nMA0GCSqGSIb3DQEBCwUAMIGfMQswCQYDVQQGEwJVUzELMAkGA1UECAwCQ08xFDASBgNVBAcMC0Nhc3RsZSBSb2NrMRwwGgYDVQQKDBNTYW1sIFRlc3RpbmcgU2VydmVyMQswCQYDVQQLDAJJVDEgMB4GA1UEAwwXc2ltcGxlc2FtbHBocC5jZmFwcHMuaW8xIDAeBgkqhkiG9w0BCQEWEWZoYW5pa0BwaXZvdGFsLmlvMB4XDTE1MDIyMzIyNDUwM1oXDTI1MDIyMjIyNDUwM1owgZ8xCzAJBgNVBAYTAlVTMQswCQYDVQQIDAJDTzEUMBIGA1UEBwwLQ2FzdGxlIFJvY2sxHDAaBgNVBAoME1NhbWwgVGVzdGluZyBTZXJ2ZXIxCzAJBgNVBAsMAklUMSAwHgYDVQQDDBdzaW1wbGVzYW1scGhwLmNmYXBwcy5pbzEgMB4GCSqGSIb3DQEJARYRZmhhbmlrQHBpdm90YWwuaW8wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC4cn62E1xLqpN34PmbrKBbkOXFjzWgJ9b+pXuaRft6A339uuIQeoeH5qeSKRVTl32L0gdz2ZivLwZXW+cqvftVW1tvEHvzJFyxeTW3fCUeCQsebLnA2qRa07RkxTo6Nf244mWWRDodcoHEfDUSbxfTZ6IExSojSIU2RnD6WllYWFdD1GFpBJOmQB8rAc8wJIBdHFdQnX8Ttl7hZ6rtgqEYMzYVMuJ2F2r1HSU1zSAvwpdYP6rRGFRJEfdA9mm3WKfNLSc5cljz0X/TXy0vVlAV95l9qcfFzPmrkNIst9FZSwpvB49LyAVke04FQPPwLgVH4gphiJH3jvZ7I+J5lS8VAgMBAAGjUDBOMB0GA1UdDgQWBBTTyP6Cc5HlBJ5+ucVCwGc5ogKNGzAfBgNVHSMEGDAWgBTTyP6Cc5HlBJ5+ucVCwGc5ogKNGzAMBgNVHRMEBTADAQH/MA0GCSqGSIb3DQEBCwUAA4IBAQAvMS4EQeP/ipV4jOG5lO6/tYCb/iJeAduOnRhkJk0DbX329lDLZhTTL/x/w/9muCVcvLrzEp6PN+VWfw5E5FWtZN0yhGtP9R+vZnrV+oc2zGD+no1/ySFOe3EiJCO5dehxKjYEmBRv5sU/LZFKZpozKN/BMEa6CqLuxbzb7ykxVr7EVFXwltPxzE9TmL9OACNNyF5eJHWMRMllarUvkcXlh4pux4ks9e6zV9DQBy2zds9f1I3qxg0eX6JnGrXi/ZiCT+lJgVe3ZFXiejiLAiKB04sXW3ti0LW3lx13Y1YlQ4/tlpgTgfIJxKV6nyPiLoK0nywbMd+vpAirDt2Oc+hk";
 
@@ -62,7 +62,7 @@ public class OpenSamlMetadataRelyingPartyRegistrationConverterTests {
 	private static final String SINGLE_SIGN_ON_SERVICE_TEMPLATE = "<md:SingleSignOnService Binding=\"urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect\" "
 			+ "Location=\"sso-location\"/>";
 
-	private OpenSamlMetadataRelyingPartyRegistrationConverter converter = new OpenSamlMetadataRelyingPartyRegistrationConverter();
+	private OpenSamlRelyingPartyRegistrationsDecoder converter = new OpenSamlRelyingPartyRegistrationsDecoder();
 
 	private String metadata;
 
@@ -78,8 +78,8 @@ public class OpenSamlMetadataRelyingPartyRegistrationConverterTests {
 	@Test
 	public void convertWhenDefaultsThenAssertingPartyInstanceOfOpenSaml() throws Exception {
 		try (InputStream source = new ByteArrayInputStream(this.metadata.getBytes(StandardCharsets.UTF_8))) {
-			this.converter.convert(source)
-				.forEach((registration) -> assertThat(registration.build().getAssertingPartyDetails())
+			this.converter.decode(source)
+				.forEach((registration) -> assertThat(registration.getAssertingPartyDetails())
 					.isInstanceOf(OpenSamlAssertingPartyDetails.class));
 		}
 	}
@@ -88,7 +88,7 @@ public class OpenSamlMetadataRelyingPartyRegistrationConverterTests {
 	public void readWhenMissingIDPSSODescriptorThenException() {
 		String payload = String.format(ENTITY_DESCRIPTOR_TEMPLATE, "");
 		InputStream inputStream = new ByteArrayInputStream(payload.getBytes());
-		assertThatExceptionOfType(Saml2Exception.class).isThrownBy(() -> this.converter.convert(inputStream))
+		assertThatExceptionOfType(Saml2Exception.class).isThrownBy(() -> this.converter.decode(inputStream))
 			.withMessageContaining("Metadata response is missing the necessary IDPSSODescriptor element");
 	}
 
@@ -96,7 +96,7 @@ public class OpenSamlMetadataRelyingPartyRegistrationConverterTests {
 	public void readWhenMissingVerificationKeyThenException() {
 		String payload = String.format(ENTITY_DESCRIPTOR_TEMPLATE, String.format(IDP_SSO_DESCRIPTOR_TEMPLATE, ""));
 		InputStream inputStream = new ByteArrayInputStream(payload.getBytes());
-		assertThatExceptionOfType(Saml2Exception.class).isThrownBy(() -> this.converter.convert(inputStream))
+		assertThatExceptionOfType(Saml2Exception.class).isThrownBy(() -> this.converter.decode(inputStream))
 			.withMessageContaining(
 					"Metadata response is missing verification certificates, necessary for verifying SAML assertions");
 	}
@@ -106,7 +106,7 @@ public class OpenSamlMetadataRelyingPartyRegistrationConverterTests {
 		String payload = String.format(ENTITY_DESCRIPTOR_TEMPLATE,
 				String.format(IDP_SSO_DESCRIPTOR_TEMPLATE, String.format(KEY_DESCRIPTOR_TEMPLATE, "use=\"signing\"")));
 		InputStream inputStream = new ByteArrayInputStream(payload.getBytes());
-		assertThatExceptionOfType(Saml2Exception.class).isThrownBy(() -> this.converter.convert(inputStream))
+		assertThatExceptionOfType(Saml2Exception.class).isThrownBy(() -> this.converter.decode(inputStream))
 			.withMessageContaining(
 					"Metadata response is missing a SingleSignOnService, necessary for sending AuthnRequests");
 	}
@@ -119,10 +119,9 @@ public class OpenSamlMetadataRelyingPartyRegistrationConverterTests {
 								+ String.format(KEY_DESCRIPTOR_TEMPLATE, "use=\"encryption\"") + EXTENSIONS_TEMPLATE
 								+ String.format(SINGLE_SIGN_ON_SERVICE_TEMPLATE)));
 		InputStream inputStream = new ByteArrayInputStream(payload.getBytes());
-		RelyingPartyRegistration.AssertingPartyDetails details = this.converter.convert(inputStream)
+		RelyingPartyRegistration.AssertingPartyDetails details = this.converter.decode(inputStream)
 			.iterator()
 			.next()
-			.build()
 			.getAssertingPartyDetails();
 		assertThat(details.getWantAuthnRequestsSigned()).isFalse();
 		assertThat(details.getSigningAlgorithms()).containsExactly(SignatureConstants.ALGO_ID_DIGEST_SHA512);
@@ -152,10 +151,9 @@ public class OpenSamlMetadataRelyingPartyRegistrationConverterTests {
 										+ String.format(KEY_DESCRIPTOR_TEMPLATE, "use=\"encryption\"")
 										+ String.format(SINGLE_SIGN_ON_SERVICE_TEMPLATE))));
 		InputStream inputStream = new ByteArrayInputStream(payload.getBytes());
-		RelyingPartyRegistration.AssertingPartyDetails details = this.converter.convert(inputStream)
+		RelyingPartyRegistration.AssertingPartyDetails details = this.converter.decode(inputStream)
 			.iterator()
 			.next()
-			.build()
 			.getAssertingPartyDetails();
 		assertThat(details.getWantAuthnRequestsSigned()).isFalse();
 		assertThat(details.getSingleSignOnServiceLocation()).isEqualTo("sso-location");
@@ -174,10 +172,9 @@ public class OpenSamlMetadataRelyingPartyRegistrationConverterTests {
 		String payload = String.format(ENTITY_DESCRIPTOR_TEMPLATE, String.format(IDP_SSO_DESCRIPTOR_TEMPLATE,
 				String.format(KEY_DESCRIPTOR_TEMPLATE, "") + String.format(SINGLE_SIGN_ON_SERVICE_TEMPLATE)));
 		InputStream inputStream = new ByteArrayInputStream(payload.getBytes());
-		RelyingPartyRegistration.AssertingPartyDetails details = this.converter.convert(inputStream)
+		RelyingPartyRegistration.AssertingPartyDetails details = this.converter.decode(inputStream)
 			.iterator()
 			.next()
-			.build()
 			.getAssertingPartyDetails();
 		assertThat(details.getVerificationX509Credentials().iterator().next().getCertificate())
 			.isEqualTo(x509Certificate(CERTIFICATE));
@@ -201,7 +198,7 @@ public class OpenSamlMetadataRelyingPartyRegistrationConverterTests {
 	public void readWhenUnsupportedElementThenSaml2Exception() {
 		String payload = "<saml2:Assertion xmlns:saml2=\"https://some.endpoint\"/>";
 		InputStream inputStream = new ByteArrayInputStream(payload.getBytes());
-		assertThatExceptionOfType(Saml2Exception.class).isThrownBy(() -> this.converter.convert(inputStream))
+		assertThatExceptionOfType(Saml2Exception.class).isThrownBy(() -> this.converter.decode(inputStream))
 			.withMessage("Unsupported element of type saml2:Assertion");
 	}
 
