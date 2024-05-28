@@ -71,6 +71,13 @@ class AuthorizationAnnotationUtilsTests {
 	}
 
 	@Test
+	void classOverridingAnnotationShouldNotTriggerAnnotationConfigurationException() throws Exception {
+		Method method = ConcreteRepository.class.getDeclaredMethod("findAll");
+		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.findUniqueAnnotation(method, PreAuthorize.class);
+		assertThat(preAuthorize.value()).isEqualTo("hasRole('someOtherRole')");
+	}
+
+	@Test
 	void competingAnnotationsOnClassShouldTriggerAnnotationConfigurationException() {
 		Class<?> clazz = CompetingPreAuthorizeAnnotationsOnClass.class;
 		assertThatExceptionOfType(AnnotationConfigurationException.class)
@@ -108,6 +115,24 @@ class AuthorizationAnnotationUtilsTests {
 		@Override
 		@PreAuthorize("hasRole('someRole')")
 		List<String> findAll();
+
+	}
+
+	private interface OtherStringRepository extends BaseRepository<String> {
+
+		@Override
+		@PreAuthorize("hasRole('someOtherRole')")
+		List<String> findAll();
+
+	}
+
+	private static class ConcreteRepository implements StringRepository, OtherStringRepository {
+
+		@Override
+		@PreAuthorize("hasRole('someOtherRole')")
+		public List<String> findAll() {
+			return List.of("hi");
+		}
 
 	}
 

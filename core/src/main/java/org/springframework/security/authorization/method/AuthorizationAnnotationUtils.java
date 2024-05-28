@@ -134,13 +134,23 @@ final class AuthorizationAnnotationUtils {
 
 	private static <A extends Annotation> A findDistinctAnnotation(AnnotatedElement annotatedElement,
 			Class<A> annotationType, Function<MergedAnnotation<A>, A> map) {
-		MergedAnnotations mergedAnnotations = MergedAnnotations.from(annotatedElement, SearchStrategy.TYPE_HIERARCHY,
+		MergedAnnotations mergedAnnotations = MergedAnnotations.from(annotatedElement, SearchStrategy.DIRECT,
 				RepeatableContainers.none());
 		List<A> annotations = mergedAnnotations.stream(annotationType)
 			.map(MergedAnnotation::withNonMergedAttributes)
 			.map(map)
 			.distinct()
 			.toList();
+
+		if (annotations.isEmpty()) {
+			mergedAnnotations = MergedAnnotations.from(annotatedElement, SearchStrategy.TYPE_HIERARCHY,
+					RepeatableContainers.none());
+			annotations = mergedAnnotations.stream(annotationType)
+				.map(MergedAnnotation::withNonMergedAttributes)
+				.map(map)
+				.distinct()
+				.toList();
+		}
 
 		return switch (annotations.size()) {
 			case 0 -> null;
