@@ -16,9 +16,7 @@
 
 package org.springframework.security.authorization.method;
 
-import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Method;
-import java.util.function.Function;
 
 import org.springframework.aop.support.AopUtils;
 import org.springframework.expression.Expression;
@@ -48,9 +46,7 @@ final class PostFilterExpressionAttributeRegistry extends AbstractExpressionAttr
 	}
 
 	private PostFilter findPostFilterAnnotation(Method method, Class<?> targetClass) {
-		Function<AnnotatedElement, PostFilter> lookup = findUniqueAnnotation(PostFilter.class);
-		PostFilter postFilter = lookup.apply(method);
-		return (postFilter != null) ? postFilter : lookup.apply(targetClass(method, targetClass));
+		return findUniqueAnnotation(PostFilter.class).apply(method, targetClass(method, targetClass));
 	}
 
 }

@@ -19,9 +19,15 @@ package org.springframework.security.authorization.method;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import org.springframework.core.annotation.AnnotationConfigurationException;
@@ -55,7 +61,7 @@ import org.springframework.util.PropertyPlaceholderHelper;
  */
 final class AuthorizationAnnotationUtils {
 
-	static <A extends Annotation> Function<AnnotatedElement, A> withDefaults(Class<A> type,
+	static <A extends Annotation> BiFunction<Method, Class<?>, A> withDefaults(Class<A> type,
 			PrePostTemplateDefaults defaults) {
 		Function<MergedAnnotation<A>, A> map = (mergedAnnotation) -> {
 			if (mergedAnnotation.getMetaSource() == null) {
@@ -79,19 +85,25 @@ final class AuthorizationAnnotationUtils {
 			properties.put("value", value);
 			return MergedAnnotation.of(annotatedElement, type, properties).synthesize();
 		};
-		return (annotatedElement) -> findDistinctAnnotation(annotatedElement, type, map);
+		return (method, targetClass) -> findDistinctAnnotation(method, targetClass, type, map);
 	}
 
-	static <A extends Annotation> Function<AnnotatedElement, A> withDefaults(Class<A> type) {
-		return (annotatedElement) -> findDistinctAnnotation(annotatedElement, type, MergedAnnotation::synthesize);
+	static <A extends Annotation> BiFunction<Method, Class<?>, A> withDefaults(Class<A> type) {
+		return (method, targetClass) -> findDistinctAnnotation(method, targetClass, type, MergedAnnotation::synthesize);
+	}
+
+	static BiFunction<Method, Class<?>, Annotation> withDefaults(
+			Collection<Class<? extends Annotation>> annotationTypes) {
+		return (method, targetClass) -> findDistinctAnnotation(method, targetClass, annotationTypes,
+				MergedAnnotation::synthesize);
 	}
 
 	static <A extends Annotation> A findUniqueAnnotation(Method method, Class<A> annotationType) {
-		return findDistinctAnnotation(method, annotationType, MergedAnnotation::synthesize);
+		return findDistinctAnnotation(method, method.getDeclaringClass(), annotationType, MergedAnnotation::synthesize);
 	}
 
 	static <A extends Annotation> A findUniqueAnnotation(Class<?> type, Class<A> annotationType) {
-		return findDistinctAnnotation(type, annotationType, MergedAnnotation::synthesize);
+		return findDistinctAnnotation(null, type, annotationType, MergedAnnotation::synthesize);
 	}
 
 	/**
@@ -110,7 +122,7 @@ final class AuthorizationAnnotationUtils {
 	 */
 	static <A extends Annotation> A findUniqueAnnotation(Method method, Class<A> annotationType,
 			Function<MergedAnnotation<A>, A> map) {
-		return findDistinctAnnotation(method, annotationType, map);
+		return findDistinctAnnotation(method, method.getDeclaringClass(), annotationType, map);
 	}
 
 	/**
@@ -129,41 +141,114 @@ final class AuthorizationAnnotationUtils {
 	 */
 	static <A extends Annotation> A findUniqueAnnotation(Class<?> type, Class<A> annotationType,
 			Function<MergedAnnotation<A>, A> map) {
-		return findDistinctAnnotation(type, annotationType, map);
+		return findDistinctAnnotation(null, type, annotationType, map);
 	}
 
-	private static <A extends Annotation> A findDistinctAnnotation(AnnotatedElement annotatedElement,
+	private static <A extends Annotation> A findDistinctAnnotation(Method method, Class<?> targetClass,
 			Class<A> annotationType, Function<MergedAnnotation<A>, A> map) {
-		MergedAnnotations mergedAnnotations = MergedAnnotations.from(annotatedElement, SearchStrategy.DIRECT,
-				RepeatableContainers.none());
-		List<A> annotations = mergedAnnotations.stream(annotationType)
-			.map(MergedAnnotation::withNonMergedAttributes)
-			.map(map)
-			.distinct()
-			.toList();
+		Function<MergedAnnotation<Annotation>, Annotation> generic = (merged) -> map
+			.apply((MergedAnnotation<A>) merged);
+		return (A) findDistinctAnnotation(method, targetClass, List.of(annotationType), generic);
+	}
 
-		if (annotations.isEmpty()) {
-			mergedAnnotations = MergedAnnotations.from(annotatedElement, SearchStrategy.TYPE_HIERARCHY,
-					RepeatableContainers.none());
-			annotations = mergedAnnotations.stream(annotationType)
-				.map(MergedAnnotation::withNonMergedAttributes)
-				.map(map)
-				.distinct()
-				.toList();
+	private static <A extends Annotation> A findDistinctAnnotation(Method method, Class<?> targetClass,
+			Collection<Class<? extends Annotation>> annotationTypes,
+			Function<MergedAnnotation<Annotation>, Annotation> map) {
+		List<AnnotationScore<Annotation>> scores = findAnnotations(method, targetClass, annotationTypes, map,
+				new HashSet<>(), 1);
+		int lowestScore = Integer.MAX_VALUE;
+		List<Annotation> annotations = new ArrayList<>();
+		for (AnnotationScore<Annotation> score : scores) {
+			if (score.score < lowestScore) {
+				annotations = new ArrayList<>();
+				annotations.add(score.annotation);
+				lowestScore = score.score;
+			}
+			else if (score.score == lowestScore) {
+				annotations.add(score.annotation);
+			}
 		}
-
 		return switch (annotations.size()) {
 			case 0 -> null;
-			case 1 -> annotations.get(0);
+			case 1 -> (A) annotations.get(0);
 			default -> throw new AnnotationConfigurationException("""
 					Please ensure there is one unique annotation of type @%s attributed to %s. \
-					Found %d competing annotations: %s""".formatted(annotationType.getName(), annotatedElement,
-					annotations.size(), annotations));
+					Found %d competing annotations: %s""".formatted(annotationTypes, method, annotations.size(),
+					annotations));
 		};
+	}
+
+	private static List<AnnotationScore<Annotation>> findAnnotations(Method method, Class<?> declaringClass,
+			Collection<Class<? extends Annotation>> annotationTypes,
+			Function<MergedAnnotation<Annotation>, Annotation> map, Set<Class<?>> visited, int distance) {
+		if (declaringClass == null || visited.contains(declaringClass) || declaringClass == Object.class) {
+			return Collections.emptyList();
+		}
+		visited.add(declaringClass);
+
+		Method methodToUse = methodMatching(method, declaringClass);
+		if (methodToUse != null) {
+			List<AnnotationScore<Annotation>> scores = findAnnotations(methodToUse, annotationTypes, map,
+					distance * 11);
+			if (!scores.isEmpty()) {
+				return scores;
+			}
+		}
+
+		List<AnnotationScore<Annotation>> scores = findAnnotations(declaringClass, annotationTypes, map, distance * 13);
+		if (!scores.isEmpty()) {
+			return scores;
+		}
+
+		scores.addAll(findAnnotations(methodToUse, declaringClass.getSuperclass(), annotationTypes, map, visited,
+				distance + 1));
+		for (Class<?> inter : declaringClass.getInterfaces()) {
+			scores.addAll(findAnnotations(methodToUse, inter, annotationTypes, map, visited, distance + 1));
+		}
+		return scores;
+	}
+
+	private static Method methodMatching(Method method, Class<?> candidate) {
+		if (method == null) {
+			return null;
+		}
+		if (method.getDeclaringClass() == candidate) {
+			return method;
+		}
+		try {
+			return candidate.getDeclaredMethod(method.getName(), method.getParameterTypes());
+		}
+		catch (Exception ex) {
+			return method;
+		}
+	}
+
+	private static List<AnnotationScore<Annotation>> findAnnotations(AnnotatedElement element,
+			Collection<Class<? extends Annotation>> annotationTypes,
+			Function<MergedAnnotation<Annotation>, Annotation> map, int score) {
+		List<Annotation> annotations = MergedAnnotations
+			.from(element, SearchStrategy.DIRECT, RepeatableContainers.none())
+			.stream()
+			.filter((annotation) -> annotationTypes.contains(annotation.getType()))
+			.map(MergedAnnotation::withNonMergedAttributes)
+			.map(map)
+			.toList();
+		List<AnnotationScore<Annotation>> scores = new ArrayList<>();
+		for (Annotation annotation : annotations) {
+			scores.add(new AnnotationScore<>(annotation, score));
+		}
+		return scores;
 	}
 
 	private AuthorizationAnnotationUtils() {
 
+	}
+
+	private record AnnotationScore<A extends Annotation>(A annotation, int score) {
+		@Override
+		public String toString() {
+			return this.annotation.toString();
+		}
 	}
 
 }

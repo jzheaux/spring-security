@@ -17,11 +17,10 @@
 package org.springframework.security.authorization.method;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 
 import org.aopalliance.intercept.MethodInvocation;
 
@@ -68,7 +67,7 @@ abstract class AbstractExpressionAttributeRegistry<T extends ExpressionAttribute
 		return this.cachedAttributes.computeIfAbsent(cacheKey, (k) -> resolveAttribute(method, targetClass));
 	}
 
-	final <A extends Annotation> Function<AnnotatedElement, A> findUniqueAnnotation(Class<A> type) {
+	final <A extends Annotation> BiFunction<Method, Class<?>, A> findUniqueAnnotation(Class<A> type) {
 		return (this.defaults != null) ? AuthorizationAnnotationUtils.withDefaults(type, this.defaults)
 				: AuthorizationAnnotationUtils.withDefaults(type);
 	}

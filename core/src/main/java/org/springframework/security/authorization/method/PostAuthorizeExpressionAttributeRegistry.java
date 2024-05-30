@@ -16,9 +16,9 @@
 
 package org.springframework.security.authorization.method;
 
-import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import reactor.util.annotation.NonNull;
@@ -60,13 +60,9 @@ final class PostAuthorizeExpressionAttributeRegistry extends AbstractExpressionA
 	}
 
 	private MethodAuthorizationDeniedHandler resolveHandler(Method method, Class<?> targetClass) {
-		Function<AnnotatedElement, HandleAuthorizationDenied> lookup = AuthorizationAnnotationUtils
+		BiFunction<Method, Class<?>, HandleAuthorizationDenied> lookup = AuthorizationAnnotationUtils
 			.withDefaults(HandleAuthorizationDenied.class);
-		HandleAuthorizationDenied deniedHandler = lookup.apply(method);
-		if (deniedHandler != null) {
-			return this.handlerResolver.apply(deniedHandler.handlerClass());
-		}
-		deniedHandler = lookup.apply(targetClass(method, targetClass));
+		HandleAuthorizationDenied deniedHandler = lookup.apply(method, targetClass(method, targetClass));
 		if (deniedHandler != null) {
 			return this.handlerResolver.apply(deniedHandler.handlerClass());
 		}
@@ -74,9 +70,7 @@ final class PostAuthorizeExpressionAttributeRegistry extends AbstractExpressionA
 	}
 
 	private PostAuthorize findPostAuthorizeAnnotation(Method method, Class<?> targetClass) {
-		Function<AnnotatedElement, PostAuthorize> lookup = findUniqueAnnotation(PostAuthorize.class);
-		PostAuthorize postAuthorize = lookup.apply(method);
-		return (postAuthorize != null) ? postAuthorize : lookup.apply(targetClass(method, targetClass));
+		return findUniqueAnnotation(PostAuthorize.class).apply(method, targetClass(method, targetClass));
 	}
 
 	/**

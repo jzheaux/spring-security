@@ -16,9 +16,7 @@
 
 package org.springframework.security.authorization.method;
 
-import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Method;
-import java.util.function.Function;
 
 import org.springframework.aop.support.AopUtils;
 import org.springframework.expression.Expression;
@@ -49,9 +47,7 @@ final class PreFilterExpressionAttributeRegistry
 	}
 
 	private PreFilter findPreFilterAnnotation(Method method, Class<?> targetClass) {
-		Function<AnnotatedElement, PreFilter> lookup = findUniqueAnnotation(PreFilter.class);
-		PreFilter preFilter = lookup.apply(method);
-		return (preFilter != null) ? preFilter : lookup.apply(targetClass(method, targetClass));
+		return findUniqueAnnotation(PreFilter.class).apply(method, targetClass(method, targetClass));
 	}
 
 	static final class PreFilterExpressionAttribute extends ExpressionAttribute {

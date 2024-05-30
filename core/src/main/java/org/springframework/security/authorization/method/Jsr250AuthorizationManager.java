@@ -29,7 +29,6 @@ import jakarta.annotation.security.RolesAllowed;
 import org.aopalliance.intercept.MethodInvocation;
 
 import org.springframework.aop.support.AopUtils;
-import org.springframework.core.annotation.AnnotationConfigurationException;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authorization.AuthoritiesAuthorizationManager;
 import org.springframework.security.authorization.AuthorizationDecision;
@@ -121,45 +120,8 @@ public final class Jsr250AuthorizationManager implements AuthorizationManager<Me
 
 		private Annotation findJsr250Annotation(Method method, Class<?> targetClass) {
 			Method specificMethod = AopUtils.getMostSpecificMethod(method, targetClass);
-			Annotation annotation = findAnnotation(specificMethod);
-			return (annotation != null) ? annotation
-					: findAnnotation((targetClass != null) ? targetClass : specificMethod.getDeclaringClass());
-		}
-
-		private Annotation findAnnotation(Method method) {
-			Set<Annotation> annotations = new HashSet<>();
-			for (Class<? extends Annotation> annotationClass : JSR250_ANNOTATIONS) {
-				Annotation annotation = AuthorizationAnnotationUtils.findUniqueAnnotation(method, annotationClass);
-				if (annotation != null) {
-					annotations.add(annotation);
-				}
-			}
-			if (annotations.isEmpty()) {
-				return null;
-			}
-			if (annotations.size() > 1) {
-				throw new AnnotationConfigurationException(
-						"The JSR-250 specification disallows DenyAll, PermitAll, and RolesAllowed from appearing on the same method.");
-			}
-			return annotations.iterator().next();
-		}
-
-		private Annotation findAnnotation(Class<?> clazz) {
-			Set<Annotation> annotations = new HashSet<>();
-			for (Class<? extends Annotation> annotationClass : JSR250_ANNOTATIONS) {
-				Annotation annotation = AuthorizationAnnotationUtils.findUniqueAnnotation(clazz, annotationClass);
-				if (annotation != null) {
-					annotations.add(annotation);
-				}
-			}
-			if (annotations.isEmpty()) {
-				return null;
-			}
-			if (annotations.size() > 1) {
-				throw new AnnotationConfigurationException(
-						"The JSR-250 specification disallows DenyAll, PermitAll, and RolesAllowed from appearing on the same class definition.");
-			}
-			return annotations.iterator().next();
+			return AuthorizationAnnotationUtils.withDefaults(JSR250_ANNOTATIONS)
+				.apply(specificMethod, (targetClass != null) ? targetClass : specificMethod.getDeclaringClass());
 		}
 
 		private Set<String> getAllowedRolesWithPrefix(RolesAllowed rolesAllowed) {
