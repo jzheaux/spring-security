@@ -49,6 +49,7 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.web.context.WebApplicationContext;
+import org.springframework.web.servlet.DispatcherServlet;
 import org.springframework.web.servlet.handler.HandlerMappingIntrospector;
 
 /**
@@ -622,10 +623,7 @@ public abstract class AbstractRequestMatcherRegistry<C> {
 
 		@Override
 		public boolean matches(HttpServletRequest request) {
-			String name = request.getHttpServletMapping().getServletName();
-			ServletRegistration registration = this.servletContext.getServletRegistration(name);
-			Assert.notNull(registration, "Failed to find servlet [" + name + "] in the servlet context");
-			if (isDispatcherServlet(registration)) {
+			if (isDispatcherServlet(request)) {
 				return this.mvc.matches(request);
 			}
 			return this.ant.matches(request);
@@ -633,21 +631,24 @@ public abstract class AbstractRequestMatcherRegistry<C> {
 
 		@Override
 		public MatchResult matcher(HttpServletRequest request) {
-			String name = request.getHttpServletMapping().getServletName();
-			ServletRegistration registration = this.servletContext.getServletRegistration(name);
-			Assert.notNull(registration, "Failed to find servlet [" + name + "] in the servlet context");
-			if (isDispatcherServlet(registration)) {
+			if (isDispatcherServlet(request)) {
 				return this.mvc.matcher(request);
 			}
 			return this.ant.matcher(request);
 		}
 
-		private boolean isDispatcherServlet(ServletRegistration registration) {
-			Class<?> dispatcherServlet = ClassUtils
-				.resolveClassName("org.springframework.web.servlet.DispatcherServlet", null);
+		private boolean isDispatcherServlet(HttpServletRequest request) {
+			String name = request.getHttpServletMapping().getServletName();
+			ServletRegistration registration = this.servletContext.getServletRegistration(name);
+			if (registration == null) {
+				Object value = request
+					.getAttribute("org.springframework.test.web.servlet.MockMvc.MVC_RESULT_ATTRIBUTE");
+				Assert.notNull(value, "Failed to find servlet [" + name + "] in the servlet context");
+				return true;
+			}
 			try {
 				Class<?> clazz = Class.forName(registration.getClassName());
-				return dispatcherServlet.isAssignableFrom(clazz);
+				return DispatcherServlet.class.isAssignableFrom(clazz);
 			}
 			catch (ClassNotFoundException ex) {
 				return false;
