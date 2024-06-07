@@ -32,7 +32,7 @@ import java.util.function.Consumer;
 import javax.xml.namespace.QName;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import net.shibboleth.utilities.java.support.xml.SerializeSupport;
+import net.shibboleth.shared.xml.SerializeSupport;
 import org.junit.jupiter.api.Test;
 import org.opensaml.core.xml.XMLObject;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport;

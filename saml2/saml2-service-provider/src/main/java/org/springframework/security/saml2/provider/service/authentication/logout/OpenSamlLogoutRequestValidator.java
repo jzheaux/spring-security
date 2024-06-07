@@ -21,7 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.function.Consumer;
 
-import net.shibboleth.utilities.java.support.xml.ParserPool;
+import net.shibboleth.shared.xml.ParserPool;
 import org.opensaml.core.config.ConfigurationService;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistry;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport;

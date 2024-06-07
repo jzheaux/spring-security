@@ -34,7 +34,7 @@ import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.xml.namespace.QName;
 
-import net.shibboleth.utilities.java.support.xml.ParserPool;
+import net.shibboleth.shared.xml.ParserPool;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.opensaml.core.config.ConfigurationService;
@@ -764,7 +764,7 @@ public final class OpenSaml4AuthenticationProvider implements AuthenticationProv
 				return Saml2ResponseValidatorResult.failure(new Saml2Error(errorCode, message));
 			}
 			String message = String.format("Invalid assertion [%s] for SAML response [%s]: %s", assertion.getID(),
-					((Response) assertion.getParent()).getID(), context.getValidationFailureMessage());
+					((Response) assertion.getParent()).getID(), context.getValidationFailureMessages());
 			return Saml2ResponseValidatorResult.failure(new Saml2Error(errorCode, message));
 		};
 	}
@@ -838,9 +838,11 @@ public final class OpenSaml4AuthenticationProvider implements AuthenticationProv
 			});
 			conditions.add(new ProxyRestrictionConditionValidator());
 			subjects.add(new BearerSubjectConfirmationValidator() {
+				@Nonnull
 				@Override
-				protected ValidationResult validateAddress(SubjectConfirmation confirmation, Assertion assertion,
-						ValidationContext context, boolean required) {
+				protected ValidationResult validateAddress(@Nonnull SubjectConfirmationData confirmationData,
+						@Nonnull Assertion assertion, @Nonnull ValidationContext context, boolean required)
+						throws AssertionValidationException {
 					// applications should validate their own addresses - gh-7514
 					return ValidationResult.VALID;
 				}

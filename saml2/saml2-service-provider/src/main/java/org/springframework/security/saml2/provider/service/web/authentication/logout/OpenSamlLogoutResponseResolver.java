@@ -22,8 +22,8 @@ import java.util.UUID;
 import java.util.function.BiConsumer;
 
 import jakarta.servlet.http.HttpServletRequest;
-import net.shibboleth.utilities.java.support.xml.ParserPool;
-import net.shibboleth.utilities.java.support.xml.SerializeSupport;
+import net.shibboleth.shared.xml.ParserPool;
+import net.shibboleth.shared.xml.SerializeSupport;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.opensaml.core.config.ConfigurationService;

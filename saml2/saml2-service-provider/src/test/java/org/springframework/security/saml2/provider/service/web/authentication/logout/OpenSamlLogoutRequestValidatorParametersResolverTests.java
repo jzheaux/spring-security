@@ -18,7 +18,7 @@ package org.springframework.security.saml2.provider.service.web.authentication.l
 
 import java.nio.charset.StandardCharsets;
 
-import net.shibboleth.utilities.java.support.xml.SerializeSupport;
+import net.shibboleth.shared.xml.SerializeSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

@@ -23,7 +23,7 @@ import java.util.function.Consumer;
 
 import javax.xml.XMLConstants;
 
-import net.shibboleth.utilities.java.support.xml.BasicParserPool;
+import net.shibboleth.shared.xml.impl.BasicParserPool;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.opensaml.core.config.ConfigurationService;
