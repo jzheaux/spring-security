@@ -32,11 +32,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.opensaml.core.xml.XMLObject;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport;
 import org.opensaml.core.xml.io.Marshaller;
+import org.opensaml.core.xml.io.MarshallingException;
 import org.opensaml.saml.saml2.core.Assertion;
 import org.opensaml.saml.saml2.core.Response;
-import org.w3c.dom.Element;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -63,6 +64,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextChangedListener;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
+import org.springframework.security.saml2.Saml2Exception;
 import org.springframework.security.saml2.core.OpenSamlInitializationService;
 import org.springframework.security.saml2.core.Saml2ErrorCodes;
 import org.springframework.security.saml2.core.Saml2Utils;
@@ -172,9 +174,7 @@ public class Saml2LoginConfigurerTests {
 		response.getAssertions().add(assertion);
 		Response signed = TestOpenSamlObjects.signed(response,
 				registration.getSigningX509Credentials().iterator().next(), relyingPartyEntityId);
-		Marshaller marshaller = XMLObjectProviderRegistrySupport.getMarshallerFactory().getMarshaller(signed);
-		Element element = marshaller.marshall(signed);
-		String serialized = SerializeSupport.nodeToString(element);
+		String serialized = serialize(signed);
 		SIGNED_RESPONSE = Saml2Utils.samlEncode(serialized.getBytes(StandardCharsets.UTF_8));
 	}
 
@@ -308,7 +308,7 @@ public class Saml2LoginConfigurerTests {
 		Saml2AuthenticationException exception = captor.getValue();
 		assertThat(exception.getSaml2Error().getErrorCode()).isEqualTo(Saml2ErrorCodes.INVALID_RESPONSE);
 		assertThat(exception.getSaml2Error().getDescription()).isEqualTo("Unable to inflate string");
-		assertThat(exception.getCause()).isInstanceOf(IOException.class);
+		assertThat(exception).hasRootCauseInstanceOf(IOException.class);
 	}
 
 	@Test
@@ -451,6 +451,16 @@ public class Saml2LoginConfigurerTests {
 				return authentication.isAssignableFrom(Saml2AuthenticationToken.class);
 			}
 		};
+	}
+
+	private static String serialize(XMLObject object) {
+		Marshaller marshaller = XMLObjectProviderRegistrySupport.getMarshallerFactory().getMarshaller(object);
+		try {
+			return SerializeSupport.nodeToString(marshaller.marshall(object));
+		}
+		catch (MarshallingException ex) {
+			throw new Saml2Exception(ex);
+		}
 	}
 
 	@Configuration

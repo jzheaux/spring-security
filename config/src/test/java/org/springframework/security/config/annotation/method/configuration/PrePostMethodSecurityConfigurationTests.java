@@ -61,11 +61,13 @@ import org.springframework.security.access.prepost.PreFilter;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationEventPublisher;
 import org.springframework.security.authorization.AuthorizationManager;
+import org.springframework.security.authorization.AuthorizationResult;
 import org.springframework.security.authorization.method.AuthorizationAdvisorProxyFactory;
 import org.springframework.security.authorization.method.AuthorizationAdvisorProxyFactory.TargetVisitor;
 import org.springframework.security.authorization.method.AuthorizationInterceptorsOrder;
 import org.springframework.security.authorization.method.AuthorizationManagerBeforeMethodInterceptor;
 import org.springframework.security.authorization.method.AuthorizeReturnObject;
+import org.springframework.security.authorization.method.HandleAuthorizationDenied;
 import org.springframework.security.authorization.method.MethodAuthorizationDeniedHandler;
 import org.springframework.security.authorization.method.MethodInvocationResult;
 import org.springframework.security.authorization.method.PrePostTemplateDefaults;
@@ -1476,6 +1478,26 @@ public class PrePostMethodSecurityConfigurationTests {
 		@Bean
 		MethodAuthorizationDeniedHandler methodAuthorizationDeniedHandler() {
 			return this.handler;
+		}
+
+	}
+
+	public static class Account {
+
+		@PreAuthorize("denyAll")
+		@HandleAuthorizationDenied(handlerClass = NullMethodAuthorizationDeniedHandler.class)
+		public String getAccountNumber() {
+			return "123";
+		}
+
+	}
+
+	public class NullMethodAuthorizationDeniedHandler implements MethodAuthorizationDeniedHandler {
+
+		@Override
+		public Object handleDeniedInvocation(MethodInvocation methodInvocation,
+				AuthorizationResult authorizationResult) {
+			return null;
 		}
 
 	}

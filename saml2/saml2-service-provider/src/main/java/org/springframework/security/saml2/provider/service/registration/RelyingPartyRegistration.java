@@ -24,8 +24,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Consumer;
 
-import org.opensaml.xmlsec.signature.support.SignatureConstants;
-
 import org.springframework.security.saml2.core.Saml2X509Credential;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
@@ -838,9 +836,18 @@ public class RelyingPartyRegistration {
 			 */
 			public AssertingPartyDetails build() {
 				List<String> signingAlgorithms = this.signingAlgorithms.isEmpty()
-						? Collections.singletonList(SignatureConstants.ALGO_ID_SIGNATURE_RSA_SHA256)
+						? Collections.singletonList("http://www.w3.org/2001/04/xmldsig-more#rsa-sha256")
 						: Collections.unmodifiableList(this.signingAlgorithms);
-
+				for (Saml2X509Credential credential : this.verificationX509Credentials) {
+					if (credential.getEntityId() == null) {
+						credential.setEntityId(this.entityId);
+					}
+				}
+				for (Saml2X509Credential credential : this.encryptionX509Credentials) {
+					if (credential.getEntityId() == null) {
+						credential.setEntityId(this.entityId);
+					}
+				}
 				return new AssertingPartyDetails(this.entityId, this.wantAuthnRequestsSigned, signingAlgorithms,
 						this.verificationX509Credentials, this.encryptionX509Credentials,
 						this.singleSignOnServiceLocation, this.singleSignOnServiceBinding,
@@ -1118,6 +1125,17 @@ public class RelyingPartyRegistration {
 
 			if (this.singleLogoutServiceBindings.isEmpty()) {
 				this.singleLogoutServiceBindings.add(Saml2MessageBinding.POST);
+			}
+
+			for (Saml2X509Credential credential : this.signingX509Credentials) {
+				if (credential.getEntityId() == null) {
+					credential.setEntityId(this.entityId);
+				}
+			}
+			for (Saml2X509Credential credential : this.decryptionX509Credentials) {
+				if (credential.getEntityId() == null) {
+					credential.setEntityId(this.entityId);
+				}
 			}
 
 			AssertingPartyMetadata party = this.assertingPartyMetadataBuilder.build();

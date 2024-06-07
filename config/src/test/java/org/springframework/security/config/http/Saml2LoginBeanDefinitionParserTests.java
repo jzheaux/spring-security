@@ -25,11 +25,12 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.opensaml.core.xml.XMLObject;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport;
 import org.opensaml.core.xml.io.Marshaller;
+import org.opensaml.core.xml.io.MarshallingException;
 import org.opensaml.saml.saml2.core.Assertion;
 import org.opensaml.saml.saml2.core.Response;
-import org.w3c.dom.Element;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.parsing.BeanDefinitionParsingException;
@@ -42,6 +43,7 @@ import org.springframework.security.config.test.SpringTestContextExtension;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
+import org.springframework.security.saml2.Saml2Exception;
 import org.springframework.security.saml2.core.OpenSamlInitializationService;
 import org.springframework.security.saml2.core.Saml2ParameterNames;
 import org.springframework.security.saml2.core.Saml2Utils;
@@ -149,9 +151,7 @@ public class Saml2LoginBeanDefinitionParserTests {
 		response.getAssertions().add(assertion);
 		Response signed = TestOpenSamlObjects.signed(response,
 				registration.getSigningX509Credentials().iterator().next(), relyingPartyEntityId);
-		Marshaller marshaller = XMLObjectProviderRegistrySupport.getMarshallerFactory().getMarshaller(signed);
-		Element element = marshaller.marshall(signed);
-		String serialized = SerializeSupport.nodeToString(element);
+		String serialized = serialize(signed);
 		SIGNED_RESPONSE = Saml2Utils.samlEncode(serialized.getBytes(StandardCharsets.UTF_8));
 	}
 
@@ -344,6 +344,16 @@ public class Saml2LoginBeanDefinitionParserTests {
 		// @formatter:on
 		this.mvc.perform(request).andExpect(redirectedUrl("/"));
 		verify(this.authenticationConverter).convert(any(HttpServletRequest.class));
+	}
+
+	private static String serialize(XMLObject object) {
+		Marshaller marshaller = XMLObjectProviderRegistrySupport.getMarshallerFactory().getMarshaller(object);
+		try {
+			return SerializeSupport.nodeToString(marshaller.marshall(object));
+		}
+		catch (MarshallingException ex) {
+			throw new Saml2Exception(ex);
+		}
 	}
 
 	private RelyingPartyRegistration relyingPartyRegistrationWithVerifyingCredential() {

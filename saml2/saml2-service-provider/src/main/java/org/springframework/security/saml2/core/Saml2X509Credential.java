@@ -43,6 +43,8 @@ public final class Saml2X509Credential {
 
 	private final Set<Saml2X509CredentialType> credentialTypes;
 
+	private String entityId;
+
 	/**
 	 * Creates a {@link Saml2X509Credential} using the provided parameters
 	 * @param certificate the credential's public certificiate
@@ -190,6 +192,14 @@ public final class Saml2X509Credential {
 	 */
 	public Set<Saml2X509CredentialType> getCredentialTypes() {
 		return this.credentialTypes;
+	}
+
+	public String getEntityId() {
+		return this.entityId;
+	}
+
+	public void setEntityId(String entityId) {
+		this.entityId = entityId;
 	}
 
 	@Override
