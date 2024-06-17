@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2024 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,12 +25,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import net.shibboleth.shared.resolver.CriteriaSet;
-import net.shibboleth.shared.xml.SerializeSupport;
-import org.opensaml.core.xml.XMLObject;
-import org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport;
-import org.opensaml.core.xml.io.Marshaller;
-import org.opensaml.core.xml.io.MarshallingException;
 import org.opensaml.saml.security.impl.SAMLMetadataSignatureSigningParametersResolver;
 import org.opensaml.security.SecurityException;
 import org.opensaml.security.credential.BasicCredential;
@@ -51,6 +45,7 @@ import org.opensaml.xmlsec.signature.support.SignatureSupport;
 import org.w3c.dom.Element;
 
 import org.springframework.security.saml2.Saml2Exception;
+import org.springframework.security.saml2.core.OpenSamlObjectUtils;
 import org.springframework.security.saml2.core.Saml2ParameterNames;
 import org.springframework.security.saml2.core.Saml2X509Credential;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
@@ -64,17 +59,21 @@ import org.springframework.web.util.UriUtils;
  * For internal use only.
  *
  * @author Josh Cummings
- * @since 6.3
  */
 final class OpenSamlSigningUtils {
 
-	static String serialize(XMLObject object) {
+	static String serialize(Element element) {
+		return serialize(element, false);
+	}
+
+	static String serialize(Element element, boolean prettyPrint) {
 		try {
-			Marshaller marshaller = XMLObjectProviderRegistrySupport.getMarshallerFactory().getMarshaller(object);
-			Element element = marshaller.marshall(object);
+			if (prettyPrint) {
+				return SerializeSupport.prettyPrintXML(element);
+			}
 			return SerializeSupport.nodeToString(element);
 		}
-		catch (MarshallingException ex) {
+		catch (Exception ex) {
 			throw new Saml2Exception(ex);
 		}
 	}
@@ -101,22 +100,27 @@ final class OpenSamlSigningUtils {
 		List<String> digests = Collections.singletonList(SignatureConstants.ALGO_ID_DIGEST_SHA256);
 		String canonicalization = SignatureConstants.ALGO_ID_C14N_EXCL_OMIT_COMMENTS;
 		SignatureSigningParametersResolver resolver = new SAMLMetadataSignatureSigningParametersResolver();
-		CriteriaSet criteria = new CriteriaSet();
 		BasicSignatureSigningConfiguration signingConfiguration = new BasicSignatureSigningConfiguration();
 		signingConfiguration.setSigningCredentials(credentials);
 		signingConfiguration.setSignatureAlgorithms(algorithms);
 		signingConfiguration.setSignatureReferenceDigestMethods(digests);
 		signingConfiguration.setSignatureCanonicalizationAlgorithm(canonicalization);
 		signingConfiguration.setKeyInfoGeneratorManager(buildSignatureKeyInfoGeneratorManager());
-		criteria.add(new SignatureSigningConfigurationCriterion(signingConfiguration));
+		Object criteria = criteria(new SignatureSigningConfigurationCriterion(signingConfiguration));
 		try {
-			SignatureSigningParameters parameters = resolver.resolveSingle(criteria);
+			SignatureSigningParameters parameters = resolver.resolveSingle(OpenSamlObjectUtils.cast(criteria));
 			Assert.notNull(parameters, "Failed to resolve any signing credential");
 			return parameters;
 		}
 		catch (Exception ex) {
 			throw new Saml2Exception(ex);
 		}
+	}
+
+	private static Object criteria(SignatureSigningConfigurationCriterion criterion) {
+		Object criteria = OpenSamlObjectUtils.invokeConstructor("resolver.CriteriaSet");
+		OpenSamlObjectUtils.invokeMethod(criteria, "add", criterion);
+		return criteria;
 	}
 
 	private static NamedKeyInfoGeneratorManager buildSignatureKeyInfoGeneratorManager() {
@@ -149,6 +153,18 @@ final class OpenSamlSigningUtils {
 	}
 
 	private OpenSamlSigningUtils() {
+
+	}
+
+	private static class SerializeSupport {
+
+		private static String nodeToString(Element element) {
+			return OpenSamlObjectUtils.invokeStaticMethod("xml.SerializeSupport", "nodeToString", element);
+		}
+
+		private static String prettyPrintXML(Element element) {
+			return OpenSamlObjectUtils.invokeStaticMethod("xml.SerializeSupport", "prettyPrintXML", element);
+		}
 
 	}
 

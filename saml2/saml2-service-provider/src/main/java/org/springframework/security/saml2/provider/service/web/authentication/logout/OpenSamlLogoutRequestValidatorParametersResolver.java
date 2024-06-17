@@ -20,7 +20,6 @@ import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 
 import jakarta.servlet.http.HttpServletRequest;
-import net.shibboleth.shared.xml.ParserPool;
 import org.opensaml.core.config.ConfigurationService;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistry;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport;
@@ -67,7 +66,7 @@ public final class OpenSamlLogoutRequestValidatorParametersResolver
 
 	private final RelyingPartyRegistrationRepository registrations;
 
-	private final ParserPool parserPool;
+	private final XMLObjectProviderRegistry registry;
 
 	private final LogoutRequestUnmarshaller unmarshaller;
 
@@ -76,8 +75,7 @@ public final class OpenSamlLogoutRequestValidatorParametersResolver
 	 */
 	public OpenSamlLogoutRequestValidatorParametersResolver(RelyingPartyRegistrationRepository registrations) {
 		Assert.notNull(registrations, "relyingPartyRegistrationRepository cannot be null");
-		XMLObjectProviderRegistry registry = ConfigurationService.get(XMLObjectProviderRegistry.class);
-		this.parserPool = registry.getParserPool();
+		this.registry = ConfigurationService.get(XMLObjectProviderRegistry.class);
 		this.unmarshaller = (LogoutRequestUnmarshaller) XMLObjectProviderRegistrySupport.getUnmarshallerFactory()
 			.getUnmarshaller(LogoutRequest.DEFAULT_ELEMENT_NAME);
 		this.registrations = registrations;
@@ -208,7 +206,7 @@ public final class OpenSamlLogoutRequestValidatorParametersResolver
 
 	private LogoutRequest parse(String request) throws Saml2Exception {
 		try {
-			Document document = this.parserPool
+			Document document = this.registry.getParserPool()
 				.parse(new ByteArrayInputStream(request.getBytes(StandardCharsets.UTF_8)));
 			Element element = document.getDocumentElement();
 			return (LogoutRequest) this.unmarshaller.unmarshall(element);

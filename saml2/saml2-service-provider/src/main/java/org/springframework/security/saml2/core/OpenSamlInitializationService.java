@@ -23,7 +23,6 @@ import java.util.function.Consumer;
 
 import javax.xml.XMLConstants;
 
-import net.shibboleth.shared.xml.impl.BasicParserPool;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.opensaml.core.config.ConfigurationService;
@@ -124,16 +123,11 @@ public final class OpenSamlInitializationService {
 			catch (Exception ex) {
 				throw new Saml2Exception(ex);
 			}
-			BasicParserPool parserPool = new BasicParserPool();
-			parserPool.setMaxPoolSize(50);
-			parserPool.setBuilderFeatures(getParserBuilderFeatures());
-			try {
-				parserPool.initialize();
-			}
-			catch (Exception ex) {
-				throw new Saml2Exception(ex);
-			}
-			XMLObjectProviderRegistrySupport.setParserPool(parserPool);
+			Object parserPool = OpenSamlObjectUtils.invokeConstructor("xml.BasicParserPool");
+			OpenSamlObjectUtils.invokeMethod(parserPool, "maxPoolSize", 50);
+			OpenSamlObjectUtils.invokeMethod(parserPool, "setBuilderFeatures", getParserBuilderFeatures());
+			OpenSamlObjectUtils.invokeMethod(parserPool, "initialize");
+			XMLObjectProviderRegistrySupport.setParserPool(OpenSamlObjectUtils.cast(parserPool));
 			registryConsumer.accept(ConfigurationService.get(XMLObjectProviderRegistry.class));
 			log.debug("Initialized OpenSAML");
 			return true;

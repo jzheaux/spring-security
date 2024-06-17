@@ -18,7 +18,6 @@ package org.springframework.security.saml2.provider.service.web.authentication.l
 
 import java.nio.charset.StandardCharsets;
 
-import net.shibboleth.shared.xml.SerializeSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,6 +33,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.saml2.Saml2Exception;
+import org.springframework.security.saml2.core.OpenSamlObjectUtils;
 import org.springframework.security.saml2.core.Saml2ParameterNames;
 import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticationException;
 import org.springframework.security.saml2.provider.service.authentication.TestOpenSamlObjects;
@@ -154,7 +154,7 @@ public final class OpenSamlLogoutRequestValidatorParametersResolverTests {
 		try {
 			Marshaller marshaller = XMLObjectProviderRegistrySupport.getMarshallerFactory().getMarshaller(object);
 			Element element = marshaller.marshall(object);
-			return SerializeSupport.nodeToString(element);
+			return OpenSamlObjectUtils.invokeStaticMethod("xml.SerializeSupport", "nodeToString", element);
 		}
 		catch (MarshallingException ex) {
 			throw new Saml2Exception(ex);

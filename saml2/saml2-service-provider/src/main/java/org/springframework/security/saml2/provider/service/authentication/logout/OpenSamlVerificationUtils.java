@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,11 +21,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import net.shibboleth.shared.resolver.CriteriaSet;
 import org.opensaml.core.criterion.EntityIdCriterion;
 import org.opensaml.saml.common.xml.SAMLConstants;
 import org.opensaml.saml.criterion.ProtocolCriterion;
@@ -47,11 +47,13 @@ import org.opensaml.xmlsec.signature.Signature;
 import org.opensaml.xmlsec.signature.support.SignatureTrustEngine;
 import org.opensaml.xmlsec.signature.support.impl.ExplicitKeySignatureTrustEngine;
 
+import org.springframework.security.saml2.core.OpenSamlObjectUtils;
 import org.springframework.security.saml2.core.Saml2Error;
 import org.springframework.security.saml2.core.Saml2ErrorCodes;
 import org.springframework.security.saml2.core.Saml2ParameterNames;
 import org.springframework.security.saml2.core.Saml2X509Credential;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
+import org.springframework.util.ClassUtils;
 import org.springframework.web.util.UriComponentsBuilder;
 
 /**
@@ -64,12 +66,29 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 final class OpenSamlVerificationUtils {
 
+	private static final boolean isAtLeastVersion5 = ClassUtils
+		.isPresent("net.shibboleth.shared.xml.impl.BasicParserPool", null);
+
 	static VerifierPartial verifySignature(StatusResponseType object, RelyingPartyRegistration registration) {
 		return new VerifierPartial(object, registration);
 	}
 
 	static VerifierPartial verifySignature(RequestAbstractType object, RelyingPartyRegistration registration) {
 		return new VerifierPartial(object, registration);
+	}
+
+	static SignatureTrustEngine trustEngine(RelyingPartyRegistration registration) {
+		Set<Credential> credentials = new HashSet<>();
+		Collection<Saml2X509Credential> keys = registration.getAssertingPartyDetails().getVerificationX509Credentials();
+		for (Saml2X509Credential key : keys) {
+			BasicX509Credential cred = new BasicX509Credential(key.getCertificate());
+			cred.setUsageType(UsageType.SIGNING);
+			cred.setEntityId(registration.getAssertingPartyDetails().getEntityId());
+			credentials.add(cred);
+		}
+		CredentialResolver credentialsResolver = new CollectionCredentialResolver(credentials);
+		return new ExplicitKeySignatureTrustEngine(credentialsResolver,
+				DefaultSecurityConfigurationBootstrap.buildBasicInlineKeyInfoCredentialResolver());
 	}
 
 	private OpenSamlVerificationUtils() {
@@ -80,7 +99,7 @@ final class OpenSamlVerificationUtils {
 
 		private final String id;
 
-		private final CriteriaSet criteria;
+		private final Object criteria;
 
 		private final SignatureTrustEngine trustEngine;
 
@@ -117,7 +136,7 @@ final class OpenSamlVerificationUtils {
 			String algorithmUri = signature.getAlgorithm();
 			try {
 				if (!this.trustEngine.validate(signature.getSignature(), signature.getContent(), algorithmUri,
-						this.criteria, null)) {
+						OpenSamlObjectUtils.cast(this.criteria), null)) {
 					errors.add(new Saml2Error(Saml2ErrorCodes.INVALID_SIGNATURE,
 							"Invalid signature for object [" + this.id + "]"));
 				}
@@ -141,7 +160,7 @@ final class OpenSamlVerificationUtils {
 			}
 
 			try {
-				if (!this.trustEngine.validate(signature, this.criteria)) {
+				if (!this.trustEngine.validate(signature, OpenSamlObjectUtils.cast(this.criteria))) {
 					errors.add(new Saml2Error(Saml2ErrorCodes.INVALID_SIGNATURE,
 							"Invalid signature for object [" + this.id + "]"));
 				}
@@ -154,27 +173,14 @@ final class OpenSamlVerificationUtils {
 			return errors;
 		}
 
-		private CriteriaSet verificationCriteria(Issuer issuer) {
-			CriteriaSet criteria = new CriteriaSet();
-			criteria.add(new EvaluableEntityIDCredentialCriterion(new EntityIdCriterion(issuer.getValue())));
-			criteria.add(new EvaluableProtocolRoleDescriptorCriterion(new ProtocolCriterion(SAMLConstants.SAML20P_NS)));
-			criteria.add(new EvaluableUsageCredentialCriterion(new UsageCriterion(UsageType.SIGNING)));
-			return criteria;
-		}
-
-		private SignatureTrustEngine trustEngine(RelyingPartyRegistration registration) {
-			Set<Credential> credentials = new HashSet<>();
-			Collection<Saml2X509Credential> keys = registration.getAssertingPartyDetails()
-				.getVerificationX509Credentials();
-			for (Saml2X509Credential key : keys) {
-				BasicX509Credential cred = new BasicX509Credential(key.getCertificate());
-				cred.setUsageType(UsageType.SIGNING);
-				cred.setEntityId(registration.getAssertingPartyDetails().getEntityId());
-				credentials.add(cred);
-			}
-			CredentialResolver credentialsResolver = new CollectionCredentialResolver(credentials);
-			return new ExplicitKeySignatureTrustEngine(credentialsResolver,
-					DefaultSecurityConfigurationBootstrap.buildBasicInlineKeyInfoCredentialResolver());
+		private Object verificationCriteria(Issuer issuer) {
+			Object criteriaSet = OpenSamlObjectUtils.invokeConstructor("resolver.CriteriaSet");
+			OpenSamlObjectUtils.invokeMethod(criteriaSet, "addAll",
+					List.of(new EvaluableEntityIDCredentialCriterion(new EntityIdCriterion(issuer.getValue())),
+							new EvaluableProtocolRoleDescriptorCriterion(
+									new ProtocolCriterion(SAMLConstants.SAML20P_NS)),
+							new EvaluableUsageCredentialCriterion(new UsageCriterion(UsageType.SIGNING))));
+			return criteriaSet;
 		}
 
 		private static class RedirectSignature {

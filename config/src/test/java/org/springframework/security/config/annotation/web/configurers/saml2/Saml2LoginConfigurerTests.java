@@ -25,7 +25,6 @@ import java.util.Collections;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import net.shibboleth.shared.xml.SerializeSupport;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -64,6 +63,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextChangedListener;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.saml2.core.OpenSamlInitializationService;
+import org.springframework.security.saml2.core.OpenSamlObjectUtils;
 import org.springframework.security.saml2.core.Saml2ErrorCodes;
 import org.springframework.security.saml2.core.Saml2Utils;
 import org.springframework.security.saml2.core.TestSaml2X509Credentials;
@@ -172,7 +172,7 @@ public class Saml2LoginConfigurerTests {
 				registration.getSigningX509Credentials().iterator().next(), relyingPartyEntityId);
 		Marshaller marshaller = XMLObjectProviderRegistrySupport.getMarshallerFactory().getMarshaller(signed);
 		Element element = marshaller.marshall(signed);
-		String serialized = SerializeSupport.nodeToString(element);
+		String serialized = OpenSamlObjectUtils.invokeStaticMethod("xml.SerializeSupport", "nodeToString", element);
 		SIGNED_RESPONSE = Saml2Utils.samlEncode(serialized.getBytes(StandardCharsets.UTF_8));
 	}
 

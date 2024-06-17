@@ -22,14 +22,11 @@ import java.util.UUID;
 import java.util.function.BiConsumer;
 
 import jakarta.servlet.http.HttpServletRequest;
-import net.shibboleth.shared.xml.ParserPool;
-import net.shibboleth.shared.xml.SerializeSupport;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.opensaml.core.config.ConfigurationService;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistry;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport;
-import org.opensaml.core.xml.io.MarshallingException;
 import org.opensaml.saml.saml2.core.Issuer;
 import org.opensaml.saml.saml2.core.LogoutRequest;
 import org.opensaml.saml.saml2.core.LogoutResponse;
@@ -71,7 +68,7 @@ final class OpenSamlLogoutResponseResolver {
 
 	private final Log logger = LogFactory.getLog(getClass());
 
-	private final ParserPool parserPool;
+	private XMLObjectProviderRegistry registry;
 
 	private final LogoutRequestUnmarshaller unmarshaller;
 
@@ -96,21 +93,20 @@ final class OpenSamlLogoutResponseResolver {
 			RelyingPartyRegistrationResolver relyingPartyRegistrationResolver) {
 		this.registrations = registrations;
 		this.relyingPartyRegistrationResolver = relyingPartyRegistrationResolver;
-		XMLObjectProviderRegistry registry = ConfigurationService.get(XMLObjectProviderRegistry.class);
-		this.parserPool = registry.getParserPool();
+		this.registry = ConfigurationService.get(XMLObjectProviderRegistry.class);
 		this.unmarshaller = (LogoutRequestUnmarshaller) XMLObjectProviderRegistrySupport.getUnmarshallerFactory()
 			.getUnmarshaller(LogoutRequest.DEFAULT_ELEMENT_NAME);
-		this.marshaller = (LogoutResponseMarshaller) registry.getMarshallerFactory()
+		this.marshaller = (LogoutResponseMarshaller) this.registry.getMarshallerFactory()
 			.getMarshaller(LogoutResponse.DEFAULT_ELEMENT_NAME);
 		Assert.notNull(this.marshaller, "logoutResponseMarshaller must be configured in OpenSAML");
-		this.logoutResponseBuilder = (LogoutResponseBuilder) registry.getBuilderFactory()
+		this.logoutResponseBuilder = (LogoutResponseBuilder) this.registry.getBuilderFactory()
 			.getBuilder(LogoutResponse.DEFAULT_ELEMENT_NAME);
 		Assert.notNull(this.logoutResponseBuilder, "logoutResponseBuilder must be configured in OpenSAML");
-		this.issuerBuilder = (IssuerBuilder) registry.getBuilderFactory().getBuilder(Issuer.DEFAULT_ELEMENT_NAME);
+		this.issuerBuilder = (IssuerBuilder) this.registry.getBuilderFactory().getBuilder(Issuer.DEFAULT_ELEMENT_NAME);
 		Assert.notNull(this.issuerBuilder, "issuerBuilder must be configured in OpenSAML");
-		this.statusBuilder = (StatusBuilder) registry.getBuilderFactory().getBuilder(Status.DEFAULT_ELEMENT_NAME);
+		this.statusBuilder = (StatusBuilder) this.registry.getBuilderFactory().getBuilder(Status.DEFAULT_ELEMENT_NAME);
 		Assert.notNull(this.statusBuilder, "statusBuilder must be configured in OpenSAML");
-		this.statusCodeBuilder = (StatusCodeBuilder) registry.getBuilderFactory()
+		this.statusCodeBuilder = (StatusCodeBuilder) this.registry.getBuilderFactory()
 			.getBuilder(StatusCode.DEFAULT_ELEMENT_NAME);
 		Assert.notNull(this.statusCodeBuilder, "statusCodeBuilder must be configured in OpenSAML");
 	}
@@ -211,7 +207,7 @@ final class OpenSamlLogoutResponseResolver {
 
 	private LogoutRequest parse(String request) throws Saml2Exception {
 		try {
-			Document document = this.parserPool
+			Document document = this.registry.getParserPool()
 				.parse(new ByteArrayInputStream(request.getBytes(StandardCharsets.UTF_8)));
 			Element element = document.getDocumentElement();
 			return (LogoutRequest) this.unmarshaller.unmarshall(element);
@@ -222,13 +218,7 @@ final class OpenSamlLogoutResponseResolver {
 	}
 
 	private String serialize(LogoutResponse logoutResponse) {
-		try {
-			Element element = this.marshaller.marshall(logoutResponse);
-			return SerializeSupport.nodeToString(element);
-		}
-		catch (MarshallingException ex) {
-			throw new Saml2Exception(ex);
-		}
+		return OpenSamlSigningUtils.serialize(logoutResponse);
 	}
 
 }

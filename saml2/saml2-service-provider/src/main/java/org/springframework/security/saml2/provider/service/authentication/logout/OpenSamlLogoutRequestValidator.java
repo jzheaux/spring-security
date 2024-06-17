@@ -21,7 +21,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.function.Consumer;
 
-import net.shibboleth.shared.xml.ParserPool;
 import org.opensaml.core.config.ConfigurationService;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistry;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport;
@@ -55,7 +54,7 @@ public final class OpenSamlLogoutRequestValidator implements Saml2LogoutRequestV
 		OpenSamlInitializationService.initialize();
 	}
 
-	private final ParserPool parserPool;
+	private final XMLObjectProviderRegistry registry;
 
 	private final LogoutRequestUnmarshaller unmarshaller;
 
@@ -63,8 +62,7 @@ public final class OpenSamlLogoutRequestValidator implements Saml2LogoutRequestV
 	 * Constructs a {@link OpenSamlLogoutRequestValidator}
 	 */
 	public OpenSamlLogoutRequestValidator() {
-		XMLObjectProviderRegistry registry = ConfigurationService.get(XMLObjectProviderRegistry.class);
-		this.parserPool = registry.getParserPool();
+		this.registry = ConfigurationService.get(XMLObjectProviderRegistry.class);
 		this.unmarshaller = (LogoutRequestUnmarshaller) XMLObjectProviderRegistrySupport.getUnmarshallerFactory()
 			.getUnmarshaller(LogoutRequest.DEFAULT_ELEMENT_NAME);
 	}
@@ -94,7 +92,7 @@ public final class OpenSamlLogoutRequestValidator implements Saml2LogoutRequestV
 
 	private LogoutRequest parse(String request) throws Saml2Exception {
 		try {
-			Document document = this.parserPool
+			Document document = this.registry.getParserPool()
 				.parse(new ByteArrayInputStream(request.getBytes(StandardCharsets.UTF_8)));
 			Element element = document.getDocumentElement();
 			return (LogoutRequest) this.unmarshaller.unmarshall(element);

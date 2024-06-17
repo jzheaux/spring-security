@@ -34,7 +34,6 @@ import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.xml.namespace.QName;
 
-import net.shibboleth.shared.xml.ParserPool;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.opensaml.core.config.ConfigurationService;
@@ -89,6 +88,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.saml2.Saml2Exception;
 import org.springframework.security.saml2.core.OpenSamlInitializationService;
+import org.springframework.security.saml2.core.OpenSamlObjectUtils;
 import org.springframework.security.saml2.core.Saml2Error;
 import org.springframework.security.saml2.core.Saml2ErrorCodes;
 import org.springframework.security.saml2.core.Saml2ResponseValidatorResult;
@@ -157,7 +157,7 @@ public final class OpenSaml4AuthenticationProvider implements AuthenticationProv
 			.getUnmarshaller(AuthnRequest.DEFAULT_ELEMENT_NAME);
 	}
 
-	private final ParserPool parserPool;
+	private final XMLObjectProviderRegistry registry;
 
 	private final Converter<ResponseToken, Saml2ResponseValidatorResult> responseSignatureValidator = createDefaultResponseSignatureValidator();
 
@@ -180,10 +180,9 @@ public final class OpenSaml4AuthenticationProvider implements AuthenticationProv
 	 * Creates an {@link OpenSaml4AuthenticationProvider}
 	 */
 	public OpenSaml4AuthenticationProvider() {
-		XMLObjectProviderRegistry registry = ConfigurationService.get(XMLObjectProviderRegistry.class);
-		this.responseUnmarshaller = (ResponseUnmarshaller) registry.getUnmarshallerFactory()
+		this.registry = ConfigurationService.get(XMLObjectProviderRegistry.class);
+		this.responseUnmarshaller = (ResponseUnmarshaller) this.registry.getUnmarshallerFactory()
 			.getUnmarshaller(Response.DEFAULT_ELEMENT_NAME);
-		this.parserPool = registry.getParserPool();
 	}
 
 	/**
@@ -565,7 +564,7 @@ public final class OpenSaml4AuthenticationProvider implements AuthenticationProv
 
 	private Response parseResponse(String response) throws Saml2Exception, Saml2AuthenticationException {
 		try {
-			Document document = this.parserPool
+			Document document = this.registry.getParserPool()
 				.parse(new ByteArrayInputStream(response.getBytes(StandardCharsets.UTF_8)));
 			Element element = document.getDocumentElement();
 			return (Response) this.responseUnmarshaller.unmarshall(element);
@@ -764,7 +763,7 @@ public final class OpenSaml4AuthenticationProvider implements AuthenticationProv
 				return Saml2ResponseValidatorResult.failure(new Saml2Error(errorCode, message));
 			}
 			String message = String.format("Invalid assertion [%s] for SAML response [%s]: %s", assertion.getID(),
-					((Response) assertion.getParent()).getID(), context.getValidationFailureMessages());
+					((Response) assertion.getParent()).getID(), OpenSamlObjectUtils.toString(context));
 			return Saml2ResponseValidatorResult.failure(new Saml2Error(errorCode, message));
 		};
 	}
@@ -839,7 +838,13 @@ public final class OpenSaml4AuthenticationProvider implements AuthenticationProv
 			conditions.add(new ProxyRestrictionConditionValidator());
 			subjects.add(new BearerSubjectConfirmationValidator() {
 				@Nonnull
-				@Override
+				protected ValidationResult validateAddress(@Nonnull SubjectConfirmation confirmation,
+						@Nonnull Assertion assertion, @Nonnull ValidationContext context, boolean required)
+						throws AssertionValidationException {
+					return ValidationResult.VALID;
+				}
+
+				@Nonnull
 				protected ValidationResult validateAddress(@Nonnull SubjectConfirmationData confirmationData,
 						@Nonnull Assertion assertion, @Nonnull ValidationContext context, boolean required)
 						throws AssertionValidationException {

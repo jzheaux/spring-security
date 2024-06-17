@@ -3,8 +3,8 @@ apply plugin: 'io.spring.convention.spring-module'
 dependencies {
 	management platform(project(":spring-security-dependencies"))
 	api project(':spring-security-web')
-	api "org.opensaml:opensaml-core-api"
-	api "org.opensaml:opensaml-core-impl"
+	api "org.opensaml:opensaml-core"
+	//api "org.opensaml:opensaml-core-impl"
 	api ("org.opensaml:opensaml-saml-api")  {
 		exclude group: 'commons-logging', module: 'commons-logging'
 	}

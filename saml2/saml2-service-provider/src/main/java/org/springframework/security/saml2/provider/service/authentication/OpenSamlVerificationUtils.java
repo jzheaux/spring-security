@@ -20,10 +20,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import jakarta.servlet.http.HttpServletRequest;
-import net.shibboleth.shared.resolver.CriteriaSet;
 import org.opensaml.core.criterion.EntityIdCriterion;
 import org.opensaml.saml.common.xml.SAMLConstants;
 import org.opensaml.saml.criterion.ProtocolCriterion;
@@ -45,6 +45,7 @@ import org.opensaml.xmlsec.signature.Signature;
 import org.opensaml.xmlsec.signature.support.SignatureTrustEngine;
 import org.opensaml.xmlsec.signature.support.impl.ExplicitKeySignatureTrustEngine;
 
+import org.springframework.security.saml2.core.OpenSamlObjectUtils;
 import org.springframework.security.saml2.core.Saml2Error;
 import org.springframework.security.saml2.core.Saml2ErrorCodes;
 import org.springframework.security.saml2.core.Saml2ParameterNames;
@@ -93,7 +94,7 @@ final class OpenSamlVerificationUtils {
 
 		private final String id;
 
-		private final CriteriaSet criteria;
+		private final Object criteria;
 
 		private final SignatureTrustEngine trustEngine;
 
@@ -123,7 +124,7 @@ final class OpenSamlVerificationUtils {
 			String algorithmUri = signature.getAlgorithm();
 			try {
 				if (!this.trustEngine.validate(signature.getSignature(), signature.getContent(), algorithmUri,
-						this.criteria, null)) {
+						OpenSamlObjectUtils.cast(this.criteria), null)) {
 					errors.add(new Saml2Error(Saml2ErrorCodes.INVALID_SIGNATURE,
 							"Invalid signature for object [" + this.id + "]"));
 				}
@@ -147,7 +148,7 @@ final class OpenSamlVerificationUtils {
 			}
 
 			try {
-				if (!this.trustEngine.validate(signature, this.criteria)) {
+				if (!this.trustEngine.validate(signature, OpenSamlObjectUtils.cast(this.criteria))) {
 					errors.add(new Saml2Error(Saml2ErrorCodes.INVALID_SIGNATURE,
 							"Invalid signature for object [" + this.id + "]"));
 				}
@@ -160,12 +161,14 @@ final class OpenSamlVerificationUtils {
 			return Saml2ResponseValidatorResult.failure(errors);
 		}
 
-		private CriteriaSet verificationCriteria(Issuer issuer) {
-			CriteriaSet criteria = new CriteriaSet();
-			criteria.add(new EvaluableEntityIDCredentialCriterion(new EntityIdCriterion(issuer.getValue())));
-			criteria.add(new EvaluableProtocolRoleDescriptorCriterion(new ProtocolCriterion(SAMLConstants.SAML20P_NS)));
-			criteria.add(new EvaluableUsageCredentialCriterion(new UsageCriterion(UsageType.SIGNING)));
-			return criteria;
+		private Object verificationCriteria(Issuer issuer) {
+			Object criteriaSet = OpenSamlObjectUtils.invokeConstructor("resolver.CriteriaSet");
+			OpenSamlObjectUtils.invokeMethod(criteriaSet, "addAll",
+					List.of(new EvaluableEntityIDCredentialCriterion(new EntityIdCriterion(issuer.getValue())),
+							new EvaluableProtocolRoleDescriptorCriterion(
+									new ProtocolCriterion(SAMLConstants.SAML20P_NS)),
+							new EvaluableUsageCredentialCriterion(new UsageCriterion(UsageType.SIGNING))));
+			return criteriaSet;
 		}
 
 		private static class RedirectSignature {

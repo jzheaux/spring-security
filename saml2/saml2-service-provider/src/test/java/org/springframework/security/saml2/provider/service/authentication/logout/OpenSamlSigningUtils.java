@@ -25,8 +25,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import net.shibboleth.shared.resolver.CriteriaSet;
-import net.shibboleth.shared.xml.SerializeSupport;
 import org.opensaml.core.xml.XMLObject;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport;
 import org.opensaml.core.xml.io.Marshaller;
@@ -51,6 +49,7 @@ import org.opensaml.xmlsec.signature.support.SignatureSupport;
 import org.w3c.dom.Element;
 
 import org.springframework.security.saml2.Saml2Exception;
+import org.springframework.security.saml2.core.OpenSamlObjectUtils;
 import org.springframework.security.saml2.core.Saml2ParameterNames;
 import org.springframework.security.saml2.core.Saml2X509Credential;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
@@ -71,7 +70,7 @@ final class OpenSamlSigningUtils {
 		try {
 			Marshaller marshaller = XMLObjectProviderRegistrySupport.getMarshallerFactory().getMarshaller(object);
 			Element element = marshaller.marshall(object);
-			return SerializeSupport.nodeToString(element);
+			return OpenSamlObjectUtils.invokeStaticMethod("xml.SerializeSupport", "nodeToString", element);
 		}
 		catch (MarshallingException ex) {
 			throw new Saml2Exception(ex);
@@ -100,22 +99,27 @@ final class OpenSamlSigningUtils {
 		List<String> digests = Collections.singletonList(SignatureConstants.ALGO_ID_DIGEST_SHA256);
 		String canonicalization = SignatureConstants.ALGO_ID_C14N_EXCL_OMIT_COMMENTS;
 		SignatureSigningParametersResolver resolver = new SAMLMetadataSignatureSigningParametersResolver();
-		CriteriaSet criteria = new CriteriaSet();
 		BasicSignatureSigningConfiguration signingConfiguration = new BasicSignatureSigningConfiguration();
 		signingConfiguration.setSigningCredentials(credentials);
 		signingConfiguration.setSignatureAlgorithms(algorithms);
 		signingConfiguration.setSignatureReferenceDigestMethods(digests);
 		signingConfiguration.setSignatureCanonicalizationAlgorithm(canonicalization);
 		signingConfiguration.setKeyInfoGeneratorManager(buildSignatureKeyInfoGeneratorManager());
-		criteria.add(new SignatureSigningConfigurationCriterion(signingConfiguration));
+		Object criteria = criteria(new SignatureSigningConfigurationCriterion(signingConfiguration));
 		try {
-			SignatureSigningParameters parameters = resolver.resolveSingle(criteria);
+			SignatureSigningParameters parameters = resolver.resolveSingle(OpenSamlObjectUtils.cast(criteria));
 			Assert.notNull(parameters, "Failed to resolve any signing credential");
 			return parameters;
 		}
 		catch (Exception ex) {
 			throw new Saml2Exception(ex);
 		}
+	}
+
+	private static Object criteria(SignatureSigningConfigurationCriterion criterion) {
+		Object criteria = OpenSamlObjectUtils.invokeConstructor("resolver.CriteriaSet");
+		OpenSamlObjectUtils.invokeMethod(criteria, "add", criterion);
+		return criteria;
 	}
 
 	private static NamedKeyInfoGeneratorManager buildSignatureKeyInfoGeneratorManager() {

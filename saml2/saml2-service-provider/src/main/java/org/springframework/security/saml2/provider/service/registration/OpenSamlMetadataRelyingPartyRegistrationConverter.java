@@ -24,7 +24,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-import net.shibboleth.shared.xml.ParserPool;
 import org.opensaml.core.config.ConfigurationService;
 import org.opensaml.core.xml.XMLObject;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistry;
@@ -55,14 +54,11 @@ class OpenSamlMetadataRelyingPartyRegistrationConverter {
 
 	private final XMLObjectProviderRegistry registry;
 
-	private final ParserPool parserPool;
-
 	/**
 	 * Creates a {@link OpenSamlMetadataRelyingPartyRegistrationConverter}
 	 */
 	OpenSamlMetadataRelyingPartyRegistrationConverter() {
 		this.registry = ConfigurationService.get(XMLObjectProviderRegistry.class);
-		this.parserPool = this.registry.getParserPool();
 	}
 
 	OpenSamlRelyingPartyRegistration.Builder convert(EntityDescriptor descriptor) {
@@ -211,7 +207,7 @@ class OpenSamlMetadataRelyingPartyRegistrationConverter {
 
 	private Document document(InputStream inputStream) {
 		try {
-			return this.parserPool.parse(inputStream);
+			return this.registry.getParserPool().parse(inputStream);
 		}
 		catch (Exception ex) {
 			throw new Saml2Exception(ex);

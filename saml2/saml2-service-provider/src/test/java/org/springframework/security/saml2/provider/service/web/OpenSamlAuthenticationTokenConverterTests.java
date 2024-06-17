@@ -21,7 +21,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 
 import jakarta.servlet.http.HttpServletRequest;
-import net.shibboleth.shared.xml.SerializeSupport;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -37,6 +36,7 @@ import org.w3c.dom.Element;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.saml2.Saml2Exception;
+import org.springframework.security.saml2.core.OpenSamlObjectUtils;
 import org.springframework.security.saml2.core.Saml2ErrorCodes;
 import org.springframework.security.saml2.core.Saml2ParameterNames;
 import org.springframework.security.saml2.core.Saml2Utils;
@@ -247,7 +247,7 @@ public final class OpenSamlAuthenticationTokenConverterTests {
 		try {
 			Marshaller marshaller = XMLObjectProviderRegistrySupport.getMarshallerFactory().getMarshaller(object);
 			Element element = marshaller.marshall(object);
-			return SerializeSupport.nodeToString(element);
+			return OpenSamlObjectUtils.invokeStaticMethod("xml.SerializeSupport", "nodeToString", element);
 		}
 		catch (MarshallingException ex) {
 			throw new Saml2Exception(ex);

@@ -25,7 +25,6 @@ import java.util.function.Consumer;
 
 import javax.xml.namespace.QName;
 
-import net.shibboleth.shared.xml.SerializeSupport;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.opensaml.core.xml.XMLObjectBuilder;
@@ -228,10 +227,7 @@ public final class OpenSamlMetadataResolver implements Saml2MetadataResolver {
 	private String serialize(EntityDescriptor entityDescriptor) {
 		try {
 			Element element = this.entityDescriptorMarshaller.marshall(entityDescriptor);
-			if (this.usePrettyPrint) {
-				return SerializeSupport.prettyPrintXML(element);
-			}
-			return SerializeSupport.nodeToString(element);
+			return OpenSamlSigningUtils.serialize(element, this.usePrettyPrint);
 		}
 		catch (Exception ex) {
 			throw new Saml2Exception(ex);
@@ -241,10 +237,7 @@ public final class OpenSamlMetadataResolver implements Saml2MetadataResolver {
 	private String serialize(EntitiesDescriptor entities) {
 		try {
 			Element element = this.entitiesDescriptorMarshaller.marshall(entities);
-			if (this.usePrettyPrint) {
-				return SerializeSupport.prettyPrintXML(element);
-			}
-			return SerializeSupport.nodeToString(element);
+			return OpenSamlSigningUtils.serialize(element, this.usePrettyPrint);
 		}
 		catch (Exception ex) {
 			throw new Saml2Exception(ex);

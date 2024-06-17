@@ -22,11 +22,9 @@ import java.util.UUID;
 import java.util.function.BiConsumer;
 
 import jakarta.servlet.http.HttpServletRequest;
-import net.shibboleth.shared.xml.SerializeSupport;
 import org.opensaml.core.config.ConfigurationService;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistry;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport;
-import org.opensaml.core.xml.io.MarshallingException;
 import org.opensaml.saml.saml2.core.AuthnRequest;
 import org.opensaml.saml.saml2.core.Issuer;
 import org.opensaml.saml.saml2.core.NameID;
@@ -36,10 +34,8 @@ import org.opensaml.saml.saml2.core.impl.AuthnRequestMarshaller;
 import org.opensaml.saml.saml2.core.impl.IssuerBuilder;
 import org.opensaml.saml.saml2.core.impl.NameIDBuilder;
 import org.opensaml.saml.saml2.core.impl.NameIDPolicyBuilder;
-import org.w3c.dom.Element;
 
 import org.springframework.core.convert.converter.Converter;
-import org.springframework.security.saml2.Saml2Exception;
 import org.springframework.security.saml2.core.OpenSamlInitializationService;
 import org.springframework.security.saml2.core.Saml2ParameterNames;
 import org.springframework.security.saml2.provider.service.authentication.AbstractSaml2AuthenticationRequest;
@@ -190,13 +186,7 @@ class OpenSamlAuthenticationRequestResolver {
 	}
 
 	private String serialize(AuthnRequest authnRequest) {
-		try {
-			Element element = this.marshaller.marshall(authnRequest);
-			return SerializeSupport.nodeToString(element);
-		}
-		catch (MarshallingException ex) {
-			throw new Saml2Exception(ex);
-		}
+		return OpenSamlSigningUtils.serialize(authnRequest);
 	}
 
 }

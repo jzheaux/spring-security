@@ -26,7 +26,6 @@ import java.util.zip.Inflater;
 import java.util.zip.InflaterOutputStream;
 
 import jakarta.servlet.http.HttpServletRequest;
-import net.shibboleth.shared.xml.ParserPool;
 import org.opensaml.core.config.ConfigurationService;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistry;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport;
@@ -79,7 +78,7 @@ public final class OpenSamlAuthenticationTokenConverter implements Authenticatio
 			new AntPathRequestMatcher("/login/saml2/sso/{registrationId}"),
 			new AntPathRequestMatcher("/login/saml2/sso"));
 
-	private final ParserPool parserPool;
+	private final XMLObjectProviderRegistry registry;
 
 	private final ResponseUnmarshaller unmarshaller;
 
@@ -93,8 +92,7 @@ public final class OpenSamlAuthenticationTokenConverter implements Authenticatio
 	 */
 	public OpenSamlAuthenticationTokenConverter(RelyingPartyRegistrationRepository registrations) {
 		Assert.notNull(registrations, "relyingPartyRegistrationRepository cannot be null");
-		XMLObjectProviderRegistry registry = ConfigurationService.get(XMLObjectProviderRegistry.class);
-		this.parserPool = registry.getParserPool();
+		this.registry = ConfigurationService.get(XMLObjectProviderRegistry.class);
 		this.unmarshaller = (ResponseUnmarshaller) XMLObjectProviderRegistrySupport.getUnmarshallerFactory()
 			.getUnmarshaller(Response.DEFAULT_ELEMENT_NAME);
 		this.registrations = registrations;
@@ -249,7 +247,7 @@ public final class OpenSamlAuthenticationTokenConverter implements Authenticatio
 
 	private Response parse(String request) throws Saml2Exception {
 		try {
-			Document document = this.parserPool
+			Document document = this.registry.getParserPool()
 				.parse(new ByteArrayInputStream(request.getBytes(StandardCharsets.UTF_8)));
 			Element element = document.getDocumentElement();
 			return (Response) this.unmarshaller.unmarshall(element);

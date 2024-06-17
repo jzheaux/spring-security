@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,8 +25,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import net.shibboleth.shared.resolver.CriteriaSet;
-import net.shibboleth.shared.xml.SerializeSupport;
 import org.opensaml.core.xml.XMLObject;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport;
 import org.opensaml.core.xml.io.Marshaller;
@@ -51,6 +49,8 @@ import org.opensaml.xmlsec.signature.support.SignatureSupport;
 import org.w3c.dom.Element;
 
 import org.springframework.security.saml2.Saml2Exception;
+import org.springframework.security.saml2.core.OpenSamlObjectUtils;
+import org.springframework.security.saml2.core.Saml2ParameterNames;
 import org.springframework.security.saml2.core.Saml2X509Credential;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 import org.springframework.util.Assert;
@@ -99,22 +99,27 @@ final class OpenSamlSigningUtils {
 		List<String> digests = Collections.singletonList(SignatureConstants.ALGO_ID_DIGEST_SHA256);
 		String canonicalization = SignatureConstants.ALGO_ID_C14N_EXCL_OMIT_COMMENTS;
 		SignatureSigningParametersResolver resolver = new SAMLMetadataSignatureSigningParametersResolver();
-		CriteriaSet criteria = new CriteriaSet();
 		BasicSignatureSigningConfiguration signingConfiguration = new BasicSignatureSigningConfiguration();
 		signingConfiguration.setSigningCredentials(credentials);
 		signingConfiguration.setSignatureAlgorithms(algorithms);
 		signingConfiguration.setSignatureReferenceDigestMethods(digests);
 		signingConfiguration.setSignatureCanonicalizationAlgorithm(canonicalization);
 		signingConfiguration.setKeyInfoGeneratorManager(buildSignatureKeyInfoGeneratorManager());
-		criteria.add(new SignatureSigningConfigurationCriterion(signingConfiguration));
+		Object criteria = criteria(new SignatureSigningConfigurationCriterion(signingConfiguration));
 		try {
-			SignatureSigningParameters parameters = resolver.resolveSingle(criteria);
+			SignatureSigningParameters parameters = resolver.resolveSingle(OpenSamlObjectUtils.cast(criteria));
 			Assert.notNull(parameters, "Failed to resolve any signing credential");
 			return parameters;
 		}
 		catch (Exception ex) {
 			throw new Saml2Exception(ex);
 		}
+	}
+
+	private static Object criteria(SignatureSigningConfigurationCriterion criterion) {
+		Object criteria = OpenSamlObjectUtils.invokeConstructor("resolver.CriteriaSet");
+		OpenSamlObjectUtils.invokeMethod(criteria, "add", criterion);
+		return criteria;
 	}
 
 	private static NamedKeyInfoGeneratorManager buildSignatureKeyInfoGeneratorManager() {
@@ -150,6 +155,14 @@ final class OpenSamlSigningUtils {
 
 	}
 
+	private static class SerializeSupport {
+
+		private static String nodeToString(Element element) {
+			return OpenSamlObjectUtils.invokeStaticMethod("xml.SerializeSupport", "nodeToString", element);
+		}
+
+	}
+
 	static class QueryParametersPartial {
 
 		final RelyingPartyRegistration registration;
@@ -169,7 +182,7 @@ final class OpenSamlSigningUtils {
 			SignatureSigningParameters parameters = resolveSigningParameters(this.registration);
 			Credential credential = parameters.getSigningCredential();
 			String algorithmUri = parameters.getSignatureAlgorithm();
-			this.components.put("SigAlg", algorithmUri);
+			this.components.put(Saml2ParameterNames.SIG_ALG, algorithmUri);
 			UriComponentsBuilder builder = UriComponentsBuilder.newInstance();
 			for (Map.Entry<String, String> component : this.components.entrySet()) {
 				builder.queryParam(component.getKey(),
@@ -180,7 +193,7 @@ final class OpenSamlSigningUtils {
 				byte[] rawSignature = XMLSigningUtil.signWithURI(credential, algorithmUri,
 						queryString.getBytes(StandardCharsets.UTF_8));
 				String b64Signature = Saml2Utils.samlEncode(rawSignature);
-				this.components.put("Signature", b64Signature);
+				this.components.put(Saml2ParameterNames.SIGNATURE, b64Signature);
 			}
 			catch (SecurityException ex) {
 				throw new Saml2Exception(ex);
