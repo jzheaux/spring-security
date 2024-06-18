@@ -29,6 +29,8 @@ import org.opensaml.xmlsec.signature.support.SignatureConstants;
 
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.saml2.Saml2Exception;
+import org.springframework.security.saml2.core.OpenSamlUtils;
+import org.springframework.security.saml2.core.OpenSamlUtils.SignatureConfigurer;
 import org.springframework.security.saml2.core.Saml2ParameterNames;
 import org.springframework.security.saml2.core.Saml2X509Credential;
 import org.springframework.security.saml2.core.TestSaml2X509Credentials;
@@ -216,10 +218,8 @@ public class OpenSamlAuthenticationRequestResolverTests {
 			RelyingPartyRegistration registration = this.relyingPartyRegistrationBuilder
 				.assertingPartyDetails((party) -> party.wantAuthnRequestsSigned(true))
 				.build();
-			OpenSamlSigningUtils.QueryParametersPartial queryParametersPartialSpy = spy(
-					new OpenSamlSigningUtils.QueryParametersPartial(registration));
-			openSamlSigningUtilsMockedStatic.when(() -> OpenSamlSigningUtils.sign(any()))
-				.thenReturn(queryParametersPartialSpy);
+			SignatureConfigurer configurerSpy = spy(OpenSamlUtils.sign(registration));
+			openSamlSigningUtilsMockedStatic.when(() -> OpenSamlUtils.sign(any())).thenReturn(configurerSpy);
 			OpenSamlAuthenticationRequestResolver resolver = authenticationRequestResolver(registration);
 			resolver.setRelayStateResolver((source) -> null);
 			Saml2RedirectAuthenticationRequest result = resolver.resolve(request, (r, authnRequest) -> {
@@ -229,7 +229,7 @@ public class OpenSamlAuthenticationRequestResolverTests {
 			assertThat(result.getSigAlg()).isNotNull();
 			assertThat(result.getSignature()).isNotNull();
 			assertThat(result.getBinding()).isEqualTo(Saml2MessageBinding.REDIRECT);
-			verify(queryParametersPartialSpy, never()).param(eq(Saml2ParameterNames.RELAY_STATE), any());
+			verify(configurerSpy, never()).param(eq(Saml2ParameterNames.RELAY_STATE), any());
 		}
 	}
 
@@ -242,10 +242,8 @@ public class OpenSamlAuthenticationRequestResolverTests {
 			RelyingPartyRegistration registration = this.relyingPartyRegistrationBuilder
 				.assertingPartyDetails((party) -> party.wantAuthnRequestsSigned(true))
 				.build();
-			OpenSamlSigningUtils.QueryParametersPartial queryParametersPartialSpy = spy(
-					new OpenSamlSigningUtils.QueryParametersPartial(registration));
-			openSamlSigningUtilsMockedStatic.when(() -> OpenSamlSigningUtils.sign(any()))
-				.thenReturn(queryParametersPartialSpy);
+			SignatureConfigurer configurerSpy = spy(OpenSamlUtils.sign(registration));
+			openSamlSigningUtilsMockedStatic.when(() -> OpenSamlUtils.sign(any())).thenReturn(configurerSpy);
 			OpenSamlAuthenticationRequestResolver resolver = authenticationRequestResolver(registration);
 			resolver.setRelayStateResolver((source) -> "");
 			Saml2RedirectAuthenticationRequest result = resolver.resolve(request, (r, authnRequest) -> {
@@ -255,7 +253,7 @@ public class OpenSamlAuthenticationRequestResolverTests {
 			assertThat(result.getSigAlg()).isNotNull();
 			assertThat(result.getSignature()).isNotNull();
 			assertThat(result.getBinding()).isEqualTo(Saml2MessageBinding.REDIRECT);
-			verify(queryParametersPartialSpy).param(eq(Saml2ParameterNames.RELAY_STATE), eq(""));
+			verify(configurerSpy).param(eq(Saml2ParameterNames.RELAY_STATE), eq(""));
 		}
 	}
 

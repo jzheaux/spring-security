@@ -38,6 +38,8 @@ import org.opensaml.saml.saml2.core.impl.SessionIndexBuilder;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.saml2.core.OpenSamlInitializationService;
+import org.springframework.security.saml2.core.OpenSamlUtils;
+import org.springframework.security.saml2.core.OpenSamlUtils.SignatureConfigurer;
 import org.springframework.security.saml2.core.Saml2ParameterNames;
 import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticatedPrincipal;
 import org.springframework.security.saml2.provider.service.authentication.logout.Saml2LogoutRequest;
@@ -46,7 +48,6 @@ import org.springframework.security.saml2.provider.service.registration.Saml2Mes
 import org.springframework.security.saml2.provider.service.web.RelyingPartyRegistrationPlaceholderResolvers;
 import org.springframework.security.saml2.provider.service.web.RelyingPartyRegistrationPlaceholderResolvers.UriResolver;
 import org.springframework.security.saml2.provider.service.web.RelyingPartyRegistrationResolver;
-import org.springframework.security.saml2.provider.service.web.authentication.logout.OpenSamlSigningUtils.QueryParametersPartial;
 import org.springframework.util.Assert;
 
 /**
@@ -151,7 +152,7 @@ final class OpenSamlLogoutRequestResolver {
 		Saml2LogoutRequest.Builder result = Saml2LogoutRequest.withRelyingPartyRegistration(registration)
 			.id(logoutRequest.getID());
 		if (registration.getAssertingPartyDetails().getSingleLogoutServiceBinding() == Saml2MessageBinding.POST) {
-			String xml = serialize(OpenSamlSigningUtils.sign(logoutRequest, registration));
+			String xml = serialize(OpenSamlUtils.sign(registration).object(logoutRequest));
 			String samlRequest = Saml2Utils.samlEncode(xml.getBytes(StandardCharsets.UTF_8));
 			return result.samlRequest(samlRequest).relayState(relayState).build();
 		}
@@ -159,10 +160,10 @@ final class OpenSamlLogoutRequestResolver {
 			String xml = serialize(logoutRequest);
 			String deflatedAndEncoded = Saml2Utils.samlEncode(Saml2Utils.samlDeflate(xml));
 			result.samlRequest(deflatedAndEncoded);
-			QueryParametersPartial partial = OpenSamlSigningUtils.sign(registration)
+			SignatureConfigurer configurer = OpenSamlUtils.sign(registration)
 				.param(Saml2ParameterNames.SAML_REQUEST, deflatedAndEncoded)
 				.param(Saml2ParameterNames.RELAY_STATE, relayState);
-			return result.parameters((params) -> params.putAll(partial.parameters())).build();
+			return result.parameters((params) -> params.putAll(configurer.query())).build();
 		}
 	}
 
@@ -181,7 +182,7 @@ final class OpenSamlLogoutRequestResolver {
 	}
 
 	private String serialize(LogoutRequest logoutRequest) {
-		return OpenSamlSigningUtils.serialize(logoutRequest);
+		return OpenSamlUtils.serialize(logoutRequest).serialize();
 	}
 
 }

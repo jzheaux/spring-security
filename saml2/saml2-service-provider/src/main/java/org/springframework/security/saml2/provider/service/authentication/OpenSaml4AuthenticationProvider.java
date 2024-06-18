@@ -89,6 +89,7 @@ import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.saml2.Saml2Exception;
 import org.springframework.security.saml2.core.OpenSamlInitializationService;
 import org.springframework.security.saml2.core.OpenSamlObjectUtils;
+import org.springframework.security.saml2.core.OpenSamlUtils;
 import org.springframework.security.saml2.core.Saml2Error;
 import org.springframework.security.saml2.core.Saml2ErrorCodes;
 import org.springframework.security.saml2.core.Saml2ResponseValidatorResult;
@@ -636,7 +637,9 @@ public final class OpenSaml4AuthenticationProvider implements AuthenticationProv
 			Response response = responseToken.getResponse();
 			RelyingPartyRegistration registration = responseToken.getToken().getRelyingPartyRegistration();
 			if (response.isSigned()) {
-				return OpenSamlVerificationUtils.verifySignature(response, registration).post(response.getSignature());
+				Collection<Saml2Error> errors = OpenSamlUtils.verify(response, registration)
+					.post(response.getSignature());
+				return Saml2ResponseValidatorResult.failure(errors);
 			}
 			return Saml2ResponseValidatorResult.success();
 		};

@@ -32,6 +32,7 @@ import org.w3c.dom.Element;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.saml2.Saml2Exception;
+import org.springframework.security.saml2.core.OpenSamlUtils;
 import org.springframework.security.saml2.core.Saml2ParameterNames;
 import org.springframework.security.saml2.provider.service.authentication.DefaultSaml2AuthenticatedPrincipal;
 import org.springframework.security.saml2.provider.service.authentication.Saml2Authentication;
@@ -65,7 +66,7 @@ public class OpenSamlLogoutResponseResolverTests {
 		MockHttpServletRequest request = new MockHttpServletRequest();
 		LogoutRequest logoutRequest = TestOpenSamlObjects.assertingPartyLogoutRequest(registration);
 		request.setParameter(Saml2ParameterNames.SAML_REQUEST,
-				Saml2Utils.samlEncode(OpenSamlSigningUtils.serialize(logoutRequest).getBytes()));
+				Saml2Utils.samlEncode(OpenSamlUtils.serialize(logoutRequest).serialize().getBytes()));
 		request.setParameter(Saml2ParameterNames.RELAY_STATE, "abcd");
 		Authentication authentication = authentication(registration);
 		given(this.relyingPartyRegistrationResolver.resolve(any(), any())).willReturn(registration);
@@ -86,7 +87,7 @@ public class OpenSamlLogoutResponseResolverTests {
 		MockHttpServletRequest request = new MockHttpServletRequest();
 		LogoutRequest logoutRequest = TestOpenSamlObjects.assertingPartyLogoutRequest(registration);
 		request.setParameter(Saml2ParameterNames.SAML_REQUEST,
-				Saml2Utils.samlEncode(OpenSamlSigningUtils.serialize(logoutRequest).getBytes()));
+				Saml2Utils.samlEncode(OpenSamlUtils.serialize(logoutRequest).serialize().getBytes()));
 		request.setParameter(Saml2ParameterNames.RELAY_STATE, "abcd");
 		Authentication authentication = authentication(registration);
 		given(this.relyingPartyRegistrationResolver.resolve(any(), any())).willReturn(registration);
@@ -108,7 +109,7 @@ public class OpenSamlLogoutResponseResolverTests {
 		MockHttpServletRequest request = new MockHttpServletRequest();
 		LogoutRequest logoutRequest = TestOpenSamlObjects.assertingPartyLogoutRequest(registration);
 		String encoded = new StringBuffer(
-				Saml2Utils.samlEncode(OpenSamlSigningUtils.serialize(logoutRequest).getBytes()))
+				Saml2Utils.samlEncode(OpenSamlUtils.serialize(logoutRequest).serialize().getBytes()))
 			.insert(10, "\r\n")
 			.toString();
 		request.setParameter(Saml2ParameterNames.SAML_REQUEST, encoded);

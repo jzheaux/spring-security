@@ -37,6 +37,8 @@ import org.opensaml.saml.saml2.core.impl.NameIDPolicyBuilder;
 
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.saml2.core.OpenSamlInitializationService;
+import org.springframework.security.saml2.core.OpenSamlUtils;
+import org.springframework.security.saml2.core.OpenSamlUtils.SignatureConfigurer;
 import org.springframework.security.saml2.core.Saml2ParameterNames;
 import org.springframework.security.saml2.provider.service.authentication.AbstractSaml2AuthenticationRequest;
 import org.springframework.security.saml2.provider.service.authentication.Saml2PostAuthenticationRequest;
@@ -152,7 +154,7 @@ class OpenSamlAuthenticationRequestResolver {
 		if (binding == Saml2MessageBinding.POST) {
 			if (registration.getAssertingPartyDetails().getWantAuthnRequestsSigned()
 					|| registration.isAuthnRequestsSigned()) {
-				OpenSamlSigningUtils.sign(authnRequest, registration);
+				OpenSamlUtils.sign(registration).object(authnRequest);
 			}
 			String xml = serialize(authnRequest);
 			String encoded = Saml2Utils.samlEncode(xml.getBytes(StandardCharsets.UTF_8));
@@ -172,12 +174,12 @@ class OpenSamlAuthenticationRequestResolver {
 				.id(authnRequest.getID());
 			if (registration.getAssertingPartyDetails().getWantAuthnRequestsSigned()
 					|| registration.isAuthnRequestsSigned()) {
-				OpenSamlSigningUtils.QueryParametersPartial parametersPartial = OpenSamlSigningUtils.sign(registration)
+				SignatureConfigurer configurer = OpenSamlUtils.sign(registration)
 					.param(Saml2ParameterNames.SAML_REQUEST, deflatedAndEncoded);
 				if (relayState != null) {
-					parametersPartial = parametersPartial.param(Saml2ParameterNames.RELAY_STATE, relayState);
+					configurer = configurer.param(Saml2ParameterNames.RELAY_STATE, relayState);
 				}
-				Map<String, String> parameters = parametersPartial.parameters();
+				Map<String, String> parameters = configurer.query();
 				builder.sigAlg(parameters.get(Saml2ParameterNames.SIG_ALG))
 					.signature(parameters.get(Saml2ParameterNames.SIGNATURE));
 			}
@@ -186,7 +188,7 @@ class OpenSamlAuthenticationRequestResolver {
 	}
 
 	private String serialize(AuthnRequest authnRequest) {
-		return OpenSamlSigningUtils.serialize(authnRequest);
+		return OpenSamlUtils.serialize(authnRequest).serialize();
 	}
 
 }

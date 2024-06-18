@@ -32,9 +32,10 @@ import org.w3c.dom.Element;
 
 import org.springframework.security.saml2.Saml2Exception;
 import org.springframework.security.saml2.core.OpenSamlInitializationService;
+import org.springframework.security.saml2.core.OpenSamlUtils;
+import org.springframework.security.saml2.core.OpenSamlUtils.VerificationConfigurer;
 import org.springframework.security.saml2.core.Saml2Error;
 import org.springframework.security.saml2.core.Saml2ErrorCodes;
-import org.springframework.security.saml2.provider.service.authentication.logout.OpenSamlVerificationUtils.VerifierPartial;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 import org.springframework.security.saml2.provider.service.registration.Saml2MessageBinding;
 
@@ -103,12 +104,12 @@ public class OpenSamlLogoutResponseValidator implements Saml2LogoutResponseValid
 	private Consumer<Collection<Saml2Error>> verifySignature(Saml2LogoutResponse response,
 			LogoutResponse logoutResponse, RelyingPartyRegistration registration) {
 		return (errors) -> {
-			VerifierPartial partial = OpenSamlVerificationUtils.verifySignature(logoutResponse, registration);
+			VerificationConfigurer configurer = OpenSamlUtils.verify(logoutResponse, registration);
 			if (logoutResponse.isSigned()) {
-				errors.addAll(partial.post(logoutResponse.getSignature()));
+				errors.addAll(configurer.post(logoutResponse.getSignature()));
 			}
 			else {
-				errors.addAll(partial.redirect(response));
+				errors.addAll(configurer.redirect(response));
 			}
 		};
 	}

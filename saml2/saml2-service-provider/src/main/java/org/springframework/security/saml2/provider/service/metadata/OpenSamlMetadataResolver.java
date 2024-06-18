@@ -43,10 +43,10 @@ import org.opensaml.security.credential.UsageType;
 import org.opensaml.xmlsec.signature.KeyInfo;
 import org.opensaml.xmlsec.signature.X509Certificate;
 import org.opensaml.xmlsec.signature.X509Data;
-import org.w3c.dom.Element;
 
 import org.springframework.security.saml2.Saml2Exception;
 import org.springframework.security.saml2.core.OpenSamlInitializationService;
+import org.springframework.security.saml2.core.OpenSamlUtils;
 import org.springframework.security.saml2.core.Saml2X509Credential;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 import org.springframework.security.saml2.provider.service.registration.Saml2MessageBinding;
@@ -117,7 +117,7 @@ public final class OpenSamlMetadataResolver implements Saml2MetadataResolver {
 		entityDescriptor.getRoleDescriptors(SPSSODescriptor.DEFAULT_ELEMENT_NAME).add(spSsoDescriptor);
 		this.entityDescriptorCustomizer.accept(new EntityDescriptorParameters(entityDescriptor, registration));
 		if (this.signMetadata) {
-			return OpenSamlSigningUtils.sign(entityDescriptor, registration);
+			return OpenSamlUtils.sign(registration).object(entityDescriptor);
 		}
 		else {
 			this.logger.trace("Did not sign metadata since `signMetadata` is `false`");
@@ -225,23 +225,11 @@ public final class OpenSamlMetadataResolver implements Saml2MetadataResolver {
 	}
 
 	private String serialize(EntityDescriptor entityDescriptor) {
-		try {
-			Element element = this.entityDescriptorMarshaller.marshall(entityDescriptor);
-			return OpenSamlSigningUtils.serialize(element, this.usePrettyPrint);
-		}
-		catch (Exception ex) {
-			throw new Saml2Exception(ex);
-		}
+		return OpenSamlUtils.serialize(entityDescriptor).prettyPrint(this.usePrettyPrint).serialize();
 	}
 
 	private String serialize(EntitiesDescriptor entities) {
-		try {
-			Element element = this.entitiesDescriptorMarshaller.marshall(entities);
-			return OpenSamlSigningUtils.serialize(element, this.usePrettyPrint);
-		}
-		catch (Exception ex) {
-			throw new Saml2Exception(ex);
-		}
+		return OpenSamlUtils.serialize(entities).prettyPrint(this.usePrettyPrint).serialize();
 	}
 
 	/**

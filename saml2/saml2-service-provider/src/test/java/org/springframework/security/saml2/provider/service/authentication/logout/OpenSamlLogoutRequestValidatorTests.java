@@ -26,13 +26,14 @@ import org.opensaml.core.xml.XMLObject;
 import org.opensaml.saml.saml2.core.LogoutRequest;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.security.saml2.core.OpenSamlUtils;
+import org.springframework.security.saml2.core.OpenSamlUtils.SignatureConfigurer;
 import org.springframework.security.saml2.core.Saml2ErrorCodes;
 import org.springframework.security.saml2.core.Saml2ParameterNames;
 import org.springframework.security.saml2.core.TestSaml2X509Credentials;
 import org.springframework.security.saml2.provider.service.authentication.DefaultSaml2AuthenticatedPrincipal;
 import org.springframework.security.saml2.provider.service.authentication.Saml2Authentication;
 import org.springframework.security.saml2.provider.service.authentication.TestOpenSamlObjects;
-import org.springframework.security.saml2.provider.service.authentication.logout.OpenSamlSigningUtils.QueryParametersPartial;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 import org.springframework.security.saml2.provider.service.registration.Saml2MessageBinding;
 import org.springframework.security.saml2.provider.service.registration.TestRelyingPartyRegistrations;
@@ -80,7 +81,7 @@ public class OpenSamlLogoutRequestValidatorTests {
 			.assertingPartyDetails((party) -> party.singleLogoutServiceBinding(Saml2MessageBinding.REDIRECT))
 			.build();
 		LogoutRequest logoutRequest = TestOpenSamlObjects.assertingPartyLogoutRequest(registration);
-		Saml2LogoutRequest request = redirect(logoutRequest, registration, OpenSamlSigningUtils.sign(registration));
+		Saml2LogoutRequest request = redirect(logoutRequest, registration, OpenSamlUtils.sign(registration));
 		Saml2LogoutRequestValidatorParameters parameters = new Saml2LogoutRequestValidatorParameters(request,
 				registration, authentication(registration));
 		Saml2LogoutValidatorResult result = this.manager.validate(parameters);
@@ -199,9 +200,9 @@ public class OpenSamlLogoutRequestValidatorTests {
 	}
 
 	private Saml2LogoutRequest redirect(LogoutRequest logoutRequest, RelyingPartyRegistration registration,
-			QueryParametersPartial partial) {
+			SignatureConfigurer configurer) {
 		String serialized = Saml2Utils.samlEncode(Saml2Utils.samlDeflate(serialize(logoutRequest)));
-		Map<String, String> parameters = partial.param(Saml2ParameterNames.SAML_REQUEST, serialized).parameters();
+		Map<String, String> parameters = configurer.param(Saml2ParameterNames.SAML_REQUEST, serialized).query();
 		return Saml2LogoutRequest.withRelyingPartyRegistration(registration)
 			.samlRequest(serialized)
 			.parameters((params) -> params.putAll(parameters))
@@ -214,7 +215,7 @@ public class OpenSamlLogoutRequestValidatorTests {
 	}
 
 	private String serialize(XMLObject object) {
-		return OpenSamlSigningUtils.serialize(object);
+		return OpenSamlUtils.serialize(object).serialize();
 	}
 
 }

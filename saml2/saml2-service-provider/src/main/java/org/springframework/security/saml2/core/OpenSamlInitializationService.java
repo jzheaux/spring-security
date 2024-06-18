@@ -23,6 +23,7 @@ import java.util.function.Consumer;
 
 import javax.xml.XMLConstants;
 
+import net.shibboleth.shared.xml.impl.BasicParserPool;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.opensaml.core.config.ConfigurationService;
@@ -31,6 +32,7 @@ import org.opensaml.core.xml.config.XMLObjectProviderRegistry;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport;
 
 import org.springframework.security.saml2.Saml2Exception;
+import org.springframework.util.ClassUtils;
 
 /**
  * An initialization service for initializing OpenSAML. Each Spring Security
@@ -76,6 +78,10 @@ import org.springframework.security.saml2.Saml2Exception;
 public final class OpenSamlInitializationService {
 
 	private static final Log log = LogFactory.getLog(OpenSamlInitializationService.class);
+
+	private static final boolean useNewPackages = !"4"
+		.equals(System.getProperty("spring.security.saml2.opensaml.version", "4"))
+			&& ClassUtils.isPresent("net.shibboleth.shared.xml.impl.BasicParserPool", null);
 
 	private static final AtomicBoolean initialized = new AtomicBoolean(false);
 
@@ -123,11 +129,12 @@ public final class OpenSamlInitializationService {
 			catch (Exception ex) {
 				throw new Saml2Exception(ex);
 			}
-			Object parserPool = OpenSamlObjectUtils.invokeConstructor("xml.BasicParserPool");
-			OpenSamlObjectUtils.invokeMethod(parserPool, "maxPoolSize", 50);
-			OpenSamlObjectUtils.invokeMethod(parserPool, "setBuilderFeatures", getParserBuilderFeatures());
-			OpenSamlObjectUtils.invokeMethod(parserPool, "initialize");
-			XMLObjectProviderRegistrySupport.setParserPool(OpenSamlObjectUtils.cast(parserPool));
+			if (useNewPackages) {
+				OpenSaml5PoolInitializer.initialize();
+			}
+			else {
+				OpenSaml4PoolInitializer.initialize();
+			}
 			registryConsumer.accept(ConfigurationService.get(XMLObjectProviderRegistry.class));
 			log.debug("Initialized OpenSAML");
 			return true;
@@ -145,6 +152,44 @@ public final class OpenSamlInitializationService {
 		parserBuilderFeatures.put("http://xml.org/sax/features/external-parameter-entities", Boolean.FALSE);
 		parserBuilderFeatures.put("http://apache.org/xml/features/dom/defer-node-expansion", Boolean.FALSE);
 		return parserBuilderFeatures;
+	}
+
+	private static <T> T cast(Object object) {
+		return (T) object;
+	}
+
+	private static final class OpenSaml4PoolInitializer {
+
+		private static void initialize() {
+			try {
+				net.shibboleth.utilities.java.support.xml.BasicParserPool parserPool = new net.shibboleth.utilities.java.support.xml.BasicParserPool();
+				parserPool.setMaxPoolSize(50);
+				parserPool.setBuilderFeatures(getParserBuilderFeatures());
+				parserPool.initialize();
+				XMLObjectProviderRegistrySupport.setParserPool(cast(parserPool));
+			}
+			catch (Exception ex) {
+				throw new Saml2Exception(ex);
+			}
+		}
+
+	}
+
+	private static final class OpenSaml5PoolInitializer {
+
+		private static void initialize() {
+			try {
+				BasicParserPool parserPool = new BasicParserPool();
+				parserPool.setMaxPoolSize(50);
+				parserPool.setBuilderFeatures(getParserBuilderFeatures());
+				parserPool.initialize();
+				XMLObjectProviderRegistrySupport.setParserPool(cast(parserPool));
+			}
+			catch (Exception ex) {
+				throw new Saml2Exception(ex);
+			}
+		}
+
 	}
 
 }

@@ -24,11 +24,12 @@ import org.opensaml.core.xml.XMLObject;
 import org.opensaml.saml.saml2.core.LogoutResponse;
 import org.opensaml.saml.saml2.core.StatusCode;
 
+import org.springframework.security.saml2.core.OpenSamlUtils;
+import org.springframework.security.saml2.core.OpenSamlUtils.SignatureConfigurer;
 import org.springframework.security.saml2.core.Saml2ErrorCodes;
 import org.springframework.security.saml2.core.Saml2ParameterNames;
 import org.springframework.security.saml2.core.TestSaml2X509Credentials;
 import org.springframework.security.saml2.provider.service.authentication.TestOpenSamlObjects;
-import org.springframework.security.saml2.provider.service.authentication.logout.OpenSamlSigningUtils.QueryParametersPartial;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 import org.springframework.security.saml2.provider.service.registration.Saml2MessageBinding;
 import org.springframework.security.saml2.provider.service.registration.TestRelyingPartyRegistrations;
@@ -67,7 +68,7 @@ public class OpenSamlLogoutResponseValidatorTests {
 			.id("id")
 			.build();
 		LogoutResponse logoutResponse = TestOpenSamlObjects.assertingPartyLogoutResponse(registration);
-		Saml2LogoutResponse response = redirect(logoutResponse, registration, OpenSamlSigningUtils.sign(registration));
+		Saml2LogoutResponse response = redirect(logoutResponse, registration, OpenSamlUtils.sign(registration));
 		Saml2LogoutResponseValidatorParameters parameters = new Saml2LogoutResponseValidatorParameters(response,
 				logoutRequest, registration);
 		this.manager.validate(parameters);
@@ -166,9 +167,9 @@ public class OpenSamlLogoutResponseValidatorTests {
 	}
 
 	private Saml2LogoutResponse redirect(LogoutResponse logoutResponse, RelyingPartyRegistration registration,
-			QueryParametersPartial partial) {
+			SignatureConfigurer configurer) {
 		String serialized = Saml2Utils.samlEncode(Saml2Utils.samlDeflate(serialize(logoutResponse)));
-		Map<String, String> parameters = partial.param(Saml2ParameterNames.SAML_RESPONSE, serialized).parameters();
+		Map<String, String> parameters = configurer.param(Saml2ParameterNames.SAML_RESPONSE, serialized).query();
 		return Saml2LogoutResponse.withRelyingPartyRegistration(registration)
 			.samlResponse(serialized)
 			.parameters((params) -> params.putAll(parameters))
@@ -181,7 +182,7 @@ public class OpenSamlLogoutResponseValidatorTests {
 	}
 
 	private String serialize(XMLObject object) {
-		return OpenSamlSigningUtils.serialize(object);
+		return OpenSamlUtils.serialize(object).serialize();
 	}
 
 }

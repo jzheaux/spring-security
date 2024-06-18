@@ -35,9 +35,10 @@ import org.w3c.dom.Element;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.saml2.Saml2Exception;
 import org.springframework.security.saml2.core.OpenSamlInitializationService;
+import org.springframework.security.saml2.core.OpenSamlUtils;
+import org.springframework.security.saml2.core.OpenSamlUtils.VerificationConfigurer;
 import org.springframework.security.saml2.core.Saml2Error;
 import org.springframework.security.saml2.core.Saml2ErrorCodes;
-import org.springframework.security.saml2.provider.service.authentication.logout.OpenSamlVerificationUtils.VerifierPartial;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 import org.springframework.security.saml2.provider.service.registration.Saml2MessageBinding;
 
@@ -105,12 +106,12 @@ public final class OpenSamlLogoutRequestValidator implements Saml2LogoutRequestV
 	private Consumer<Collection<Saml2Error>> verifySignature(Saml2LogoutRequest request, LogoutRequest logoutRequest,
 			RelyingPartyRegistration registration) {
 		return (errors) -> {
-			VerifierPartial partial = OpenSamlVerificationUtils.verifySignature(logoutRequest, registration);
+			VerificationConfigurer configurer = OpenSamlUtils.verify(logoutRequest, registration);
 			if (logoutRequest.isSigned()) {
-				errors.addAll(partial.post(logoutRequest.getSignature()));
+				errors.addAll(configurer.post(logoutRequest.getSignature()));
 			}
 			else {
-				errors.addAll(partial.redirect(request));
+				errors.addAll(configurer.redirect(request));
 			}
 		};
 	}

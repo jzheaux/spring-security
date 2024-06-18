@@ -24,6 +24,7 @@ import org.opensaml.saml.saml2.core.LogoutRequest;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.saml2.core.OpenSamlUtils;
 import org.springframework.security.saml2.core.Saml2ParameterNames;
 import org.springframework.security.saml2.provider.service.authentication.TestOpenSamlObjects;
 import org.springframework.security.saml2.provider.service.authentication.logout.Saml2LogoutResponse;
@@ -60,7 +61,7 @@ public class OpenSaml4LogoutResponseResolverTests {
 		Authentication authentication = new TestingAuthenticationToken("user", "password");
 		LogoutRequest logoutRequest = TestOpenSamlObjects.assertingPartyLogoutRequest(registration);
 		request.setParameter(Saml2ParameterNames.SAML_REQUEST,
-				Saml2Utils.samlEncode(OpenSamlSigningUtils.serialize(logoutRequest).getBytes()));
+				Saml2Utils.samlEncode(OpenSamlUtils.serialize(logoutRequest).serialize().getBytes()));
 		given(this.relyingPartyRegistrationResolver.resolve(any(), any())).willReturn(registration);
 		Saml2LogoutResponse logoutResponse = logoutResponseResolver.resolve(request, authentication);
 		assertThat(logoutResponse).isNotNull();

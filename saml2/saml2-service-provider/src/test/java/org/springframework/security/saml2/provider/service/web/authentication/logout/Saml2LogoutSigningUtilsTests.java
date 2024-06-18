@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.opensaml.saml.saml2.core.LogoutRequest;
 import org.opensaml.xmlsec.signature.Signature;
 
+import org.springframework.security.saml2.core.OpenSamlUtils;
 import org.springframework.security.saml2.core.TestSaml2X509Credentials;
 import org.springframework.security.saml2.provider.service.authentication.TestOpenSamlObjects;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
@@ -50,7 +51,7 @@ public class Saml2LogoutSigningUtilsTests {
 	@Test
 	public void whenSigningLogoutRequestRPThenKeyInfoIsPartOfTheSignature() {
 		LogoutRequest logoutRequest = TestOpenSamlObjects.relyingPartyLogoutRequest(this.registration);
-		OpenSamlSigningUtils.sign(logoutRequest, this.registration);
+		OpenSamlUtils.sign(this.registration).object(logoutRequest);
 		Signature signature = logoutRequest.getSignature();
 		assertThat(signature).isNotNull();
 		assertThat(signature.getKeyInfo()).isNotNull();

@@ -44,6 +44,7 @@ import org.w3c.dom.Element;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.saml2.Saml2Exception;
 import org.springframework.security.saml2.core.OpenSamlInitializationService;
+import org.springframework.security.saml2.core.OpenSamlUtils;
 import org.springframework.security.saml2.core.Saml2ParameterNames;
 import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticatedPrincipal;
 import org.springframework.security.saml2.provider.service.authentication.logout.Saml2LogoutResponse;
@@ -53,8 +54,10 @@ import org.springframework.security.saml2.provider.service.registration.Saml2Mes
 import org.springframework.security.saml2.provider.service.web.RelyingPartyRegistrationPlaceholderResolvers;
 import org.springframework.security.saml2.provider.service.web.RelyingPartyRegistrationPlaceholderResolvers.UriResolver;
 import org.springframework.security.saml2.provider.service.web.RelyingPartyRegistrationResolver;
-import org.springframework.security.saml2.provider.service.web.authentication.logout.OpenSamlSigningUtils.QueryParametersPartial;
 import org.springframework.util.Assert;
+
+import static org.springframework.security.saml2.core.OpenSamlUtils.SignatureConfigurer;
+import static org.springframework.security.saml2.core.OpenSamlUtils.sign;
 
 /**
  * For internal use only. Intended for consolidating common behavior related to minting a
@@ -161,7 +164,7 @@ final class OpenSamlLogoutResponseResolver {
 		logoutResponseConsumer.accept(registration, logoutResponse);
 		Saml2LogoutResponse.Builder result = Saml2LogoutResponse.withRelyingPartyRegistration(registration);
 		if (registration.getAssertingPartyDetails().getSingleLogoutServiceBinding() == Saml2MessageBinding.POST) {
-			String xml = serialize(OpenSamlSigningUtils.sign(logoutResponse, registration));
+			String xml = serialize(sign(registration).object(logoutResponse));
 			String samlResponse = Saml2Utils.samlEncode(xml.getBytes(StandardCharsets.UTF_8));
 			result.samlResponse(samlResponse);
 			if (request.getParameter(Saml2ParameterNames.RELAY_STATE) != null) {
@@ -173,12 +176,13 @@ final class OpenSamlLogoutResponseResolver {
 			String xml = serialize(logoutResponse);
 			String deflatedAndEncoded = Saml2Utils.samlEncode(Saml2Utils.samlDeflate(xml));
 			result.samlResponse(deflatedAndEncoded);
-			QueryParametersPartial partial = OpenSamlSigningUtils.sign(registration)
-				.param(Saml2ParameterNames.SAML_RESPONSE, deflatedAndEncoded);
+			SignatureConfigurer configurer = sign(registration).param(Saml2ParameterNames.SAML_RESPONSE,
+					deflatedAndEncoded);
 			if (request.getParameter(Saml2ParameterNames.RELAY_STATE) != null) {
-				partial.param(Saml2ParameterNames.RELAY_STATE, request.getParameter(Saml2ParameterNames.RELAY_STATE));
+				configurer.param(Saml2ParameterNames.RELAY_STATE,
+						request.getParameter(Saml2ParameterNames.RELAY_STATE));
 			}
-			return result.parameters((params) -> params.putAll(partial.parameters())).build();
+			return result.parameters((params) -> params.putAll(configurer.query())).build();
 		}
 	}
 
@@ -218,7 +222,7 @@ final class OpenSamlLogoutResponseResolver {
 	}
 
 	private String serialize(LogoutResponse logoutResponse) {
-		return OpenSamlSigningUtils.serialize(logoutResponse);
+		return OpenSamlUtils.serialize(logoutResponse).serialize();
 	}
 
 }

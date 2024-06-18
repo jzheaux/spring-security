@@ -70,6 +70,7 @@ import org.opensaml.xmlsec.signature.support.SignatureConstants;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.jackson2.SecurityJackson2Modules;
+import org.springframework.security.saml2.core.OpenSamlUtils;
 import org.springframework.security.saml2.core.Saml2Error;
 import org.springframework.security.saml2.core.Saml2ErrorCodes;
 import org.springframework.security.saml2.core.Saml2ResponseValidatorResult;
@@ -861,7 +862,7 @@ public class OpenSaml4AuthenticationProviderTests {
 	}
 
 	private String serialize(XMLObject object) {
-		return OpenSamlSigningUtils.serialize(object);
+		return OpenSamlUtils.serialize(object).serialize();
 	}
 
 	private Consumer<Saml2AuthenticationException> errorOf(String errorCode) {

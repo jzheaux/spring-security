@@ -30,6 +30,7 @@ import org.opensaml.saml.saml2.core.Response;
 import org.opensaml.xmlsec.signature.Signature;
 
 import org.springframework.security.saml2.core.OpenSamlInitializationService;
+import org.springframework.security.saml2.core.OpenSamlUtils;
 import org.springframework.security.saml2.core.TestSaml2X509Credentials;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 
@@ -62,7 +63,7 @@ public class OpenSamlSigningUtilsTests {
 	@Test
 	public void whenSigningAnObjectThenKeyInfoIsPartOfTheSignature() {
 		Response response = response("destination", "issuer");
-		OpenSamlSigningUtils.sign(response, this.registration);
+		OpenSamlUtils.sign(this.registration).object(response);
 		Signature signature = response.getSignature();
 		assertThat(signature).isNotNull();
 		assertThat(signature.getKeyInfo()).isNotNull();
