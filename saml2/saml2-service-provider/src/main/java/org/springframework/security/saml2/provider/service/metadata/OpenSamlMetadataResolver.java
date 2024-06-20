@@ -117,7 +117,7 @@ public final class OpenSamlMetadataResolver implements Saml2MetadataResolver {
 		entityDescriptor.getRoleDescriptors(SPSSODescriptor.DEFAULT_ELEMENT_NAME).add(spSsoDescriptor);
 		this.entityDescriptorCustomizer.accept(new EntityDescriptorParameters(entityDescriptor, registration));
 		if (this.signMetadata) {
-			return OpenSamlUtils.sign(registration).object(entityDescriptor);
+			return OpenSamlUtils.sign(registration).post(entityDescriptor);
 		}
 		else {
 			this.logger.trace("Did not sign metadata since `signMetadata` is `false`");

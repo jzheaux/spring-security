@@ -17,6 +17,7 @@
 package org.springframework.security.saml2.provider.service.authentication;
 
 import java.io.ByteArrayInputStream;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -88,7 +89,6 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.saml2.Saml2Exception;
 import org.springframework.security.saml2.core.OpenSamlInitializationService;
-import org.springframework.security.saml2.core.OpenSamlObjectUtils;
 import org.springframework.security.saml2.core.OpenSamlUtils;
 import org.springframework.security.saml2.core.Saml2Error;
 import org.springframework.security.saml2.core.Saml2ErrorCodes;
@@ -98,6 +98,7 @@ import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.util.ReflectionUtils;
 import org.springframework.util.StringUtils;
 
 /**
@@ -661,6 +662,8 @@ public final class OpenSaml4AuthenticationProvider implements AuthenticationProv
 	private Converter<AssertionToken, Saml2ResponseValidatorResult> createDefaultAssertionSignatureValidator() {
 		return createAssertionValidator(Saml2ErrorCodes.INVALID_SIGNATURE, (assertionToken) -> {
 			RelyingPartyRegistration registration = assertionToken.getToken().getRelyingPartyRegistration();
+			// Assertion assertion = assertionToken.getAssertion();
+			// OpenSamlUtils.verify(assertion, registration).post()
 			SignatureTrustEngine engine = OpenSamlVerificationUtils.trustEngine(registration);
 			return SAML20AssertionValidators.createSignatureValidator(engine);
 		}, (assertionToken) -> new ValidationContext(
@@ -766,9 +769,20 @@ public final class OpenSaml4AuthenticationProvider implements AuthenticationProv
 				return Saml2ResponseValidatorResult.failure(new Saml2Error(errorCode, message));
 			}
 			String message = String.format("Invalid assertion [%s] for SAML response [%s]: %s", assertion.getID(),
-					((Response) assertion.getParent()).getID(), OpenSamlObjectUtils.toString(context));
+					((Response) assertion.getParent()).getID(), contextToString(context));
 			return Saml2ResponseValidatorResult.failure(new Saml2Error(errorCode, message));
 		};
+	}
+
+	private static String contextToString(ValidationContext context) {
+		StringBuilder sb = new StringBuilder();
+		for (Field field : context.getClass().getDeclaredFields()) {
+			ReflectionUtils.makeAccessible(field);
+			Object value = ReflectionUtils.getField(field, context);
+			sb.append(field.getName() + " = " + value + ",");
+		}
+		sb.deleteCharAt(sb.length() - 1);
+		return sb.toString();
 	}
 
 	private static ValidationContext createValidationContext(AssertionToken assertionToken,

@@ -17,6 +17,7 @@
 package org.springframework.security.saml2.provider.service.web.authentication.logout;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 
@@ -39,7 +40,6 @@ import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.saml2.core.OpenSamlInitializationService;
 import org.springframework.security.saml2.core.OpenSamlUtils;
-import org.springframework.security.saml2.core.OpenSamlUtils.SignatureConfigurer;
 import org.springframework.security.saml2.core.Saml2ParameterNames;
 import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticatedPrincipal;
 import org.springframework.security.saml2.provider.service.authentication.logout.Saml2LogoutRequest;
@@ -152,7 +152,7 @@ final class OpenSamlLogoutRequestResolver {
 		Saml2LogoutRequest.Builder result = Saml2LogoutRequest.withRelyingPartyRegistration(registration)
 			.id(logoutRequest.getID());
 		if (registration.getAssertingPartyDetails().getSingleLogoutServiceBinding() == Saml2MessageBinding.POST) {
-			String xml = serialize(OpenSamlUtils.sign(registration).object(logoutRequest));
+			String xml = serialize(OpenSamlUtils.sign(registration).post(logoutRequest));
 			String samlRequest = Saml2Utils.samlEncode(xml.getBytes(StandardCharsets.UTF_8));
 			return result.samlRequest(samlRequest).relayState(relayState).build();
 		}
@@ -160,10 +160,11 @@ final class OpenSamlLogoutRequestResolver {
 			String xml = serialize(logoutRequest);
 			String deflatedAndEncoded = Saml2Utils.samlEncode(Saml2Utils.samlDeflate(xml));
 			result.samlRequest(deflatedAndEncoded);
-			SignatureConfigurer configurer = OpenSamlUtils.sign(registration)
-				.param(Saml2ParameterNames.SAML_REQUEST, deflatedAndEncoded)
-				.param(Saml2ParameterNames.RELAY_STATE, relayState);
-			return result.parameters((params) -> params.putAll(configurer.query())).build();
+			Map<String, String> parameters = OpenSamlUtils.sign(registration).redirect((params) -> {
+				params.put(Saml2ParameterNames.SAML_REQUEST, deflatedAndEncoded);
+				params.put(Saml2ParameterNames.RELAY_STATE, relayState);
+			});
+			return result.parameters((params) -> params.putAll(parameters)).build();
 		}
 	}
 

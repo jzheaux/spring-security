@@ -50,7 +50,7 @@ public class OpenSamlSigningUtilsTests {
 	@Test
 	public void whenSigningAnObjectThenKeyInfoIsPartOfTheSignature() throws Exception {
 		Response response = TestOpenSamlObjects.response();
-		OpenSamlUtils.sign(this.registration).object(response);
+		OpenSamlUtils.sign(this.registration).post(response);
 		Signature signature = response.getSignature();
 		assertThat(signature).isNotNull();
 		assertThat(signature.getKeyInfo()).isNotNull();

@@ -39,15 +39,15 @@ public final class Saml2Utils {
 	private Saml2Utils() {
 	}
 
-	static String samlEncode(byte[] b) {
+	public static String samlEncode(byte[] b) {
 		return Base64.getEncoder().encodeToString(b);
 	}
 
-	static byte[] samlDecode(String s) {
+	public static byte[] samlDecode(String s) {
 		return Base64.getMimeDecoder().decode(s);
 	}
 
-	static byte[] samlDeflate(String s) {
+	public static byte[] samlDeflate(String s) {
 		try {
 			ByteArrayOutputStream b = new ByteArrayOutputStream();
 			DeflaterOutputStream deflater = new DeflaterOutputStream(b, new Deflater(Deflater.DEFLATED, true));
@@ -60,7 +60,7 @@ public final class Saml2Utils {
 		}
 	}
 
-	static String samlInflate(byte[] b) {
+	public static String samlInflate(byte[] b) {
 		try {
 			ByteArrayOutputStream out = new ByteArrayOutputStream();
 			InflaterOutputStream iout = new InflaterOutputStream(out, new Inflater(true));

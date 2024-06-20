@@ -1,3 +1,19 @@
+/*
+ * Copyright 2002-2024 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.springframework.security.saml2.core;
 
 import java.nio.charset.StandardCharsets;
@@ -12,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Consumer;
 
 import net.shibboleth.shared.resolver.CriteriaSet;
 import net.shibboleth.shared.xml.SerializeSupport;
@@ -67,9 +84,14 @@ import org.springframework.web.util.UriUtils;
 
 public final class OpenSamlUtils {
 
-	private static final boolean useNewPackages = !"4"
-		.equals(System.getProperty("spring.security.saml2.opensaml.version", "4"))
-			&& ClassUtils.isPresent("net.shibboleth.shared.xml.impl.BasicParserPool", null);
+	private static final boolean useNewPackages = !ClassUtils
+		.isPresent("net.shibboleth.utilities.java.support.xml.BasicParserPool", null)
+			|| (!"4".equals(System.getProperty("spring.security.saml2.opensaml.version", "4"))
+					&& ClassUtils.isPresent("net.shibboleth.shared.xml.impl.BasicParserPool", null));
+
+	public static boolean useNewPackages() {
+		return useNewPackages;
+	}
 
 	public static SerializationConfigurer serialize(XMLObject object) {
 		Marshaller marshaller = XMLObjectProviderRegistrySupport.getMarshallerFactory().getMarshaller(object);
@@ -105,7 +127,11 @@ public final class OpenSamlUtils {
 		return (T) object;
 	}
 
-	public static abstract class SerializationConfigurer {
+	private OpenSamlUtils() {
+
+	}
+
+	public abstract static class SerializationConfigurer {
 
 		Element element;
 
@@ -137,9 +163,9 @@ public final class OpenSamlUtils {
 		@Override
 		String doSerialize(Element element, boolean pretty) {
 			if (pretty) {
-				return net.shibboleth.utilities.java.support.xml.SerializeSupport.nodeToString(element);
+				return net.shibboleth.utilities.java.support.xml.SerializeSupport.prettyPrintXML(element);
 			}
-			return net.shibboleth.utilities.java.support.xml.SerializeSupport.prettyPrintXML(element);
+			return net.shibboleth.utilities.java.support.xml.SerializeSupport.nodeToString(element);
 		}
 
 	}
@@ -153,14 +179,14 @@ public final class OpenSamlUtils {
 		@Override
 		String doSerialize(Element element, boolean pretty) {
 			if (pretty) {
-				return SerializeSupport.nodeToString(element);
+				return SerializeSupport.prettyPrintXML(element);
 			}
-			return SerializeSupport.prettyPrintXML(element);
+			return SerializeSupport.nodeToString(element);
 		}
 
 	}
 
-	public static abstract class SignatureConfigurer {
+	public abstract static class SignatureConfigurer {
 
 		final RelyingPartyRegistration registration;
 
@@ -170,12 +196,7 @@ public final class OpenSamlUtils {
 			this.registration = registration;
 		}
 
-		public SignatureConfigurer param(String key, String value) {
-			this.components.put(key, value);
-			return this;
-		}
-
-		public <O extends SignableXMLObject> O object(O object) {
+		public <O extends SignableXMLObject> O post(O object) {
 			SignatureSigningParameters parameters = resolveSigningParameters(this.registration);
 			try {
 				SignatureSupport.signObject(object, parameters);
@@ -186,8 +207,9 @@ public final class OpenSamlUtils {
 			return object;
 		}
 
-		public Map<String, String> query() {
+		public Map<String, String> redirect(Consumer<Map<String, String>> params) {
 			SignatureSigningParameters parameters = resolveSigningParameters(this.registration);
+			params.accept(this.components);
 			Credential credential = parameters.getSigningCredential();
 			String algorithmUri = parameters.getSignatureAlgorithm();
 			this.components.put(Saml2ParameterNames.SIG_ALG, algorithmUri);
@@ -291,7 +313,7 @@ public final class OpenSamlUtils {
 
 	}
 
-	public static abstract class VerificationConfigurer {
+	public abstract static class VerificationConfigurer {
 
 		private final String id;
 

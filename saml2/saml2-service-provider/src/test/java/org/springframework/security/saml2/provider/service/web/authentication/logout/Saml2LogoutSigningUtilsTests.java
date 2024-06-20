@@ -51,7 +51,7 @@ public class Saml2LogoutSigningUtilsTests {
 	@Test
 	public void whenSigningLogoutRequestRPThenKeyInfoIsPartOfTheSignature() {
 		LogoutRequest logoutRequest = TestOpenSamlObjects.relyingPartyLogoutRequest(this.registration);
-		OpenSamlUtils.sign(this.registration).object(logoutRequest);
+		OpenSamlUtils.sign(this.registration).post(logoutRequest);
 		Signature signature = logoutRequest.getSignature();
 		assertThat(signature).isNotNull();
 		assertThat(signature.getKeyInfo()).isNotNull();

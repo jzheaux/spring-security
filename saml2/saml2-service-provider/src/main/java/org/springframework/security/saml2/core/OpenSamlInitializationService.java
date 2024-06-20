@@ -16,6 +16,7 @@
 
 package org.springframework.security.saml2.core;
 
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -32,7 +33,6 @@ import org.opensaml.core.xml.config.XMLObjectProviderRegistry;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport;
 
 import org.springframework.security.saml2.Saml2Exception;
-import org.springframework.util.ClassUtils;
 
 /**
  * An initialization service for initializing OpenSAML. Each Spring Security
@@ -78,10 +78,6 @@ import org.springframework.util.ClassUtils;
 public final class OpenSamlInitializationService {
 
 	private static final Log log = LogFactory.getLog(OpenSamlInitializationService.class);
-
-	private static final boolean useNewPackages = !"4"
-		.equals(System.getProperty("spring.security.saml2.opensaml.version", "4"))
-			&& ClassUtils.isPresent("net.shibboleth.shared.xml.impl.BasicParserPool", null);
 
 	private static final AtomicBoolean initialized = new AtomicBoolean(false);
 
@@ -129,7 +125,7 @@ public final class OpenSamlInitializationService {
 			catch (Exception ex) {
 				throw new Saml2Exception(ex);
 			}
-			if (useNewPackages) {
+			if (OpenSamlUtils.useNewPackages()) {
 				OpenSaml5PoolInitializer.initialize();
 			}
 			else {
@@ -166,7 +162,7 @@ public final class OpenSamlInitializationService {
 				parserPool.setMaxPoolSize(50);
 				parserPool.setBuilderFeatures(getParserBuilderFeatures());
 				parserPool.initialize();
-				XMLObjectProviderRegistrySupport.setParserPool(cast(parserPool));
+				XMLObjectProviderRegistrySupport.setParserPool(parserPool);
 			}
 			catch (Exception ex) {
 				throw new Saml2Exception(ex);
@@ -183,7 +179,11 @@ public final class OpenSamlInitializationService {
 				parserPool.setMaxPoolSize(50);
 				parserPool.setBuilderFeatures(getParserBuilderFeatures());
 				parserPool.initialize();
-				XMLObjectProviderRegistrySupport.setParserPool(cast(parserPool));
+				for (Method method : XMLObjectProviderRegistrySupport.class.getDeclaredMethods()) {
+					if ("setParserPool".equals(method.getName())) {
+						method.invoke(null, parserPool);
+					}
+				}
 			}
 			catch (Exception ex) {
 				throw new Saml2Exception(ex);

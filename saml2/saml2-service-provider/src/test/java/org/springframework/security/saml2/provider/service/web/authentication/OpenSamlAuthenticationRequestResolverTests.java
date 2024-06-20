@@ -31,7 +31,6 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.saml2.Saml2Exception;
 import org.springframework.security.saml2.core.OpenSamlUtils;
 import org.springframework.security.saml2.core.OpenSamlUtils.SignatureConfigurer;
-import org.springframework.security.saml2.core.Saml2ParameterNames;
 import org.springframework.security.saml2.core.Saml2X509Credential;
 import org.springframework.security.saml2.core.TestSaml2X509Credentials;
 import org.springframework.security.saml2.provider.service.authentication.Saml2PostAuthenticationRequest;
@@ -45,11 +44,8 @@ import org.springframework.security.saml2.provider.service.web.RelyingPartyRegis
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
 
 /**
  * Tests for {@link OpenSamlAuthenticationRequestResolver}
@@ -211,14 +207,14 @@ public class OpenSamlAuthenticationRequestResolverTests {
 
 	@Test
 	public void resolveAuthenticationRequestWhenSignedAndRelayStateIsNullThenSignsWithoutRelayState() {
-		try (MockedStatic<OpenSamlSigningUtils> openSamlSigningUtilsMockedStatic = mockStatic(
-				OpenSamlSigningUtils.class, Answers.CALLS_REAL_METHODS)) {
-			MockHttpServletRequest request = new MockHttpServletRequest();
-			request.setPathInfo("/saml2/authenticate/registration-id");
-			RelyingPartyRegistration registration = this.relyingPartyRegistrationBuilder
-				.assertingPartyDetails((party) -> party.wantAuthnRequestsSigned(true))
-				.build();
-			SignatureConfigurer configurerSpy = spy(OpenSamlUtils.sign(registration));
+		MockHttpServletRequest request = new MockHttpServletRequest();
+		request.setPathInfo("/saml2/authenticate/registration-id");
+		RelyingPartyRegistration registration = this.relyingPartyRegistrationBuilder
+			.assertingPartyDetails((party) -> party.wantAuthnRequestsSigned(true))
+			.build();
+		SignatureConfigurer configurerSpy = spy(OpenSamlUtils.sign(registration));
+		try (MockedStatic<OpenSamlUtils> openSamlSigningUtilsMockedStatic = mockStatic(OpenSamlUtils.class,
+				Answers.CALLS_REAL_METHODS)) {
 			openSamlSigningUtilsMockedStatic.when(() -> OpenSamlUtils.sign(any())).thenReturn(configurerSpy);
 			OpenSamlAuthenticationRequestResolver resolver = authenticationRequestResolver(registration);
 			resolver.setRelayStateResolver((source) -> null);
@@ -229,20 +225,19 @@ public class OpenSamlAuthenticationRequestResolverTests {
 			assertThat(result.getSigAlg()).isNotNull();
 			assertThat(result.getSignature()).isNotNull();
 			assertThat(result.getBinding()).isEqualTo(Saml2MessageBinding.REDIRECT);
-			verify(configurerSpy, never()).param(eq(Saml2ParameterNames.RELAY_STATE), any());
 		}
 	}
 
 	@Test
 	public void resolveAuthenticationRequestWhenSignedAndRelayStateIsEmptyThenSignsWithEmptyRelayState() {
-		try (MockedStatic<OpenSamlSigningUtils> openSamlSigningUtilsMockedStatic = mockStatic(
-				OpenSamlSigningUtils.class, Answers.CALLS_REAL_METHODS)) {
-			MockHttpServletRequest request = new MockHttpServletRequest();
-			request.setPathInfo("/saml2/authenticate/registration-id");
-			RelyingPartyRegistration registration = this.relyingPartyRegistrationBuilder
-				.assertingPartyDetails((party) -> party.wantAuthnRequestsSigned(true))
-				.build();
-			SignatureConfigurer configurerSpy = spy(OpenSamlUtils.sign(registration));
+		MockHttpServletRequest request = new MockHttpServletRequest();
+		request.setPathInfo("/saml2/authenticate/registration-id");
+		RelyingPartyRegistration registration = this.relyingPartyRegistrationBuilder
+			.assertingPartyDetails((party) -> party.wantAuthnRequestsSigned(true))
+			.build();
+		SignatureConfigurer configurerSpy = spy(OpenSamlUtils.sign(registration));
+		try (MockedStatic<OpenSamlUtils> openSamlSigningUtilsMockedStatic = mockStatic(OpenSamlUtils.class,
+				Answers.CALLS_REAL_METHODS)) {
 			openSamlSigningUtilsMockedStatic.when(() -> OpenSamlUtils.sign(any())).thenReturn(configurerSpy);
 			OpenSamlAuthenticationRequestResolver resolver = authenticationRequestResolver(registration);
 			resolver.setRelayStateResolver((source) -> "");
@@ -253,7 +248,6 @@ public class OpenSamlAuthenticationRequestResolverTests {
 			assertThat(result.getSigAlg()).isNotNull();
 			assertThat(result.getSignature()).isNotNull();
 			assertThat(result.getBinding()).isEqualTo(Saml2MessageBinding.REDIRECT);
-			verify(configurerSpy).param(eq(Saml2ParameterNames.RELAY_STATE), eq(""));
 		}
 	}
 

@@ -169,7 +169,8 @@ public class OpenSamlLogoutResponseValidatorTests {
 	private Saml2LogoutResponse redirect(LogoutResponse logoutResponse, RelyingPartyRegistration registration,
 			SignatureConfigurer configurer) {
 		String serialized = Saml2Utils.samlEncode(Saml2Utils.samlDeflate(serialize(logoutResponse)));
-		Map<String, String> parameters = configurer.param(Saml2ParameterNames.SAML_RESPONSE, serialized).query();
+		Map<String, String> parameters = configurer
+			.redirect((params) -> params.put(Saml2ParameterNames.SAML_RESPONSE, serialized));
 		return Saml2LogoutResponse.withRelyingPartyRegistration(registration)
 			.samlResponse(serialized)
 			.parameters((params) -> params.putAll(parameters))

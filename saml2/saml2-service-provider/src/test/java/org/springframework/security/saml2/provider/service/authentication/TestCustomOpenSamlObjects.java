@@ -23,6 +23,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.xml.namespace.QName;
 
+import net.shibboleth.shared.xml.ElementSupport;
 import org.opensaml.core.xml.AbstractXMLObject;
 import org.opensaml.core.xml.AbstractXMLObjectBuilder;
 import org.opensaml.core.xml.ElementExtensibleXMLObject;
@@ -40,7 +41,7 @@ import org.opensaml.saml.saml2.core.AttributeValue;
 import org.w3c.dom.Element;
 
 import org.springframework.security.saml2.core.OpenSamlInitializationService;
-import org.springframework.security.saml2.core.OpenSamlObjectUtils;
+import org.springframework.security.saml2.core.OpenSamlUtils;
 
 public final class TestCustomOpenSamlObjects {
 
@@ -182,8 +183,13 @@ public final class TestCustomOpenSamlObjects {
 			final CustomOpenSamlObject customSamlObject = (CustomOpenSamlObject) xmlObject;
 
 			for (XMLObject object : customSamlObject.getOrderedChildren()) {
-				OpenSamlObjectUtils.invokeStaticMethod("xml.ElementSupport", "appendChildElement", domElement,
-						object.getDOM());
+				if (OpenSamlUtils.useNewPackages()) {
+					ElementSupport.appendChildElement(domElement, object.getDOM());
+				}
+				else {
+					net.shibboleth.utilities.java.support.xml.ElementSupport.appendChildElement(domElement,
+							object.getDOM());
+				}
 			}
 		}
 

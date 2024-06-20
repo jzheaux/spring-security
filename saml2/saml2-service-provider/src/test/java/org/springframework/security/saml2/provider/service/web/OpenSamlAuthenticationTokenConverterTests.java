@@ -26,17 +26,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.opensaml.core.xml.XMLObject;
-import org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport;
-import org.opensaml.core.xml.io.Marshaller;
-import org.opensaml.core.xml.io.MarshallingException;
 import org.opensaml.saml.common.SignableSAMLObject;
 import org.opensaml.saml.saml2.core.Response;
-import org.w3c.dom.Element;
 
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.security.saml2.Saml2Exception;
-import org.springframework.security.saml2.core.OpenSamlObjectUtils;
+import org.springframework.security.saml2.core.OpenSamlUtils;
 import org.springframework.security.saml2.core.Saml2ErrorCodes;
 import org.springframework.security.saml2.core.Saml2ParameterNames;
 import org.springframework.security.saml2.core.Saml2Utils;
@@ -244,14 +239,7 @@ public final class OpenSamlAuthenticationTokenConverterTests {
 	}
 
 	private String serialize(XMLObject object) {
-		try {
-			Marshaller marshaller = XMLObjectProviderRegistrySupport.getMarshallerFactory().getMarshaller(object);
-			Element element = marshaller.marshall(object);
-			return OpenSamlObjectUtils.invokeStaticMethod("xml.SerializeSupport", "nodeToString", element);
-		}
-		catch (MarshallingException ex) {
-			throw new Saml2Exception(ex);
-		}
+		return OpenSamlUtils.serialize(object).serialize();
 	}
 
 }
