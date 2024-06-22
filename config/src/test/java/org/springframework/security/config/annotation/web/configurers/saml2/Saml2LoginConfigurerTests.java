@@ -344,6 +344,19 @@ public class Saml2LoginConfigurerTests {
 	}
 
 	@Test
+	public void authenticationRequestWhenCustomAuthenticationRequestPathRepositoryThenUses() throws Exception {
+		this.spring.register(CustomAuthenticationRequestUriQuery.class).autowire();
+		MockHttpServletRequestBuilder request = get("/custom/auth/sso");
+		this.mvc.perform(request)
+			.andExpect(status().isFound())
+			.andExpect(redirectedUrl("http://localhost/custom/auth/sso"));
+		request = request.queryParam("entityId", registration.getRegistrationId());
+		MvcResult result = this.mvc.perform(request).andExpect(status().isFound()).andReturn();
+		String redirectedUrl = result.getResponse().getRedirectedUrl();
+		assertThat(redirectedUrl).startsWith(registration.getAssertingPartyDetails().getSingleSignOnServiceLocation());
+	}
+
+	@Test
 	public void saml2LoginWhenLoginProcessingUrlWithoutRegistrationIdAndDefaultAuthenticationConverterThenAutowires()
 			throws Exception {
 		this.spring.register(CustomLoginProcessingUrlDefaultAuthenticationConverter.class).autowire();
@@ -663,6 +676,23 @@ public class Saml2LoginConfigurerTests {
 			http
 				.authorizeRequests((authz) -> authz.anyRequest().authenticated())
 				.saml2Login((saml2) -> saml2.authenticationRequestUri("/custom/auth/{registrationId}"));
+			// @formatter:on
+			return http.build();
+		}
+
+	}
+
+	@Configuration
+	@EnableWebSecurity
+	@Import(Saml2LoginConfigBeans.class)
+	static class CustomAuthenticationRequestUriQuery {
+
+		@Bean
+		SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+			// @formatter:off
+			http
+					.authorizeHttpRequests((authz) -> authz.anyRequest().authenticated())
+					.saml2Login((saml2) -> saml2.authenticationRequestUri("/custom/auth/sso", "entityId={registrationId}"));
 			// @formatter:on
 			return http.build();
 		}

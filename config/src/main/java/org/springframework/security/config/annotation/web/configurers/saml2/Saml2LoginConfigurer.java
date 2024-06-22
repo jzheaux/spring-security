@@ -16,8 +16,12 @@
 
 package org.springframework.security.config.annotation.web.configurers.saml2;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
@@ -50,6 +54,7 @@ import org.springframework.security.web.util.matcher.AndRequestMatcher;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.util.matcher.ParameterRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestHeaderRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatchers;
@@ -112,6 +117,8 @@ public final class Saml2LoginConfigurer<B extends HttpSecurityBuilder<B>>
 	private String loginPage;
 
 	private String authenticationRequestUri = Saml2AuthenticationRequestResolver.DEFAULT_AUTHENTICATION_REQUEST_URI;
+
+	private String[] authenticationRequestParams = new String[0];
 
 	private Saml2AuthenticationRequestResolver authenticationRequestResolver;
 
@@ -198,10 +205,34 @@ public final class Saml2LoginConfigurer<B extends HttpSecurityBuilder<B>>
 	 * @since 6.0
 	 */
 	public Saml2LoginConfigurer<B> authenticationRequestUri(String authenticationRequestUri) {
-		Assert.state(authenticationRequestUri.contains("{registrationId}"),
-				"authenticationRequestUri must contain {registrationId} path variable");
+		return authenticationRequestUri(authenticationRequestUri, new String[0]);
+	}
+
+	/**
+	 * Customize the URL that the SAML Authentication Request will be sent to.
+	 * @param authenticationRequestUri the URI to use for the SAML 2.0 Authentication
+	 * Request
+	 * @param authenticationRequestParams any parameters to match on, of the form
+	 * {@code name=value}
+	 * @return the {@link Saml2LoginConfigurer} for further configuration
+	 * @since 6.0
+	 */
+	public Saml2LoginConfigurer<B> authenticationRequestUri(String authenticationRequestUri,
+			String... authenticationRequestParams) {
+		Assert.state(authenticationRequestUri.contains("{registrationId}") || anyContains(authenticationRequestParams),
+				"authenticationRequestUri or an authenticationRequestParam must contain {registrationId} path variable");
 		this.authenticationRequestUri = authenticationRequestUri;
+		this.authenticationRequestParams = authenticationRequestParams;
 		return this;
+	}
+
+	private static boolean anyContains(String[] authenticationRequestParams) {
+		for (String param : authenticationRequestParams) {
+			if (param.contains("{registrationId}")) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -336,8 +367,14 @@ public final class Saml2LoginConfigurer<B extends HttpSecurityBuilder<B>>
 		}
 		OpenSaml4AuthenticationRequestResolver openSaml4AuthenticationRequestResolver = new OpenSaml4AuthenticationRequestResolver(
 				relyingPartyRegistrationRepository(http));
-		openSaml4AuthenticationRequestResolver
-			.setRequestMatcher(new AntPathRequestMatcher(this.authenticationRequestUri));
+		if (this.authenticationRequestParams.length > 0) {
+			openSaml4AuthenticationRequestResolver.setRequestMatcher(
+					new AntPathQueryRequestMatcher(this.authenticationRequestUri, this.authenticationRequestParams));
+		}
+		else {
+			openSaml4AuthenticationRequestResolver
+				.setRequestMatcher(new AntPathRequestMatcher(this.authenticationRequestUri));
+		}
 		return openSaml4AuthenticationRequestResolver;
 	}
 
@@ -435,6 +472,37 @@ public final class Saml2LoginConfigurer<B extends HttpSecurityBuilder<B>>
 		if (http.getSharedObject(clazz) == null) {
 			http.setSharedObject(clazz, object);
 		}
+	}
+
+	static class AntPathQueryRequestMatcher implements RequestMatcher {
+
+		private final RequestMatcher matcher;
+
+		AntPathQueryRequestMatcher(String path, String[] params) {
+			List<RequestMatcher> matchers = new ArrayList<>();
+			matchers.add(new AntPathRequestMatcher(path));
+			for (String param : params) {
+				String[] parts = param.split("=");
+				if (parts.length == 1) {
+					matchers.add(new ParameterRequestMatcher(parts[0]));
+				}
+				else {
+					matchers.add(new ParameterRequestMatcher(parts[0], parts[1]));
+				}
+			}
+			this.matcher = new AndRequestMatcher(matchers);
+		}
+
+		@Override
+		public boolean matches(HttpServletRequest request) {
+			return matcher(request).isMatch();
+		}
+
+		@Override
+		public MatchResult matcher(HttpServletRequest request) {
+			return this.matcher.matcher(request);
+		}
+
 	}
 
 }
