@@ -49,7 +49,7 @@ public final class ParameterRequestMatcher implements RequestMatcher {
 		MatchesValueMatcher matcher = value::equals;
 		if (value.startsWith("{") && value.endsWith("}")) {
 			String key = value.substring(1, value.length() - 1);
-			this.matcher = (v) -> (v != null) ? MatchResult.match(Map.of(key, v)): MatchResult.notMatch();
+			this.matcher = (v) -> (v != null) ? MatchResult.match(Map.of(key, v)) : MatchResult.notMatch();
 		}
 		else {
 			this.matcher = matcher;
