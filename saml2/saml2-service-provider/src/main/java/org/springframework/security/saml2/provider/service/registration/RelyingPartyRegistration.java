@@ -380,7 +380,7 @@ public class RelyingPartyRegistration {
 	 *
 	 * @since 5.4
 	 */
-	public static class AssertingPartyDetails {
+	public static class AssertingPartyDetails implements AssertingPartyMetadata {
 
 		private final String entityId;
 
@@ -584,7 +584,7 @@ public class RelyingPartyRegistration {
 				.singleLogoutServiceBinding(this.singleLogoutServiceBinding);
 		}
 
-		public static class Builder {
+		public static class Builder implements AssertingPartyMetadata.Builder<Builder> {
 
 			private String entityId;
 
