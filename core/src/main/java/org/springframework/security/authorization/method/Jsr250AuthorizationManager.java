@@ -35,6 +35,8 @@ import org.springframework.security.authorization.AuthoritiesAuthorizationManage
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AnnotationSynthesizer;
+import org.springframework.security.core.annotation.AnnotationSynthesizers;
 import org.springframework.util.Assert;
 
 /**
@@ -49,12 +51,12 @@ import org.springframework.util.Assert;
  */
 public final class Jsr250AuthorizationManager implements AuthorizationManager<MethodInvocation> {
 
-	private static final Set<Class<? extends Annotation>> JSR250_ANNOTATIONS = new HashSet<>();
+	private static final Set<AnnotationSynthesizer<? extends Annotation>> JSR250_ANNOTATIONS = new HashSet<>();
 
 	static {
-		JSR250_ANNOTATIONS.add(DenyAll.class);
-		JSR250_ANNOTATIONS.add(PermitAll.class);
-		JSR250_ANNOTATIONS.add(RolesAllowed.class);
+		JSR250_ANNOTATIONS.add(AnnotationSynthesizers.createDefault(DenyAll.class));
+		JSR250_ANNOTATIONS.add(AnnotationSynthesizers.createDefault(PermitAll.class));
+		JSR250_ANNOTATIONS.add(AnnotationSynthesizers.createDefault(RolesAllowed.class));
 	}
 
 	private final Jsr250AuthorizationManagerRegistry registry = new Jsr250AuthorizationManagerRegistry();
@@ -128,8 +130,8 @@ public final class Jsr250AuthorizationManager implements AuthorizationManager<Me
 
 		private Annotation findAnnotation(Method method) {
 			Set<Annotation> annotations = new HashSet<>();
-			for (Class<? extends Annotation> annotationClass : JSR250_ANNOTATIONS) {
-				Annotation annotation = AuthorizationAnnotationUtils.findUniqueAnnotation(method, annotationClass);
+			for (AnnotationSynthesizer<? extends Annotation> synthesizer : JSR250_ANNOTATIONS) {
+				Annotation annotation = synthesizer.synthesize(method);
 				if (annotation != null) {
 					annotations.add(annotation);
 				}
@@ -146,8 +148,8 @@ public final class Jsr250AuthorizationManager implements AuthorizationManager<Me
 
 		private Annotation findAnnotation(Class<?> clazz) {
 			Set<Annotation> annotations = new HashSet<>();
-			for (Class<? extends Annotation> annotationClass : JSR250_ANNOTATIONS) {
-				Annotation annotation = AuthorizationAnnotationUtils.findUniqueAnnotation(clazz, annotationClass);
+			for (AnnotationSynthesizer<? extends Annotation> synthesizer : JSR250_ANNOTATIONS) {
+				Annotation annotation = synthesizer.synthesize(clazz);
 				if (annotation != null) {
 					annotations.add(annotation);
 				}

@@ -14,17 +14,18 @@
  * limitations under the License.
  */
 
-package org.springframework.security.authorization.method;
+package org.springframework.security.core.annotation;
 
 /**
- * A component for configuring the expression attribute template of the parsed
- * AuthenticationPrincipal annotation
+ * A component for configuring the expression attribute template of the parsed Spring
+ * Security annotation
  *
  * @author DingHao
  * @since 6.4
- * @see org.springframework.security.core.annotation.AuthenticationPrincipal
+ * @see AuthenticationPrincipal
+ * @see CurrentSecurityContext
  */
-public final class AuthenticationPrincipalTemplateDefaults {
+public class AnnotationTemplateExpressionDefaults {
 
 	private boolean ignoreUnknown = true;
 
