@@ -17,33 +17,27 @@
 package org.springframework.security.messaging.context;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.AnnotatedElement;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 
 import org.springframework.core.MethodParameter;
-import org.springframework.core.annotation.MergedAnnotation;
-import org.springframework.core.annotation.MergedAnnotations;
-import org.springframework.core.annotation.RepeatableContainers;
-import org.springframework.core.convert.support.DefaultConversionService;
+import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.expression.Expression;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
-import org.springframework.lang.NonNull;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.handler.invocation.HandlerMethodArgumentResolver;
-import org.springframework.security.authorization.method.AuthenticationPrincipalTemplateDefaults;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AnnotationSynthesizer;
+import org.springframework.security.core.annotation.AnnotationSynthesizers;
+import org.springframework.security.core.annotation.AnnotationTemplateExpressionDefaults;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
-import org.springframework.util.PropertyPlaceholderHelper;
 import org.springframework.util.StringUtils;
 
 /**
@@ -106,11 +100,12 @@ public final class AuthenticationPrincipalArgumentResolver implements HandlerMet
 
 	private ExpressionParser parser = new SpelExpressionParser();
 
-	private AuthenticationPrincipalTemplateDefaults principalTemplateDefaults = new AuthenticationPrincipalTemplateDefaults();
+	private AnnotationSynthesizer<AuthenticationPrincipal> synthesizer = AnnotationSynthesizers
+		.createDefault(AuthenticationPrincipal.class);
 
 	@Override
 	public boolean supportsParameter(MethodParameter parameter) {
-		return findMethodAnnotation(AuthenticationPrincipal.class, parameter) != null;
+		return lookupMethodAnnotation(AuthenticationPrincipal.class, parameter) != null;
 	}
 
 	@Override
@@ -154,13 +149,12 @@ public final class AuthenticationPrincipalArgumentResolver implements HandlerMet
 	 * <p>
 	 * By default, this value is <code>null</code>, which indicates that templates should
 	 * not be resolved.
-	 * @param principalTemplateDefaults - whether to resolve AuthenticationPrincipal
-	 * templates parameters
+	 * @param templateDefaults - whether to resolve AuthenticationPrincipal templates
+	 * parameters
 	 * @since 6.4
 	 */
-	public void setTemplateDefaults(@NonNull AuthenticationPrincipalTemplateDefaults principalTemplateDefaults) {
-		Assert.notNull(principalTemplateDefaults, "principalTemplateDefaults cannot be null");
-		this.principalTemplateDefaults = principalTemplateDefaults;
+	public void setTemplateDefaults(AnnotationTemplateExpressionDefaults templateDefaults) {
+		this.synthesizer = AnnotationSynthesizers.createDefault(AuthenticationPrincipal.class, templateDefaults);
 	}
 
 	/**
@@ -173,50 +167,22 @@ public final class AuthenticationPrincipalArgumentResolver implements HandlerMet
 	@SuppressWarnings("unchecked")
 	private <T extends Annotation> T findMethodAnnotation(Class<T> annotationClass, MethodParameter parameter) {
 		return (T) this.cachedAttributes.computeIfAbsent(parameter,
-				(methodParameter) -> findMethodAnnotation(annotationClass, methodParameter,
-						this.principalTemplateDefaults));
+				(methodParameter) -> this.synthesizer.synthesize(methodParameter.getParameter()));
 	}
 
-	private static <T extends Annotation> T findMethodAnnotation(Class<T> annotationClass, MethodParameter parameter,
-			AuthenticationPrincipalTemplateDefaults principalTemplateDefaults) {
+	private <T extends Annotation> T lookupMethodAnnotation(Class<T> annotationClass, MethodParameter parameter) {
 		T annotation = parameter.getParameterAnnotation(annotationClass);
 		if (annotation != null) {
 			return annotation;
 		}
-		return MergedAnnotations
-			.from(parameter.getParameter(), MergedAnnotations.SearchStrategy.TYPE_HIERARCHY,
-					RepeatableContainers.none())
-			.stream(annotationClass)
-			.map(mapper(annotationClass, principalTemplateDefaults.isIgnoreUnknown(), "expression"))
-			.findFirst()
-			.orElse(null);
-	}
-
-	private static <T extends Annotation> Function<MergedAnnotation<T>, T> mapper(Class<T> annotationClass,
-			boolean ignoreUnresolvablePlaceholders, String... attrs) {
-		return (mergedAnnotation) -> {
-			MergedAnnotation<?> metaSource = mergedAnnotation.getMetaSource();
-			if (metaSource == null) {
-				return mergedAnnotation.synthesize();
+		Annotation[] annotationsToSearch = parameter.getParameterAnnotations();
+		for (Annotation toSearch : annotationsToSearch) {
+			annotation = AnnotationUtils.findAnnotation(toSearch.annotationType(), annotationClass);
+			if (annotation != null) {
+				return annotation;
 			}
-			PropertyPlaceholderHelper helper = new PropertyPlaceholderHelper("{", "}", null, null,
-					ignoreUnresolvablePlaceholders);
-			Map<String, String> stringProperties = new HashMap<>();
-			for (Map.Entry<String, Object> property : metaSource.asMap().entrySet()) {
-				String key = property.getKey();
-				Object value = property.getValue();
-				String asString = (value instanceof String) ? (String) value
-						: DefaultConversionService.getSharedInstance().convert(value, String.class);
-				stringProperties.put(key, asString);
-			}
-			Map<String, Object> attrMap = mergedAnnotation.asMap();
-			Map<String, Object> properties = new HashMap<>(attrMap);
-			for (String attr : attrs) {
-				properties.put(attr, helper.replacePlaceholders((String) attrMap.get(attr), stringProperties::get));
-			}
-			return MergedAnnotation.of((AnnotatedElement) mergedAnnotation.getSource(), annotationClass, properties)
-				.synthesize();
-		};
+		}
+		return null;
 	}
 
 }

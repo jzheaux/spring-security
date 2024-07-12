@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.annotation.AliasFor;
 import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.annotation.AnnotationTemplateExpressionDefaults;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -180,6 +181,7 @@ public class AuthenticationPrincipalArgumentResolverTests {
 	public void resolveArgumentCustomMetaAnnotationTpl() throws Exception {
 		CustomUserPrincipal principal = new CustomUserPrincipal();
 		setAuthenticationPrincipal(principal);
+		this.resolver.setTemplateDefaults(new AnnotationTemplateExpressionDefaults());
 		this.expectedPrincipal = principal.id;
 		assertThat(this.resolver.resolveArgument(showUserCustomMetaAnnotationTpl(), null)).isEqualTo(principal.id);
 	}
@@ -302,7 +304,7 @@ public class AuthenticationPrincipalArgumentResolverTests {
 		public void showUserCustomAnnotation(@CurrentUser CustomUserPrincipal user) {
 		}
 
-		public void showUserCustomMetaAnnotation(@CurrentUser2(expression = "id") int userId) {
+		public void showUserCustomMetaAnnotation(@CurrentUser2(expression = "principal.id") int userId) {
 		}
 
 		public void showUserCustomMetaAnnotationTpl(@CurrentUser3(property = "id") int userId) {
