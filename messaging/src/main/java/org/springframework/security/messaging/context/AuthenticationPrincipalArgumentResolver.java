@@ -101,7 +101,7 @@ public final class AuthenticationPrincipalArgumentResolver implements HandlerMet
 	private ExpressionParser parser = new SpelExpressionParser();
 
 	private AnnotationSynthesizer<AuthenticationPrincipal> synthesizer = AnnotationSynthesizers
-		.createDefault(AuthenticationPrincipal.class);
+		.requireUnique(AuthenticationPrincipal.class);
 
 	@Override
 	public boolean supportsParameter(MethodParameter parameter) {
@@ -154,7 +154,7 @@ public final class AuthenticationPrincipalArgumentResolver implements HandlerMet
 	 * @since 6.4
 	 */
 	public void setTemplateDefaults(AnnotationTemplateExpressionDefaults templateDefaults) {
-		this.synthesizer = AnnotationSynthesizers.createDefault(AuthenticationPrincipal.class, templateDefaults);
+		this.synthesizer = AnnotationSynthesizers.requireUnique(AuthenticationPrincipal.class, templateDefaults);
 	}
 
 	/**
