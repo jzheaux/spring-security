@@ -19,6 +19,7 @@ package org.springframework.security.core.annotation;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
 
+import org.springframework.core.annotation.MergedAnnotation;
 import org.springframework.lang.Nullable;
 
 /**
@@ -59,6 +60,14 @@ public interface AnnotationSynthesizer<A extends Annotation> {
 	 * @return the synthesized annotation or {@code null} if not found
 	 */
 	@Nullable
-	A synthesize(AnnotatedElement element);
+	default A synthesize(AnnotatedElement element) {
+		MergedAnnotation<A> annotation = merge(element);
+		if (annotation == null) {
+			return null;
+		}
+		return annotation.synthesize();
+	}
+
+	MergedAnnotation<A> merge(AnnotatedElement element);
 
 }

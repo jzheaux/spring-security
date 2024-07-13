@@ -35,7 +35,7 @@ import org.springframework.security.core.annotation.AnnotationSynthesizers;
 final class PreFilterExpressionAttributeRegistry
 		extends AbstractExpressionAttributeRegistry<PreFilterExpressionAttributeRegistry.PreFilterExpressionAttribute> {
 
-	private AnnotationSynthesizer<PreFilter> synthesizer = AnnotationSynthesizers.createDefault(PreFilter.class);
+	private AnnotationSynthesizer<PreFilter> synthesizer = AnnotationSynthesizers.requireUnique(PreFilter.class);
 
 	@NonNull
 	@Override
@@ -51,7 +51,7 @@ final class PreFilterExpressionAttributeRegistry
 	}
 
 	void setTemplateDefaults(PrePostTemplateDefaults defaults) {
-		this.synthesizer = AnnotationSynthesizers.createDefault(PreFilter.class, defaults);
+		this.synthesizer = AnnotationSynthesizers.requireUnique(PreFilter.class, defaults);
 	}
 
 	private PreFilter findPreFilterAnnotation(Method method, Class<?> targetClass) {

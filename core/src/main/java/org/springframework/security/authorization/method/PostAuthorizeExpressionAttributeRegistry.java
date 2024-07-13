@@ -42,12 +42,12 @@ final class PostAuthorizeExpressionAttributeRegistry extends AbstractExpressionA
 	private final MethodAuthorizationDeniedHandler defaultHandler = new ThrowingMethodAuthorizationDeniedHandler();
 
 	private final AnnotationSynthesizer<HandleAuthorizationDenied> handleAuthorizationDeniedSynthesizer = AnnotationSynthesizers
-		.createDefault(HandleAuthorizationDenied.class);
+		.requireUnique(HandleAuthorizationDenied.class);
 
 	private Function<Class<? extends MethodAuthorizationDeniedHandler>, MethodAuthorizationDeniedHandler> handlerResolver;
 
 	private AnnotationSynthesizer<PostAuthorize> postAuthorizeSynthesizer = AnnotationSynthesizers
-		.createDefault(PostAuthorize.class);
+		.requireUnique(PostAuthorize.class);
 
 	PostAuthorizeExpressionAttributeRegistry() {
 		this.handlerResolver = (clazz) -> this.defaultHandler;
@@ -95,7 +95,7 @@ final class PostAuthorizeExpressionAttributeRegistry extends AbstractExpressionA
 	}
 
 	void setTemplateDefaults(PrePostTemplateDefaults templateDefaults) {
-		this.postAuthorizeSynthesizer = AnnotationSynthesizers.createDefault(PostAuthorize.class, templateDefaults);
+		this.postAuthorizeSynthesizer = AnnotationSynthesizers.requireUnique(PostAuthorize.class, templateDefaults);
 	}
 
 	private MethodAuthorizationDeniedHandler resolveHandler(ApplicationContext context,

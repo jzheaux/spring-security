@@ -52,7 +52,7 @@ public final class SecuredAuthorizationManager implements AuthorizationManager<M
 
 	private final Map<MethodClassKey, Set<String>> cachedAuthorities = new ConcurrentHashMap<>();
 
-	private final AnnotationSynthesizer<Secured> synthesizer = AnnotationSynthesizers.createDefault(Secured.class);
+	private final AnnotationSynthesizer<Secured> synthesizer = AnnotationSynthesizers.requireUnique(Secured.class);
 
 	/**
 	 * Sets an {@link AuthorizationManager} that accepts a collection of authority

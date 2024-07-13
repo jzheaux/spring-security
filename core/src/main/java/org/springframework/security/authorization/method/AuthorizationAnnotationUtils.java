@@ -17,7 +17,9 @@
 package org.springframework.security.authorization.method;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Method;
+import java.util.function.Function;
 
 import org.springframework.security.core.annotation.AnnotationSynthesizers;
 
@@ -44,12 +46,16 @@ import org.springframework.security.core.annotation.AnnotationSynthesizers;
  */
 final class AuthorizationAnnotationUtils {
 
+	static <A extends Annotation> Function<AnnotatedElement, A> withDefaults(Class<A> type) {
+		return AnnotationSynthesizers.requireUnique(type)::synthesize;
+	}
+
 	static <A extends Annotation> A findUniqueAnnotation(Method method, Class<A> annotationType) {
-		return AnnotationSynthesizers.createDefault(annotationType).synthesize(method);
+		return AnnotationSynthesizers.requireUnique(annotationType).synthesize(method);
 	}
 
 	static <A extends Annotation> A findUniqueAnnotation(Class<?> type, Class<A> annotationType) {
-		return AnnotationSynthesizers.createDefault(annotationType).synthesize(type);
+		return AnnotationSynthesizers.requireUnique(annotationType).synthesize(type);
 	}
 
 	private AuthorizationAnnotationUtils() {

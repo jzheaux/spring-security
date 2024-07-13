@@ -22,7 +22,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.core.annotation.MergedAnnotation;
-import org.springframework.core.annotation.MergedAnnotations;
 import org.springframework.core.convert.support.DefaultConversionService;
 import org.springframework.util.Assert;
 import org.springframework.util.PropertyPlaceholderHelper;
@@ -64,7 +63,7 @@ final class ExpressionTemplateAnnotationSynthesizer<A extends Annotation> implem
 
 	private final AnnotationTemplateExpressionDefaults templateDefaults;
 
-	private final Map<AnnotatedElement, A> uniqueAnnotationCache = new HashMap<>();
+	private final Map<AnnotatedElement, MergedAnnotation<A>> uniqueAnnotationCache = new HashMap<>();
 
 	ExpressionTemplateAnnotationSynthesizer(Class<A> type, AnnotationTemplateExpressionDefaults templateDefaults) {
 		Assert.notNull(type, "type cannot be null");
@@ -75,17 +74,20 @@ final class ExpressionTemplateAnnotationSynthesizer<A extends Annotation> implem
 	}
 
 	@Override
-	public A synthesize(AnnotatedElement element) {
-		this.uniqueAnnotationCache.computeIfAbsent(element, this.unique::synthesize);
-		return resolvePlaceholders(MergedAnnotations.from(element).get(this.type));
+	public MergedAnnotation<A> merge(AnnotatedElement element) {
+		MergedAnnotation<A> annotation = this.uniqueAnnotationCache.computeIfAbsent(element, this.unique::merge);
+		if (annotation == null) {
+			return null;
+		}
+		return resolvePlaceholders(annotation);
 	}
 
-	private A resolvePlaceholders(MergedAnnotation<A> mergedAnnotation) {
+	private MergedAnnotation<A> resolvePlaceholders(MergedAnnotation<A> mergedAnnotation) {
 		if (this.templateDefaults == null) {
-			return mergedAnnotation.synthesize();
+			return mergedAnnotation;
 		}
 		if (mergedAnnotation.getMetaSource() == null) {
-			return mergedAnnotation.synthesize();
+			return mergedAnnotation;
 		}
 		PropertyPlaceholderHelper helper = new PropertyPlaceholderHelper("{", "}", null, null,
 				this.templateDefaults.isIgnoreUnknown());
@@ -109,7 +111,7 @@ final class ExpressionTemplateAnnotationSynthesizer<A extends Annotation> implem
 			properties.put(annotationProperty.getKey(), value);
 		}
 		AnnotatedElement annotatedElement = (AnnotatedElement) mergedAnnotation.getSource();
-		return MergedAnnotation.of(annotatedElement, this.type, properties).synthesize();
+		return MergedAnnotation.of(annotatedElement, this.type, properties);
 	}
 
 }

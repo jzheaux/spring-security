@@ -18,6 +18,8 @@ package org.springframework.security.core.annotation;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Factory for creating {@link AnnotationSynthesizer} instances.
@@ -31,38 +33,49 @@ public final class AnnotationSynthesizers {
 	}
 
 	/**
-	 * Create a default {@link AnnotationSynthesizer} for the given annotation type.
-	 *
-	 * <p>
-	 * By default, uses an annotation synthsizer that ensures the annotation's uniqueness
-	 * on the {@link AnnotatedElement}.
+	 * Create a {@link AnnotationSynthesizer} that requires synthesized annotations to be
+	 * unique on the given {@link AnnotatedElement}.
 	 * @param type the annotation type
 	 * @param <A> the annotation type
 	 * @return the default {@link AnnotationSynthesizer}
 	 */
-	public static <A extends Annotation> AnnotationSynthesizer<A> createDefault(Class<A> type) {
+	public static <A extends Annotation> AnnotationSynthesizer<A> requireUnique(Class<A> type) {
 		return new UniqueMergedAnnotationSynthesizer<>(type);
 	}
 
 	/**
-	 * Create a default {@link AnnotationSynthesizer} for the given annotation type.
+	 * Create a {@link AnnotationSynthesizer} that requires synthesized annotations to be
+	 * unique on the given {@link AnnotatedElement}.
 	 *
 	 * <p>
 	 * When a {@link AnnotationTemplateExpressionDefaults} is provided, it will return a
-	 * synethsizer that supports placeholders in the annotation's attributes in addition
-	 * to the meta-annotation sythesizing provided by {@link #createDefault(Class)}.
+	 * synthesizer that supports placeholders in the annotation's attributes in addition
+	 * to the meta-annotation synthesizing provided by {@link #requireUnique(Class)}.
 	 * @param type the annotation type
 	 * @param templateDefaults the defaults for resolving placeholders in the annotation's
 	 * attributes
 	 * @param <A> the annotation type
 	 * @return the default {@link AnnotationSynthesizer}
 	 */
-	public static <A extends Annotation> AnnotationSynthesizer<A> createDefault(Class<A> type,
+	public static <A extends Annotation> AnnotationSynthesizer<A> requireUnique(Class<A> type,
 			AnnotationTemplateExpressionDefaults templateDefaults) {
 		if (templateDefaults == null) {
 			return new UniqueMergedAnnotationSynthesizer<>(type);
 		}
 		return new ExpressionTemplateAnnotationSynthesizer<>(type, templateDefaults);
+	}
+
+	/**
+	 * Create a {@link AnnotationSynthesizer} that requires synthesized annotations to be
+	 * unique on the given {@link AnnotatedElement}. Supplying multiple types implies that
+	 * the synthesized annotation must be unique across all specified types.
+	 * @param types the annotation types
+	 * @return the default {@link AnnotationSynthesizer}
+	 */
+	public static AnnotationSynthesizer<Annotation> requireUnique(List<Class<? extends Annotation>> types) {
+		List<Class<Annotation>> casted = new ArrayList<>();
+		types.forEach(type -> casted.add((Class<Annotation>) type));
+		return new UniqueMergedAnnotationSynthesizer<>(casted);
 	}
 
 }

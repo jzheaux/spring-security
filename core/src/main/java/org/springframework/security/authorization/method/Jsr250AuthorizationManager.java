@@ -20,6 +20,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -29,7 +30,6 @@ import jakarta.annotation.security.RolesAllowed;
 import org.aopalliance.intercept.MethodInvocation;
 
 import org.springframework.aop.support.AopUtils;
-import org.springframework.core.annotation.AnnotationConfigurationException;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authorization.AuthoritiesAuthorizationManager;
 import org.springframework.security.authorization.AuthorizationDecision;
@@ -54,9 +54,9 @@ public final class Jsr250AuthorizationManager implements AuthorizationManager<Me
 	private static final Set<AnnotationSynthesizer<? extends Annotation>> JSR250_ANNOTATIONS = new HashSet<>();
 
 	static {
-		JSR250_ANNOTATIONS.add(AnnotationSynthesizers.createDefault(DenyAll.class));
-		JSR250_ANNOTATIONS.add(AnnotationSynthesizers.createDefault(PermitAll.class));
-		JSR250_ANNOTATIONS.add(AnnotationSynthesizers.createDefault(RolesAllowed.class));
+		JSR250_ANNOTATIONS.add(AnnotationSynthesizers.requireUnique(DenyAll.class));
+		JSR250_ANNOTATIONS.add(AnnotationSynthesizers.requireUnique(PermitAll.class));
+		JSR250_ANNOTATIONS.add(AnnotationSynthesizers.requireUnique(RolesAllowed.class));
 	}
 
 	private final Jsr250AuthorizationManagerRegistry registry = new Jsr250AuthorizationManagerRegistry();
@@ -104,6 +104,9 @@ public final class Jsr250AuthorizationManager implements AuthorizationManager<Me
 
 	private final class Jsr250AuthorizationManagerRegistry extends AbstractAuthorizationManagerRegistry {
 
+		private final AnnotationSynthesizer<?> synthesizer = AnnotationSynthesizers
+			.requireUnique(List.of(DenyAll.class, PermitAll.class, RolesAllowed.class));
+
 		@NonNull
 		@Override
 		AuthorizationManager<MethodInvocation> resolveManager(Method method, Class<?> targetClass) {
@@ -123,45 +126,9 @@ public final class Jsr250AuthorizationManager implements AuthorizationManager<Me
 
 		private Annotation findJsr250Annotation(Method method, Class<?> targetClass) {
 			Method specificMethod = AopUtils.getMostSpecificMethod(method, targetClass);
-			Annotation annotation = findAnnotation(specificMethod);
-			return (annotation != null) ? annotation
-					: findAnnotation((targetClass != null) ? targetClass : specificMethod.getDeclaringClass());
-		}
-
-		private Annotation findAnnotation(Method method) {
-			Set<Annotation> annotations = new HashSet<>();
-			for (AnnotationSynthesizer<? extends Annotation> synthesizer : JSR250_ANNOTATIONS) {
-				Annotation annotation = synthesizer.synthesize(method);
-				if (annotation != null) {
-					annotations.add(annotation);
-				}
-			}
-			if (annotations.isEmpty()) {
-				return null;
-			}
-			if (annotations.size() > 1) {
-				throw new AnnotationConfigurationException(
-						"The JSR-250 specification disallows DenyAll, PermitAll, and RolesAllowed from appearing on the same method.");
-			}
-			return annotations.iterator().next();
-		}
-
-		private Annotation findAnnotation(Class<?> clazz) {
-			Set<Annotation> annotations = new HashSet<>();
-			for (AnnotationSynthesizer<? extends Annotation> synthesizer : JSR250_ANNOTATIONS) {
-				Annotation annotation = synthesizer.synthesize(clazz);
-				if (annotation != null) {
-					annotations.add(annotation);
-				}
-			}
-			if (annotations.isEmpty()) {
-				return null;
-			}
-			if (annotations.size() > 1) {
-				throw new AnnotationConfigurationException(
-						"The JSR-250 specification disallows DenyAll, PermitAll, and RolesAllowed from appearing on the same class definition.");
-			}
-			return annotations.iterator().next();
+			Annotation annotation = this.synthesizer.synthesize(specificMethod);// findAnnotation(specificMethod);
+			return (annotation != null) ? annotation : this.synthesizer
+				.synthesize((targetClass != null) ? targetClass : specificMethod.getDeclaringClass());
 		}
 
 		private Set<String> getAllowedRolesWithPrefix(RolesAllowed rolesAllowed) {
