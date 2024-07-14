@@ -67,11 +67,9 @@ final class PreAuthorizeExpressionAttributeRegistry extends AbstractExpressionAt
 	}
 
 	private MethodAuthorizationDeniedHandler resolveHandler(Method method, Class<?> targetClass) {
-		HandleAuthorizationDenied deniedHandler = this.handleAuthorizationDeniedSynthesizer.synthesize(method);
-		if (deniedHandler != null) {
-			return this.handlerResolver.apply(deniedHandler.handlerClass());
-		}
-		deniedHandler = this.handleAuthorizationDeniedSynthesizer.synthesize(targetClass(method, targetClass));
+		Class<?> targetClassToUse = targetClass(method, targetClass);
+		HandleAuthorizationDenied deniedHandler = this.handleAuthorizationDeniedSynthesizer.synthesize(method,
+				targetClassToUse);
 		if (deniedHandler != null) {
 			return this.handlerResolver.apply(deniedHandler.handlerClass());
 		}
@@ -79,9 +77,8 @@ final class PreAuthorizeExpressionAttributeRegistry extends AbstractExpressionAt
 	}
 
 	private PreAuthorize findPreAuthorizeAnnotation(Method method, Class<?> targetClass) {
-		PreAuthorize preAuthorize = this.preAuthorizeSynthesizer.synthesize(method);
-		return (preAuthorize != null) ? preAuthorize
-				: this.preAuthorizeSynthesizer.synthesize(targetClass(method, targetClass));
+		Class<?> targetClassToUse = targetClass(method, targetClass);
+		return this.preAuthorizeSynthesizer.synthesize(method, targetClassToUse);
 	}
 
 	/**

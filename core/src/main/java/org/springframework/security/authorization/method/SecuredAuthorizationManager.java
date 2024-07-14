@@ -96,9 +96,8 @@ public final class SecuredAuthorizationManager implements AuthorizationManager<M
 	}
 
 	private Secured findSecuredAnnotation(Method method, Class<?> targetClass) {
-		Secured secured = this.synthesizer.synthesize(method);
-		return (secured != null) ? secured
-				: this.synthesizer.synthesize((targetClass != null) ? targetClass : method.getDeclaringClass());
+		Class<?> targetClassToUse = (targetClass != null) ? targetClass : method.getDeclaringClass();
+		return this.synthesizer.synthesize(method, targetClassToUse);
 	}
 
 }

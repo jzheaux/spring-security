@@ -126,9 +126,8 @@ public final class Jsr250AuthorizationManager implements AuthorizationManager<Me
 
 		private Annotation findJsr250Annotation(Method method, Class<?> targetClass) {
 			Method specificMethod = AopUtils.getMostSpecificMethod(method, targetClass);
-			Annotation annotation = this.synthesizer.synthesize(specificMethod);// findAnnotation(specificMethod);
-			return (annotation != null) ? annotation : this.synthesizer
-				.synthesize((targetClass != null) ? targetClass : specificMethod.getDeclaringClass());
+			Class<?> targetClassToUse = (targetClass != null) ? targetClass : specificMethod.getDeclaringClass();
+			return this.synthesizer.synthesize(specificMethod, targetClassToUse);
 		}
 
 		private Set<String> getAllowedRolesWithPrefix(RolesAllowed rolesAllowed) {

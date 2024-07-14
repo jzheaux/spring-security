@@ -54,8 +54,8 @@ final class PostFilterExpressionAttributeRegistry extends AbstractExpressionAttr
 	}
 
 	private PostFilter findPostFilterAnnotation(Method method, Class<?> targetClass) {
-		PostFilter postFilter = this.synthesizer.synthesize(method);
-		return (postFilter != null) ? postFilter : this.synthesizer.synthesize(targetClass(method, targetClass));
+		Class<?> targetClassToUse = targetClass(method, targetClass);
+		return this.synthesizer.synthesize(method, targetClassToUse);
 	}
 
 }

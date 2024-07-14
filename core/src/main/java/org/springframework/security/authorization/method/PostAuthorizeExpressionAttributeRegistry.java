@@ -67,11 +67,9 @@ final class PostAuthorizeExpressionAttributeRegistry extends AbstractExpressionA
 	}
 
 	private MethodAuthorizationDeniedHandler resolveHandler(Method method, Class<?> targetClass) {
-		HandleAuthorizationDenied deniedHandler = this.handleAuthorizationDeniedSynthesizer.synthesize(method);
-		if (deniedHandler != null) {
-			return this.handlerResolver.apply(deniedHandler.handlerClass());
-		}
-		deniedHandler = this.handleAuthorizationDeniedSynthesizer.synthesize(targetClass(method, targetClass));
+		Class<?> targetClassToUse = targetClass(method, targetClass);
+		HandleAuthorizationDenied deniedHandler = this.handleAuthorizationDeniedSynthesizer.synthesize(method,
+				targetClassToUse);
 		if (deniedHandler != null) {
 			return this.handlerResolver.apply(deniedHandler.handlerClass());
 		}
@@ -79,9 +77,8 @@ final class PostAuthorizeExpressionAttributeRegistry extends AbstractExpressionA
 	}
 
 	private PostAuthorize findPostAuthorizeAnnotation(Method method, Class<?> targetClass) {
-		PostAuthorize postAuthorize = this.postAuthorizeSynthesizer.synthesize(method);
-		return (postAuthorize != null) ? postAuthorize
-				: this.postAuthorizeSynthesizer.synthesize(targetClass(method, targetClass));
+		Class<?> targetClassToUse = targetClass(method, targetClass);
+		return this.postAuthorizeSynthesizer.synthesize(method, targetClass);
 	}
 
 	/**

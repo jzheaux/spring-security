@@ -18,9 +18,12 @@ package org.springframework.security.core.annotation;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 
 import org.springframework.core.annotation.MergedAnnotation;
 import org.springframework.lang.Nullable;
+import org.springframework.util.Assert;
 
 /**
  * A strategy for synthesizing an annotation from an {@link AnnotatedElement}.
@@ -60,14 +63,26 @@ public interface AnnotationSynthesizer<A extends Annotation> {
 	 * @return the synthesized annotation or {@code null} if not found
 	 */
 	@Nullable
-	default A synthesize(AnnotatedElement element) {
-		MergedAnnotation<A> annotation = merge(element);
+	default A synthesize(AnnotatedElement element, Class<?> targetClass) {
+		Assert.notNull(targetClass, "targetClass cannot be null");
+		MergedAnnotation<A> annotation = merge(element, targetClass);
 		if (annotation == null) {
 			return null;
 		}
 		return annotation.synthesize();
 	}
 
-	MergedAnnotation<A> merge(AnnotatedElement element);
+	@Nullable
+	default A synthesize(AnnotatedElement element) {
+		if (element instanceof Method method) {
+			return synthesize(element, method.getDeclaringClass());
+		}
+		if (element instanceof Parameter parameter) {
+			return synthesize(parameter, parameter.getDeclaringExecutable().getDeclaringClass());
+		}
+		throw new UnsupportedOperationException("Unsupported element of type " + element.getClass());
+	}
+
+	MergedAnnotation<A> merge(AnnotatedElement element, Class<?> targetClass);
 
 }

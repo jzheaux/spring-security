@@ -80,37 +80,42 @@ final class UniqueMergedAnnotationSynthesizer<A extends Annotation> implements A
 	}
 
 	@Override
-	public MergedAnnotation<A> merge(AnnotatedElement element) {
+	public MergedAnnotation<A> merge(AnnotatedElement element, Class<?> targetClass) {
 		if (element instanceof Parameter) {
-			MergedAnnotations mergedAnnotations = MergedAnnotations.from(element,
-					MergedAnnotations.SearchStrategy.DIRECT, RepeatableContainers.none());
-			List<MergedAnnotation<Annotation>> annotations = mergedAnnotations.stream()
-				.filter((annotation) -> this.types.contains(annotation.getType()))
-				// .map(MergedAnnotation::synthesize)
-				// .distinct()
-				.toList();
-			return switch (annotations.size()) {
-				case 0 -> null;
-				case 1 -> (MergedAnnotation<A>) annotations.get(0);
-				default -> throw new AnnotationConfigurationException("""
-						Please ensure there is one unique annotation of type %s attributed to %s. \
-						Found %d competing annotations: %s""".formatted(this.types, element, annotations.size(),
-						annotations));
-			};
+			List<MergedAnnotation<A>> annotations = findDirectAnnotations(element);
+			return requireUnique(element, annotations);
 		}
 		else if (element instanceof Method method) {
-			return findDistinctAnnotation(method, method.getDeclaringClass());
+			return findDistinctAnnotation(method, targetClass);
 		}
-		else {
-			return findDistinctAnnotation(null, (Class<?>) element);
-		}
+		throw new AnnotationConfigurationException("Unsupported element of type " + element.getClass());
 	}
 
-	private <A extends Annotation> MergedAnnotation<A> findDistinctAnnotation(Method method, Class<?> targetClass) {
-		List<AnnotationScore<Annotation>> scores = findAnnotations(method, targetClass, new HashSet<>(), 1);
+	private List<MergedAnnotation<A>> findDirectAnnotations(AnnotatedElement element) {
+		MergedAnnotations mergedAnnotations = MergedAnnotations.from(element, MergedAnnotations.SearchStrategy.DIRECT,
+				RepeatableContainers.none());
+		return mergedAnnotations.stream()
+			.filter((annotation) -> this.types.contains(annotation.getType()))
+			.map((annotation) -> (MergedAnnotation<A>) annotation)
+			.toList();
+	}
+
+	private MergedAnnotation<A> requireUnique(AnnotatedElement element, List<MergedAnnotation<A>> annotations) {
+		return switch (annotations.size()) {
+			case 0 -> null;
+			case 1 -> annotations.get(0);
+			default -> throw new AnnotationConfigurationException("""
+					Please ensure there is one unique annotation of type %s attributed to %s. \
+					Found %d competing annotations: %s""".formatted(this.types, element, annotations.size(),
+					annotations));
+		};
+	}
+
+	private MergedAnnotation<A> findDistinctAnnotation(Method method, Class<?> targetClass) {
+		List<AnnotationScore<A>> scores = findAnnotations(method, targetClass, new HashSet<>(), 1);
 		int lowestScore = Integer.MAX_VALUE;
-		List<MergedAnnotation<Annotation>> annotations = new ArrayList<>();
-		for (AnnotationScore<Annotation> score : scores) {
+		List<MergedAnnotation<A>> annotations = new ArrayList<>();
+		for (AnnotationScore<A> score : scores) {
 			if (score.score < lowestScore) {
 				annotations = new ArrayList<>();
 				annotations.add(score.annotation);
@@ -122,22 +127,22 @@ final class UniqueMergedAnnotationSynthesizer<A extends Annotation> implements A
 		}
 		return switch (annotations.size()) {
 			case 0 -> null;
-			case 1 -> (MergedAnnotation<A>) annotations.get(0);
+			case 1 -> annotations.get(0);
 			default -> {
 				List<Annotation> synthesized = new ArrayList<>();
-				for (MergedAnnotation<Annotation> annotation : annotations) {
+				for (MergedAnnotation<A> annotation : annotations) {
 					synthesized.add(annotation.synthesize());
 				}
 				throw new AnnotationConfigurationException("""
-						Please ensure there is one unique annotation of type @%s attributed to %s. \
+						Please ensure there is one unique annotation of type %s attributed to %s. \
 						Found %d competing annotations: %s""".formatted(this.types, method, annotations.size(),
 						synthesized));
 			}
 		};
 	}
 
-	private List<AnnotationScore<Annotation>> findAnnotations(Method method, Class<?> declaringClass,
-			Set<Class<?>> visited, int distance) {
+	private List<AnnotationScore<A>> findAnnotations(Method method, Class<?> declaringClass, Set<Class<?>> visited,
+			int distance) {
 		if (declaringClass == null || visited.contains(declaringClass) || declaringClass == Object.class) {
 			return Collections.emptyList();
 		}
@@ -145,13 +150,13 @@ final class UniqueMergedAnnotationSynthesizer<A extends Annotation> implements A
 
 		Method methodToUse = methodMatching(method, declaringClass);
 		if (methodToUse != null) {
-			List<AnnotationScore<Annotation>> scores = findAnnotations(methodToUse, distance * 11);
+			List<AnnotationScore<A>> scores = findAnnotations(methodToUse, distance * 11);
 			if (!scores.isEmpty()) {
 				return scores;
 			}
 		}
 
-		List<AnnotationScore<Annotation>> scores = findAnnotations(declaringClass, distance * 13);
+		List<AnnotationScore<A>> scores = findAnnotations(declaringClass, distance * 13);
 		if (!scores.isEmpty()) {
 			return scores;
 		}
@@ -164,9 +169,6 @@ final class UniqueMergedAnnotationSynthesizer<A extends Annotation> implements A
 	}
 
 	private Method methodMatching(Method method, Class<?> candidate) {
-		if (method == null) {
-			return null;
-		}
 		if (method.getDeclaringClass() == candidate) {
 			return method;
 		}
@@ -178,15 +180,10 @@ final class UniqueMergedAnnotationSynthesizer<A extends Annotation> implements A
 		}
 	}
 
-	private List<AnnotationScore<Annotation>> findAnnotations(AnnotatedElement element, int score) {
-		List<MergedAnnotation<Annotation>> annotations = MergedAnnotations
-			.from(element, MergedAnnotations.SearchStrategy.DIRECT, RepeatableContainers.none())
-			.stream()
-			.filter((annotation) -> this.types.contains(annotation.getType()))
-			// .map(MergedAnnotation::synthesize)
-			.toList();
-		List<AnnotationScore<Annotation>> scores = new ArrayList<>();
-		for (MergedAnnotation<Annotation> annotation : annotations) {
+	private List<AnnotationScore<A>> findAnnotations(AnnotatedElement element, int score) {
+		List<MergedAnnotation<A>> annotations = findDirectAnnotations(element);
+		List<AnnotationScore<A>> scores = new ArrayList<>();
+		for (MergedAnnotation<A> annotation : annotations) {
 			scores.add(new AnnotationScore<>(annotation, score));
 		}
 		return scores;

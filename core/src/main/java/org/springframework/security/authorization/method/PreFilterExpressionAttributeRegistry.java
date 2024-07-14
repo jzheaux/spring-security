@@ -55,8 +55,8 @@ final class PreFilterExpressionAttributeRegistry
 	}
 
 	private PreFilter findPreFilterAnnotation(Method method, Class<?> targetClass) {
-		PreFilter preFilter = this.synthesizer.synthesize(method);
-		return (preFilter != null) ? preFilter : this.synthesizer.synthesize(targetClass(method, targetClass));
+		Class<?> targetClassToUse = targetClass(method, targetClass);
+		return this.synthesizer.synthesize(method, targetClassToUse);
 	}
 
 	static final class PreFilterExpressionAttribute extends ExpressionAttribute {

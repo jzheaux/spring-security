@@ -18,9 +18,12 @@ package org.springframework.security.core.annotation;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.core.MethodClassKey;
 import org.springframework.core.annotation.MergedAnnotation;
 import org.springframework.core.convert.support.DefaultConversionService;
 import org.springframework.util.Assert;
@@ -63,7 +66,9 @@ final class ExpressionTemplateAnnotationSynthesizer<A extends Annotation> implem
 
 	private final AnnotationTemplateExpressionDefaults templateDefaults;
 
-	private final Map<AnnotatedElement, MergedAnnotation<A>> uniqueAnnotationCache = new HashMap<>();
+	private final Map<Parameter, MergedAnnotation<A>> uniqueParameterAnnotationCache = new HashMap<>();
+
+	private final Map<MethodClassKey, MergedAnnotation<A>> uniqueMethodAnnotationCache = new HashMap<>();
 
 	ExpressionTemplateAnnotationSynthesizer(Class<A> type, AnnotationTemplateExpressionDefaults templateDefaults) {
 		Assert.notNull(type, "type cannot be null");
@@ -74,12 +79,25 @@ final class ExpressionTemplateAnnotationSynthesizer<A extends Annotation> implem
 	}
 
 	@Override
-	public MergedAnnotation<A> merge(AnnotatedElement element) {
-		MergedAnnotation<A> annotation = this.uniqueAnnotationCache.computeIfAbsent(element, this.unique::merge);
-		if (annotation == null) {
-			return null;
+	public MergedAnnotation<A> merge(AnnotatedElement element, Class<?> targetClass) {
+		if (element instanceof Parameter parameter) {
+			MergedAnnotation<A> annotation = this.uniqueParameterAnnotationCache.computeIfAbsent(parameter,
+					(p) -> this.unique.merge(p, targetClass));
+			if (annotation == null) {
+				return null;
+			}
+			return resolvePlaceholders(annotation);
 		}
-		return resolvePlaceholders(annotation);
+		if (element instanceof Method method) {
+			MethodClassKey key = new MethodClassKey(method, targetClass);
+			MergedAnnotation<A> annotation = this.uniqueMethodAnnotationCache.computeIfAbsent(key,
+					(k) -> this.unique.merge(method, targetClass));
+			if (annotation == null) {
+				return null;
+			}
+			return resolvePlaceholders(annotation);
+		}
+		throw new IllegalArgumentException("Unsupported element of type " + element.getClass());
 	}
 
 	private MergedAnnotation<A> resolvePlaceholders(MergedAnnotation<A> mergedAnnotation) {

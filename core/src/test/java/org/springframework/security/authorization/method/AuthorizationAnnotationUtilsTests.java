@@ -74,10 +74,10 @@ class AuthorizationAnnotationUtilsTests {
 	 */
 
 	@Test
-	void competingAnnotationsOnClassShouldTriggerAnnotationConfigurationException() {
-		Class<?> clazz = CompetingPreAuthorizeAnnotationsOnClass.class;
+	void competingAnnotationsOnClassShouldTriggerAnnotationConfigurationException() throws Exception {
+		Method method = CompetingPreAuthorizeAnnotationsOnClass.class.getDeclaredMethod("method");
 		assertThatExceptionOfType(AnnotationConfigurationException.class)
-			.isThrownBy(() -> AuthorizationAnnotationUtils.findUniqueAnnotation(clazz, PreAuthorize.class))
+			.isThrownBy(() -> AuthorizationAnnotationUtils.findUniqueAnnotation(method, PreAuthorize.class))
 			.withMessageContainingAll("Found 2 competing annotations:", "someRole", "otherRole");
 	}
 
@@ -90,175 +90,14 @@ class AuthorizationAnnotationUtilsTests {
 	}
 
 	@Test
-	void composedMergedAnnotationsAreNotSupported() {
-		Class<?> clazz = ComposedPreAuthAnnotationOnClass.class;
-		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.findUniqueAnnotation(clazz, PreAuthorize.class);
+	void composedMergedAnnotationsAreSupported() throws Exception {
+		Method method = ComposedPreAuthAnnotationOnClass.class.getDeclaredMethod("method");
+		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.findUniqueAnnotation(method, PreAuthorize.class);
 
 		// If you comment out .map(MergedAnnotation::withNonMergedAttributes) in
 		// AuthorizationAnnotationUtils.findDistinctAnnotation(), the value of
 		// the merged annotation would be "hasRole('composedRole')".
 		assertThat(preAuthorize.value()).isEqualTo("hasRole('composedRole')");
-	}
-
-	@Test
-	void testOne() throws Exception {
-		Method method = One.class.getDeclaredMethod("method");
-		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.withDefaults(PreAuthorize.class).apply(method);
-		assertThat(preAuthorize.value()).isEqualTo("one");
-	}
-
-	@Test
-	void testTwo() throws Exception {
-		Method method = Two.class.getDeclaredMethod("method");
-		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.withDefaults(PreAuthorize.class).apply(method);
-		assertThat(preAuthorize.value()).isEqualTo("two");
-	}
-
-	@Test
-	void testThree() throws Exception {
-		Method method = Three.class.getDeclaredMethod("method");
-		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.withDefaults(PreAuthorize.class).apply(method);
-		assertThat(preAuthorize.value()).isEqualTo("three");
-	}
-
-	@Test
-	void testFour() throws Exception {
-		Method method = Four.class.getDeclaredMethod("method");
-		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.withDefaults(PreAuthorize.class).apply(method);
-		assertThat(preAuthorize.value()).isEqualTo("four");
-	}
-
-	@Test
-	void testFive() throws Exception {
-		Method method = Five.class.getDeclaredMethod("method");
-		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.withDefaults(PreAuthorize.class).apply(method);
-		assertThat(preAuthorize.value()).isEqualTo("five");
-	}
-
-	@Test
-	void testSix() throws Exception {
-		Method method = Six.class.getDeclaredMethod("method");
-		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.withDefaults(PreAuthorize.class).apply(method);
-		assertThat(preAuthorize.value()).isEqualTo("six");
-	}
-
-	@Test
-	void testEight() throws Exception {
-		Method method = Eight.class.getDeclaredMethod("method");
-		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.withDefaults(PreAuthorize.class).apply(method);
-		assertThat(preAuthorize.value()).isEqualTo("eight");
-	}
-
-	@Test
-	void testEleven() throws Exception {
-		Method method = Eleven.class.getDeclaredMethod("method");
-		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.withDefaults(PreAuthorize.class).apply(method);
-		assertThat(preAuthorize.value()).isEqualTo("eleven");
-	}
-
-	@Test
-	void testTwelve() throws Exception {
-		Method method = Twelve.class.getDeclaredMethod("method");
-		assertThatExceptionOfType(AnnotationConfigurationException.class)
-			.isThrownBy(() -> AuthorizationAnnotationUtils.withDefaults(PreAuthorize.class).apply(method));
-	}
-
-	@Test
-	void testThirteen() throws Exception {
-		Method method = Thirteen.class.getDeclaredMethod("method");
-		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.withDefaults(PreAuthorize.class).apply(method);
-		assertThat(preAuthorize.value()).isEqualTo("thirteen");
-	}
-
-	@Test
-	void testFourteen() throws Exception {
-		Method method = Fourteen.class.getDeclaredMethod("method");
-		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.withDefaults(PreAuthorize.class).apply(method);
-		assertThat(preAuthorize.value()).isEqualTo("fourteen");
-	}
-
-	@Test
-	void testFifteen() throws Exception {
-		Method method = Fifteen.class.getDeclaredMethod("method");
-		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.withDefaults(PreAuthorize.class).apply(method);
-		assertThat(preAuthorize.value()).isEqualTo("seven");
-	}
-
-	@Test
-	void testSixteen() throws Exception {
-		Method method = Sixteen.class.getDeclaredMethod("method");
-		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.withDefaults(PreAuthorize.class).apply(method);
-		assertThat(preAuthorize.value()).isEqualTo("sixteen");
-	}
-
-	@Test
-	void testSeventeen() throws Exception {
-		Method method = Seventeen.class.getDeclaredMethod("method");
-		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.withDefaults(PreAuthorize.class).apply(method);
-		assertThat(preAuthorize.value()).isEqualTo("seventeen");
-	}
-
-	@Test
-	void testEighteen() throws Exception {
-		Method method = Eighteen.class.getDeclaredMethod("method");
-		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.withDefaults(PreAuthorize.class).apply(method);
-		assertThat(preAuthorize.value()).isEqualTo("eight");
-	}
-
-	@Test
-	void testNineteen() throws Exception {
-		Method method = Nineteen.class.getDeclaredMethod("method");
-		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.withDefaults(PreAuthorize.class).apply(method);
-		assertThat(preAuthorize.value()).isEqualTo("nineteen");
-	}
-
-	@Test
-	void testTwenty() throws Exception {
-		Method method = Twenty.class.getDeclaredMethod("method");
-		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.withDefaults(PreAuthorize.class).apply(method);
-		assertThat(preAuthorize.value()).isEqualTo("twenty");
-	}
-
-	@Test
-	void testTwentyOne() throws Exception {
-		Method method = TwentyOne.class.getDeclaredMethod("method");
-		assertThatExceptionOfType(AnnotationConfigurationException.class)
-			.isThrownBy(() -> AuthorizationAnnotationUtils.withDefaults(PreAuthorize.class).apply(method));
-	}
-
-	@Test
-	void testTwentyTwo() throws Exception {
-		Method method = TwentyTwo.class.getDeclaredMethod("method");
-		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.withDefaults(PreAuthorize.class).apply(method);
-		assertThat(preAuthorize.value()).isEqualTo("twentytwo");
-	}
-
-	@Test
-	void testTwentyThree() throws Exception {
-		Method method = TwentyThree.class.getDeclaredMethod("method");
-		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.withDefaults(PreAuthorize.class).apply(method);
-		assertThat(preAuthorize.value()).isEqualTo("twentythree");
-	}
-
-	@Test
-	void testTwentyFour() throws Exception {
-		Method method = TwentyFour.class.getDeclaredMethod("method");
-		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.withDefaults(PreAuthorize.class).apply(method);
-		assertThat(preAuthorize.value()).isEqualTo("three");
-	}
-
-	@Test
-	void testTwentyFive() throws Exception {
-		Method method = TwentyFive.class.getDeclaredMethod("method");
-		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.withDefaults(PreAuthorize.class).apply(method);
-		assertThat(preAuthorize.value()).isEqualTo("twentyfive");
-	}
-
-	@Test
-	void testTwentySix() throws Exception {
-		Method method = TwentySix.class.getDeclaredMethod("method");
-		PreAuthorize preAuthorize = AuthorizationAnnotationUtils.withDefaults(PreAuthorize.class).apply(method);
-		assertThat(preAuthorize.value()).isEqualTo("twentysix");
 	}
 
 	private interface BaseRepository<T> {
@@ -326,6 +165,10 @@ class AuthorizationAnnotationUtilsTests {
 	@PreAuthorize("hasRole('someRole')")
 	private static class CompetingPreAuthorizeAnnotationsOnClass {
 
+		void method() {
+
+		}
+
 	}
 
 	private static class CompetingPreAuthorizeAnnotationsOnMethod {
@@ -349,225 +192,8 @@ class AuthorizationAnnotationUtilsTests {
 	@ComposedPreAuth("hasRole('composedRole')")
 	private static class ComposedPreAuthAnnotationOnClass {
 
-	}
-
-	@PreAuthorize("one")
-	private interface One {
-
-		String method();
-
-	}
-
-	@PreAuthorize("two")
-	private interface Two {
-
-		String method();
-
-	}
-
-	private interface Three {
-
-		@PreAuthorize("three")
-		String method();
-
-	}
-
-	private interface Four {
-
-		@PreAuthorize("four")
-		String method();
-
-	}
-
-	@PreAuthorize("five")
-	private static class Five {
-
-		// unambigously five
-		String method() {
-			return "ok";
+		void method() {
 		}
-
-	}
-
-	private static class Six {
-
-		@PreAuthorize("six") // unambigously six
-		String method() {
-			return "ok";
-		}
-
-	}
-
-	@PreAuthorize("seven")
-	private interface Seven extends One {
-
-	}
-
-	private interface Eight extends One {
-
-		@PreAuthorize("eight")
-		String method();
-
-	}
-
-	private interface Nine extends One, Two {
-
-	}
-
-	@PreAuthorize("ten")
-	private interface Ten extends One, Two {
-
-	}
-
-	private interface Eleven extends One, Two {
-
-		@PreAuthorize("eleven")
-		String method();
-
-	}
-
-	private static class Twelve implements One, Two {
-
-		@Override
-		public String method() {
-			return "ok";
-		} // ambiguous
-
-	}
-
-	@PreAuthorize("thirteen")
-	private static class Thirteen implements One, Two {
-
-		@Override
-		public String method() {
-			return "ok";
-		} // unambiguously thirteen
-
-	}
-
-	private static class Fourteen implements One, Two {
-
-		@Override
-		@PreAuthorize("fourteen")
-		public String method() {
-			return "ok";
-		} // unambiguously fourteen
-
-	}
-
-	private static class Fifteen implements Seven {
-
-		@Override
-		public String method() {
-			return "ok";
-		} // unambiougously seven
-
-	}
-
-	@PreAuthorize("sixteen")
-	private static class Sixteen implements Seven {
-
-		@Override
-		public String method() {
-			return "ok";
-		} // unambiouously sixteen
-
-	}
-
-	private static class Seventeen implements Seven {
-
-		@Override
-		@PreAuthorize("seventeen")
-		public String method() {
-			return "ok";
-		} // unambiguously seventeen
-
-	}
-
-	private static class Eighteen implements Eight {
-
-		@Override
-		public String method() {
-			return "ok";
-		} // unambiguously eight
-
-	}
-
-	@PreAuthorize("nineteen")
-	private static class Nineteen implements Eight {
-
-		@Override
-		public String method() {
-			return "ok";
-		} // unambiguously nineteen
-
-	}
-
-	private static class Twenty implements Eight {
-
-		@Override
-		@PreAuthorize("twenty")
-		public String method() {
-			return "ok";
-		} // unambiguously twenty
-
-	}
-
-	private static class TwentyOne implements Nine {
-
-		@Override
-		public String method() {
-			return "ok";
-		} // ambiguous
-
-	}
-
-	@PreAuthorize("twentytwo")
-	private static class TwentyTwo implements Nine {
-
-		@Override
-		public String method() {
-			return "ok";
-		} // unambiguously twenty-two
-
-	}
-
-	private static class TwentyThree implements Nine {
-
-		@Override
-		@PreAuthorize("twentythree")
-		public String method() {
-			return "ok";
-		} // unambiguously twenty-three
-
-	}
-
-	private static class TwentyFour implements One, Three {
-
-		@Override
-		public String method() {
-			return "ok";
-		} // unambiguously three
-
-	}
-
-	@PreAuthorize("twentyfive")
-	private static class TwentyFive implements One, Three {
-
-		@Override
-		public String method() {
-			return "ok";
-		} // unambiguously twenty-five
-
-	}
-
-	private static class TwentySix implements One, Three {
-
-		@Override
-		@PreAuthorize("twentysix")
-		public String method() {
-			return "ok";
-		} // unambiguously twenty-six
 
 	}
 
