@@ -28,9 +28,12 @@ import org.jetbrains.annotations.Nullable;
 
 import org.springframework.aop.Pointcut;
 import org.springframework.aop.framework.AopInfrastructureBean;
+import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportAware;
@@ -63,9 +66,11 @@ import org.springframework.util.function.SingletonSupplier;
  * @since 5.6
  * @see EnableMethodSecurity
  */
-@Configuration(proxyBeanMethods = false)
+@Configuration(value = "prePostMethodSecurityConfiguration", proxyBeanMethods = false)
 @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-final class PrePostMethodSecurityConfiguration implements ImportAware, AopInfrastructureBean {
+final class PrePostMethodSecurityConfiguration implements ImportAware, AopInfrastructureBean, ApplicationContextAware {
+
+	private ApplicationContext context;
 
 	private int interceptorOrderOffset;
 
@@ -77,15 +82,15 @@ final class PrePostMethodSecurityConfiguration implements ImportAware, AopInfras
 			ObjectProvider<PrePostTemplateDefaults> methodSecurityDefaultsProvider,
 			ObjectProvider<MethodSecurityExpressionHandler> expressionHandlerProvider,
 			ObjectProvider<SecurityContextHolderStrategy> strategyProvider,
-			ObjectProvider<RoleHierarchy> roleHierarchyProvider, PrePostMethodSecurityConfiguration configuration,
-			ApplicationContext context) {
+			ObjectProvider<RoleHierarchy> roleHierarchyProvider,
+			@Qualifier("prePostMethodSecurityConfiguration") PrePostMethodSecurityConfiguration configuration) {
 		PreFilterAuthorizationMethodInterceptor preFilter = new PreFilterAuthorizationMethodInterceptor();
 		preFilter.setOrder(preFilter.getOrder() + configuration.interceptorOrderOffset);
 		return new DeferringMethodInterceptor<>(preFilter, (f) -> {
 			templateExpressionDefaultsProvider.ifAvailable(f::setTemplateDefaults);
 			methodSecurityDefaultsProvider.ifAvailable(f::setTemplateDefaults);
-			f.setExpressionHandler(expressionHandlerProvider
-				.getIfAvailable(() -> defaultExpressionHandler(defaultsProvider, roleHierarchyProvider, context)));
+			f.setExpressionHandler(expressionHandlerProvider.getIfAvailable(
+					() -> defaultExpressionHandler(defaultsProvider, roleHierarchyProvider, configuration.context)));
 			strategyProvider.ifAvailable(f::setSecurityContextHolderStrategy);
 		});
 	}
@@ -100,17 +105,17 @@ final class PrePostMethodSecurityConfiguration implements ImportAware, AopInfras
 			ObjectProvider<SecurityContextHolderStrategy> strategyProvider,
 			ObjectProvider<AuthorizationEventPublisher> eventPublisherProvider,
 			ObjectProvider<ObservationRegistry> registryProvider, ObjectProvider<RoleHierarchy> roleHierarchyProvider,
-			PrePostMethodSecurityConfiguration configuration, ApplicationContext context) {
+			@Qualifier("prePostMethodSecurityConfiguration") PrePostMethodSecurityConfiguration configuration) {
 		PreAuthorizeAuthorizationManager manager = new PreAuthorizeAuthorizationManager();
-		manager.setApplicationContext(context);
+		manager.setApplicationContext(configuration.context);
 		AuthorizationManagerBeforeMethodInterceptor preAuthorize = AuthorizationManagerBeforeMethodInterceptor
 			.preAuthorize(manager(manager, registryProvider));
 		preAuthorize.setOrder(preAuthorize.getOrder() + configuration.interceptorOrderOffset);
 		return new DeferringMethodInterceptor<>(preAuthorize, (f) -> {
 			templateExpressionDefaultsProvider.ifAvailable(manager::setTemplateDefaults);
 			methodSecurityDefaultsProvider.ifAvailable(manager::setTemplateDefaults);
-			manager.setExpressionHandler(expressionHandlerProvider
-				.getIfAvailable(() -> defaultExpressionHandler(defaultsProvider, roleHierarchyProvider, context)));
+			manager.setExpressionHandler(expressionHandlerProvider.getIfAvailable(
+					() -> defaultExpressionHandler(defaultsProvider, roleHierarchyProvider, configuration.context)));
 			strategyProvider.ifAvailable(f::setSecurityContextHolderStrategy);
 			eventPublisherProvider.ifAvailable(f::setAuthorizationEventPublisher);
 		});
@@ -126,17 +131,17 @@ final class PrePostMethodSecurityConfiguration implements ImportAware, AopInfras
 			ObjectProvider<SecurityContextHolderStrategy> strategyProvider,
 			ObjectProvider<AuthorizationEventPublisher> eventPublisherProvider,
 			ObjectProvider<ObservationRegistry> registryProvider, ObjectProvider<RoleHierarchy> roleHierarchyProvider,
-			PrePostMethodSecurityConfiguration configuration, ApplicationContext context) {
+			@Qualifier("prePostMethodSecurityConfiguration") PrePostMethodSecurityConfiguration configuration) {
 		PostAuthorizeAuthorizationManager manager = new PostAuthorizeAuthorizationManager();
-		manager.setApplicationContext(context);
+		manager.setApplicationContext(configuration.context);
 		AuthorizationManagerAfterMethodInterceptor postAuthorize = AuthorizationManagerAfterMethodInterceptor
 			.postAuthorize(manager(manager, registryProvider));
 		postAuthorize.setOrder(postAuthorize.getOrder() + configuration.interceptorOrderOffset);
 		return new DeferringMethodInterceptor<>(postAuthorize, (f) -> {
 			templateExpressionDefaultsProvider.ifAvailable(manager::setTemplateDefaults);
 			methodSecurityDefaultsProvider.ifAvailable(manager::setTemplateDefaults);
-			manager.setExpressionHandler(expressionHandlerProvider
-				.getIfAvailable(() -> defaultExpressionHandler(defaultsProvider, roleHierarchyProvider, context)));
+			manager.setExpressionHandler(expressionHandlerProvider.getIfAvailable(
+					() -> defaultExpressionHandler(defaultsProvider, roleHierarchyProvider, configuration.context)));
 			strategyProvider.ifAvailable(f::setSecurityContextHolderStrategy);
 			eventPublisherProvider.ifAvailable(f::setAuthorizationEventPublisher);
 		});
@@ -150,15 +155,15 @@ final class PrePostMethodSecurityConfiguration implements ImportAware, AopInfras
 			ObjectProvider<PrePostTemplateDefaults> methodSecurityDefaultsProvider,
 			ObjectProvider<MethodSecurityExpressionHandler> expressionHandlerProvider,
 			ObjectProvider<SecurityContextHolderStrategy> strategyProvider,
-			ObjectProvider<RoleHierarchy> roleHierarchyProvider, PrePostMethodSecurityConfiguration configuration,
-			ApplicationContext context) {
+			ObjectProvider<RoleHierarchy> roleHierarchyProvider,
+			@Qualifier("prePostMethodSecurityConfiguration") PrePostMethodSecurityConfiguration configuration) {
 		PostFilterAuthorizationMethodInterceptor postFilter = new PostFilterAuthorizationMethodInterceptor();
 		postFilter.setOrder(postFilter.getOrder() + configuration.interceptorOrderOffset);
 		return new DeferringMethodInterceptor<>(postFilter, (f) -> {
 			templateExpressionDefaultsProvider.ifAvailable(f::setTemplateDefaults);
 			methodSecurityDefaultsProvider.ifAvailable(f::setTemplateDefaults);
-			f.setExpressionHandler(expressionHandlerProvider
-				.getIfAvailable(() -> defaultExpressionHandler(defaultsProvider, roleHierarchyProvider, context)));
+			f.setExpressionHandler(expressionHandlerProvider.getIfAvailable(
+					() -> defaultExpressionHandler(defaultsProvider, roleHierarchyProvider, configuration.context)));
 			strategyProvider.ifAvailable(f::setSecurityContextHolderStrategy);
 		});
 	}
@@ -183,6 +188,11 @@ final class PrePostMethodSecurityConfiguration implements ImportAware, AopInfras
 	public void setImportMetadata(AnnotationMetadata importMetadata) {
 		EnableMethodSecurity annotation = importMetadata.getAnnotations().get(EnableMethodSecurity.class).synthesize();
 		this.interceptorOrderOffset = annotation.offset();
+	}
+
+	@Override
+	public void setApplicationContext(ApplicationContext context) throws BeansException {
+		this.context = context;
 	}
 
 	private static final class DeferringMethodInterceptor<M extends AuthorizationAdvisor>

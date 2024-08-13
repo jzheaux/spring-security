@@ -39,8 +39,10 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.aop.Advisor;
 import org.springframework.aop.support.DefaultPointcutAdvisor;
 import org.springframework.aop.support.JdkRegexpMethodPointcut;
+import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.context.annotation.AdviceMode;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -1291,6 +1293,25 @@ public class PrePostMethodSecurityConfigurationTests {
 			return new MetaAnnotationService();
 		}
 
+		@Bean
+		FactoryBean<Object> factoryBean() {
+			return new MyFactoryBean();
+		}
+
+		static class MyFactoryBean implements FactoryBean<Object> {
+
+			@Override
+			public Object getObject() throws Exception {
+				return new Object();
+			}
+
+			@Override
+			public Class<?> getObjectType() {
+				return Object.class;
+			}
+
+		}
+
 	}
 
 	@Configuration
@@ -1305,6 +1326,12 @@ public class PrePostMethodSecurityConfigurationTests {
 		@Bean
 		MetaAnnotationService metaAnnotationService() {
 			return new MetaAnnotationService();
+		}
+
+		@Bean
+		BeanFactoryPostProcessor thePostProcessor() {
+			return beanFactory -> {
+			};
 		}
 
 	}

@@ -22,6 +22,7 @@ import org.aopalliance.intercept.MethodInvocation;
 
 import org.springframework.aop.framework.AopInfrastructureBean;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -47,7 +48,7 @@ import org.springframework.security.core.context.SecurityContextHolderStrategy;
  * @since 5.6
  * @see EnableMethodSecurity
  */
-@Configuration(proxyBeanMethods = false)
+@Configuration(value = "secureMethodSecurityConfiguration", proxyBeanMethods = false)
 @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 final class SecuredMethodSecurityConfiguration implements ImportAware, AopInfrastructureBean {
 
@@ -59,7 +60,7 @@ final class SecuredMethodSecurityConfiguration implements ImportAware, AopInfras
 			ObjectProvider<SecurityContextHolderStrategy> strategyProvider,
 			ObjectProvider<AuthorizationEventPublisher> eventPublisherProvider,
 			ObjectProvider<ObservationRegistry> registryProvider, ObjectProvider<RoleHierarchy> roleHierarchyProvider,
-			SecuredMethodSecurityConfiguration configuration) {
+			@Qualifier("secureMethodSecurityConfiguration") SecuredMethodSecurityConfiguration configuration) {
 		SecuredAuthorizationManager secured = new SecuredAuthorizationManager();
 		AuthoritiesAuthorizationManager authoritiesAuthorizationManager = new AuthoritiesAuthorizationManager();
 		RoleHierarchy roleHierarchy = roleHierarchyProvider.getIfAvailable(NullRoleHierarchy::new);

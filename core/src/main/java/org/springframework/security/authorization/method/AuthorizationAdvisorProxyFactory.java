@@ -41,6 +41,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import org.springframework.aop.Advisor;
+import org.springframework.aop.framework.AopInfrastructureBean;
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.core.annotation.AnnotationAwareOrderComparator;
 import org.springframework.lang.NonNull;
@@ -75,7 +76,7 @@ import org.springframework.util.ClassUtils;
  * @since 6.3
  */
 public final class AuthorizationAdvisorProxyFactory
-		implements AuthorizationProxyFactory, Iterable<AuthorizationAdvisor> {
+		implements AuthorizationProxyFactory, Iterable<AuthorizationAdvisor>, AopInfrastructureBean {
 
 	private static final boolean isReactivePresent = ClassUtils.isPresent("reactor.core.publisher.Mono", null);
 
@@ -90,10 +91,9 @@ public final class AuthorizationAdvisorProxyFactory
 
 	private TargetVisitor visitor = DEFAULT_VISITOR;
 
-	private AuthorizationAdvisorProxyFactory(List<AuthorizationAdvisor> advisors) {
+	public AuthorizationAdvisorProxyFactory(List<AuthorizationAdvisor> advisors) {
 		this.advisors = new ArrayList<>(advisors);
-		this.advisors.add(new AuthorizeReturnObjectMethodInterceptor(this));
-		setAdvisors(this.advisors);
+		AnnotationAwareOrderComparator.sort(this.advisors);
 	}
 
 	/**
@@ -108,7 +108,9 @@ public final class AuthorizationAdvisorProxyFactory
 		advisors.add(AuthorizationManagerAfterMethodInterceptor.postAuthorize());
 		advisors.add(new PreFilterAuthorizationMethodInterceptor());
 		advisors.add(new PostFilterAuthorizationMethodInterceptor());
-		return new AuthorizationAdvisorProxyFactory(advisors);
+		AuthorizationAdvisorProxyFactory proxyFactory = new AuthorizationAdvisorProxyFactory(advisors);
+		proxyFactory.addAdvisor(new AuthorizeReturnObjectMethodInterceptor(proxyFactory));
+		return proxyFactory;
 	}
 
 	/**
@@ -123,7 +125,9 @@ public final class AuthorizationAdvisorProxyFactory
 		advisors.add(AuthorizationManagerAfterReactiveMethodInterceptor.postAuthorize());
 		advisors.add(new PreFilterAuthorizationReactiveMethodInterceptor());
 		advisors.add(new PostFilterAuthorizationReactiveMethodInterceptor());
-		return new AuthorizationAdvisorProxyFactory(advisors);
+		AuthorizationAdvisorProxyFactory proxyFactory = new AuthorizationAdvisorProxyFactory(advisors);
+		proxyFactory.addAdvisor(new AuthorizeReturnObjectMethodInterceptor(proxyFactory));
+		return proxyFactory;
 	}
 
 	/**
@@ -182,6 +186,11 @@ public final class AuthorizationAdvisorProxyFactory
 	 */
 	public void setAdvisors(Collection<AuthorizationAdvisor> advisors) {
 		this.advisors = new ArrayList<>(advisors);
+		AnnotationAwareOrderComparator.sort(this.advisors);
+	}
+
+	public void addAdvisor(AuthorizationAdvisor advisor) {
+		this.advisors.add(advisor);
 		AnnotationAwareOrderComparator.sort(this.advisors);
 	}
 
