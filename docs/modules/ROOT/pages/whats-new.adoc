@@ -7,3 +7,142 @@ Below are the highlights of the release, or you can view https://github.com/spri
 - https://github.com/spring-projects/spring-security/issues/4186[gh-4186] - Support `RoleHierarchy` in `AclAuthorizationStrategyImpl`
 - https://github.com/spring-projects/spring-security/issues/15136[gh-15136] - Support `RoleHierarchy` Bean in `authorizeHttpRequests` Kotlin DSL
 
+== Annotation Expression Placeholders
+
+The support for annotation expression placeholders introduced in 6.3 has been extended in 6.4 to `@AuthenticationPrincipal` and `@CurrentSecurityContext`.
+
+This means that you can now use Spring's meta-annotation support like so:
+
+[tabs]
+======
+Java::
++
+[source,java,role="primary"]
+----
+@Target(TargetType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@AuthenticationPrincipal("claims['{claim}']")
+@interface CurrentUsername {
+	String claim() default "sub";
+}
+
+// ...
+
+@GetMapping
+public String method(@CurrentUsername("username") String username) {
+	// ...
+}
+----
+
+Kotlin::
++
+[source,kotlin,role="secondary"]
+----
+annotation CurrentUsername(val claim: String = "sub")
+
+// ...
+
+@GetMapping
+fun method(@CurrentUsername("username") val username: String): String {
+	// ...
+}
+----
+======
+
+== Method Security Annotations Support `@AliasFor` 
+
+== Saml 2.0 Refreshable, Expiry-Aware Asserting Party Metadata Source
+
+You can now build and keep up to date your `RelyingPartyRegistration` instances by using `OpenSaml4/5AssertingPartyMetadataRepository`.
+For example, you can now do:
+
+
+[tabs]
+======
+Java::
++
+[source,java,role="primary"]
+----
+@Component
+public class RefreshableRelyingPartyRegistrationRepository implements IterableRelyingPartyRegistrationRepository {
+	private final AssertingPartyMetadataRepository assertingParties = OpenSaml5AssertingPartyMetadataRepository
+		.fromTrustedMetadataLocation("https://idp.example.org").build();
+
+	@Override
+	public RelyingPartyRegistration findByRegistrationId(String registrationId) {
+		AssertingPartyMetadata assertingParty = this.assertingParties.findByEntityId(registrationId);
+		return RelyingPartyRegistration.withAssertingPartyMetadata(assertingParty)
+			// relying party configurations
+			.build();
+	}
+
+	// ...
+}
+----
+
+Kotlin::
++
+[source,kotlin,role="secondary"]
+----
+@Component
+open class RefreshableRelyingPartyRegistrationRepository: IterableRelyingPartyRegistrationRepository {
+	private val assertingParties: AssertingPartyMetadataRepository = OpenSaml5AssertingPartyMetadataRepository
+		.fromTrustedMetadataLocation("https://idp.example.org").build()
+
+	override fun findByRegistrationId(String registrationId): RelyingPartyRegistration {
+		val assertingParty = this.assertingParties.findByEntityId(registrationId)
+		return RelyingPartyRegistration.withAssertingPartyMetadata(assertingParty)
+			// relying party configurations
+			.build()
+	}
+
+	// ...
+}
+----
+======
+
+This implementation also supports the validation of a metadata's signature.
+
+== SAML 2.0 Improved Support for Using Entity IDs
+
+A common pattern is to identify asserting parties by their `entityID`.
+In previous versions, it was needed to directly configure `OpenSamlAuthenticationRequestResolver` to address this.
+
+Now that boilerplate is reduced by the request resolver looking by default for the `registrationId` as a request parameter in addition to looking for it in the path.
+
+This allows you to use `RelyingPartyRegistrations` or `OpenSaml4/5AssertingPartyMetadataRepository` without also needing to modify the `registrationId` values or customize the request resolver.
+
+== SAML 2.0 Support For Configuring `authenticationRequestUri` with Query Parameters
+
+== SAML 2.0 Now Supports OpenSAML 4 and 5
+
+== SAML 2.0 Cacheable RelyingPartyRegistrations
+
+== SAML 2.0 Defaults to `application/samlmetadata+xml`
+
+== Improvements to Duplication Annotation Search
+
+== LDAP Supports UnboundID 7
+
+== CSRF BREACH Consistency
+
+== OAuth 2.0 Accepts `OAuth2AuthorizationRequestResolver` as a `@Bean`
+
+== Check for Impossible Filter Chain Arrangements
+
+== Kotlin DSL Supports `GrantedAuthorityDefaults` and `RoleHierarchy` ``@Bean``s
+
+== Kotlin Supports `@PreFilter` and `@PostFilter`
+
+== Kotlin Reactive DSL Supports `SecurityContextRepository`
+
+== OIDC Backchannel Logout Accepts `logout+jwt` Tokens
+
+== Customize the Remember Me Cookie
+
+== CAS Supports a Custom `UserDetailsChecker`
+
+== SAML 2.0 Relying Party Metadata Can Be Signed
+
+== `AclAuthorizationStrategyImpl` Uses `RoleHierarchy`
+
