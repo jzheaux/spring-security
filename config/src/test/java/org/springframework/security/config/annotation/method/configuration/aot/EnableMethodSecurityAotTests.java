@@ -18,6 +18,7 @@ package org.springframework.security.config.annotation.method.configuration.aot;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import org.springframework.aot.generate.GenerationContext;
 import org.springframework.aot.hint.RuntimeHints;
+import org.springframework.aot.hint.TypeReference;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.aot.BeanFactoryInitializationCode;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
@@ -78,6 +80,10 @@ public class EnableMethodSecurityAotTests {
 		assertThat(canonicalNames).contains(
 				"org.springframework.security.config.annotation.method.configuration.aot.Message$$SpringCGLIB$$0",
 				"org.springframework.security.config.annotation.method.configuration.aot.User$$SpringCGLIB$$0");
+		assertThat(this.hints.proxies()
+			.jdkProxyHints()
+			.filter((hint) -> hint.getProxiedInterfaces().contains(TypeReference.of(UserProjection.class)))
+			.collect(Collectors.toList())).hasSize(1);
 	}
 
 	@Configuration

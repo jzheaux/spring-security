@@ -35,4 +35,7 @@ public interface MessageRepository extends CrudRepository<Message, Long> {
 	@Query("select m from Message m where m.to.id = ?#{ authentication.name }")
 	List<Message> findAll();
 
+	@Query("from org.springframework.security.config.annotation.method.configuration.aot.User u where u.id = ?#{ authentication.name }")
+	UserProjection findCurrentUser();
+
 }

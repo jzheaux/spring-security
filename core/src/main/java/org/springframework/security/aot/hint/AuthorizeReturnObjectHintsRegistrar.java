@@ -17,9 +17,11 @@
 package org.springframework.security.aot.hint;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.springframework.aop.SpringProxy;
 import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
@@ -79,6 +81,13 @@ public final class AuthorizeReturnObjectHintsRegistrar implements SecurityHintsR
 
 	private void registerProxy(RuntimeHints hints, Class<?> clazz) {
 		Class<?> proxied = (Class<?>) this.proxyFactory.proxy(clazz);
+		if (Proxy.isProxyClass(proxied)) {
+			hints.proxies().registerJdkProxy(proxied.getInterfaces());
+			return;
+		}
+		if (!SpringProxy.class.isAssignableFrom(proxied)) {
+			return;
+		}
 		hints.reflection()
 			.registerType(proxied, MemberCategory.INVOKE_PUBLIC_METHODS, MemberCategory.PUBLIC_FIELDS,
 					MemberCategory.DECLARED_FIELDS);
