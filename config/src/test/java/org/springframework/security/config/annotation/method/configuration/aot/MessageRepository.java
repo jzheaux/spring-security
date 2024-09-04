@@ -16,8 +16,6 @@
 
 package org.springframework.security.config.annotation.method.configuration.aot;
 
-import java.util.List;
-
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.security.authorization.method.AuthorizeReturnObject;
@@ -33,7 +31,7 @@ import org.springframework.stereotype.Repository;
 public interface MessageRepository extends CrudRepository<Message, Long> {
 
 	@Query("select m from Message m where m.to.id = ?#{ authentication.name }")
-	List<Message> findAll();
+	Iterable<Message> findAll();
 
 	@Query("from org.springframework.security.config.annotation.method.configuration.aot.User u where u.id = ?#{ authentication.name }")
 	UserProjection findCurrentUser();

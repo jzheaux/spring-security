@@ -28,25 +28,21 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.aot.generate.GenerationContext;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.TypeReference;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.aot.BeanFactoryInitializationCode;
-import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.aot.test.generate.TestGenerationContext;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.aot.ApplicationContextAotGenerator;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
-import org.springframework.security.aot.hint.SecurityHintsAotProcessor;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
-import org.springframework.security.config.test.SpringTestContext;
 import org.springframework.security.config.test.SpringTestContextExtension;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.mock;
 
 /**
  * AOT Tests for {@code PrePostMethodSecurityConfiguration}.
@@ -57,33 +53,27 @@ import static org.mockito.Mockito.mock;
 @ExtendWith({ SpringExtension.class, SpringTestContextExtension.class })
 public class EnableMethodSecurityAotTests {
 
-	public final SpringTestContext spring = new SpringTestContext(this);
+	private final ApplicationContextAotGenerator generator = new ApplicationContextAotGenerator();
 
-	private final RuntimeHints hints = new RuntimeHints();
-
-	private final GenerationContext context = mock(GenerationContext.class);
-
-	private final BeanFactoryInitializationCode code = mock(BeanFactoryInitializationCode.class);
-
-	private final SecurityHintsAotProcessor proxy = new SecurityHintsAotProcessor();
-
-	@Autowired
-	ConfigurableListableBeanFactory beanFactory;
+	private final GenerationContext context = new TestGenerationContext();
 
 	@Test
-	void findsAllNeededClassesToProxy() {
-		this.spring.register(AppConfig.class).autowire();
-		given(this.context.getRuntimeHints()).willReturn(this.hints);
-		this.proxy.processAheadOfTime(this.beanFactory).applyTo(this.context, this.code);
+	void whenProcessAheadOfTimeThenCreatesAuthorizationProxies() {
+		AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
+		context.register(AppConfig.class);
+		this.generator.processAheadOfTime(context, this.context);
+		RuntimeHints hints = this.context.getRuntimeHints();
 		Collection<String> canonicalNames = new ArrayList<>();
-		this.hints.reflection().typeHints().forEach((hint) -> canonicalNames.add(hint.getType().getCanonicalName()));
-		assertThat(canonicalNames).contains(
-				"org.springframework.security.config.annotation.method.configuration.aot.Message$$SpringCGLIB$$0",
-				"org.springframework.security.config.annotation.method.configuration.aot.User$$SpringCGLIB$$0");
-		assertThat(this.hints.proxies()
+		hints.reflection().typeHints().forEach((hint) -> canonicalNames.add(hint.getType().getCanonicalName()));
+		assertThat(canonicalNames).contains(cglibClassName(Message.class), cglibClassName(User.class));
+		assertThat(hints.proxies()
 			.jdkProxyHints()
 			.filter((hint) -> hint.getProxiedInterfaces().contains(TypeReference.of(UserProjection.class)))
-			.collect(Collectors.toList())).hasSize(1);
+			.collect(Collectors.toList())).isNotEmpty();
+	}
+
+	private static String cglibClassName(Class<?> clazz) {
+		return clazz.getCanonicalName() + "$$SpringCGLIB$$0";
 	}
 
 	@Configuration

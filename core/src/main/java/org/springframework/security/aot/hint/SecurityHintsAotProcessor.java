@@ -22,7 +22,7 @@ import org.springframework.beans.factory.aot.BeanFactoryInitializationAotProcess
 import org.springframework.beans.factory.aot.BeanFactoryInitializationCode;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 
-public final class SecurityHintsAotProcessor implements BeanFactoryInitializationAotProcessor {
+final class SecurityHintsAotProcessor implements BeanFactoryInitializationAotProcessor {
 
 	@Override
 	public BeanFactoryInitializationAotContribution processAheadOfTime(ConfigurableListableBeanFactory beanFactory) {
