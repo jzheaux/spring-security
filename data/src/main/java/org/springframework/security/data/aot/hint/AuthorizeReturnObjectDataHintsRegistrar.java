@@ -94,16 +94,18 @@ public final class AuthorizeReturnObjectDataHintsRegistrar implements SecurityHi
 
 	private void registerProxy(RuntimeHints hints, Class<?> clazz) {
 		Class<?> proxied = (Class<?>) this.proxyFactory.proxy(clazz);
+		if (proxied == null) {
+			return;
+		}
 		if (Proxy.isProxyClass(proxied)) {
 			hints.proxies().registerJdkProxy(proxied.getInterfaces());
 			return;
 		}
-		if (!SpringProxy.class.isAssignableFrom(proxied)) {
-			return;
+		if (SpringProxy.class.isAssignableFrom(proxied)) {
+			hints.reflection()
+				.registerType(proxied, MemberCategory.INVOKE_PUBLIC_METHODS, MemberCategory.PUBLIC_FIELDS,
+						MemberCategory.DECLARED_FIELDS);
 		}
-		hints.reflection()
-			.registerType(proxied, MemberCategory.INVOKE_PUBLIC_METHODS, MemberCategory.PUBLIC_FIELDS,
-					MemberCategory.DECLARED_FIELDS);
 	}
 
 }

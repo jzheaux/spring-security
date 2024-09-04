@@ -16,10 +16,6 @@
 
 package org.springframework.security.config.annotation.method.configuration.aot;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.stream.Collectors;
-
 import javax.sql.DataSource;
 
 import org.junit.jupiter.api.Test;
@@ -63,13 +59,11 @@ public class EnableMethodSecurityAotTests {
 		context.register(AppConfig.class);
 		this.generator.processAheadOfTime(context, this.context);
 		RuntimeHints hints = this.context.getRuntimeHints();
-		Collection<String> canonicalNames = new ArrayList<>();
-		hints.reflection().typeHints().forEach((hint) -> canonicalNames.add(hint.getType().getCanonicalName()));
-		assertThat(canonicalNames).contains(cglibClassName(Message.class), cglibClassName(User.class));
+		assertThat(hints.reflection().getTypeHint(TypeReference.of(cglibClassName(Message.class)))).isNotNull();
+		assertThat(hints.reflection().getTypeHint(TypeReference.of(cglibClassName(User.class)))).isNotNull();
 		assertThat(hints.proxies()
 			.jdkProxyHints()
-			.filter((hint) -> hint.getProxiedInterfaces().contains(TypeReference.of(UserProjection.class)))
-			.collect(Collectors.toList())).isNotEmpty();
+			.anyMatch((hint) -> hint.getProxiedInterfaces().contains(TypeReference.of(UserProjection.class)))).isTrue();
 	}
 
 	private static String cglibClassName(Class<?> clazz) {
