@@ -41,7 +41,9 @@ public enum AuthorizationInterceptorsOrder {
 
 	SECURED,
 
-	JSR250,
+	JSR250(400),
+
+	PERMIT_PARAMETER(425),
 
 	SECURE_RESULT(450),
 

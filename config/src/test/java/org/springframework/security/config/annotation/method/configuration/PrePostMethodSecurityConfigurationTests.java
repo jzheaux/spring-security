@@ -981,7 +981,7 @@ public class PrePostMethodSecurityConfigurationTests {
 		assertThat(this.spring.getContext().getBeanNamesForType(AuthorizationAdvisor.class)).hasSize(5)
 			.containsExactlyInAnyOrder("preFilterAuthorizationMethodInterceptor",
 					"preAuthorizeAuthorizationMethodInterceptor", "postAuthorizeAuthorizationMethodInterceptor",
-					"postFilterAuthorizationMethodInterceptor", "authorizeReturnObjectMethodInterceptor");
+					"postFilterAuthorizationMethodInterceptor", "authorizeReturnObjectMethodInterceptor", "permitParameterMethodInterceptor");
 	}
 
 	// gh-15592
@@ -994,7 +994,7 @@ public class PrePostMethodSecurityConfigurationTests {
 		assertThat(this.spring.getContext().getBeanNamesForType(AuthorizationAdvisor.class)).hasSize(5)
 			.containsExactlyInAnyOrder("preFilterAuthorizationMethodInterceptor",
 					"preAuthorizeAuthorizationMethodInterceptor", "postAuthorizeAuthorizationMethodInterceptor",
-					"postFilterAuthorizationMethodInterceptor", "authorizeReturnObjectMethodInterceptor");
+					"postFilterAuthorizationMethodInterceptor", "authorizeReturnObjectMethodInterceptor", "permitParameterMethodInterceptor");
 	}
 
 	// gh-15651

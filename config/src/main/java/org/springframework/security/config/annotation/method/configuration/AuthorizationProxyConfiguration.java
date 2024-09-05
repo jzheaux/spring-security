@@ -25,6 +25,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.context.annotation.Role;
 import org.springframework.security.aot.hint.AuthorizeReturnObjectHintsRegistrar;
 import org.springframework.security.aot.hint.SecurityHintsRegistrar;
@@ -32,6 +33,7 @@ import org.springframework.security.authorization.AuthorizationProxyFactory;
 import org.springframework.security.authorization.method.AuthorizationAdvisor;
 import org.springframework.security.authorization.method.AuthorizationAdvisorProxyFactory;
 import org.springframework.security.authorization.method.AuthorizeReturnObjectMethodInterceptor;
+import org.springframework.security.authorization.method.PermitParameterMethodInterceptor;
 import org.springframework.security.config.Customizer;
 
 @Configuration(proxyBeanMethods = false)
@@ -48,6 +50,13 @@ final class AuthorizationProxyConfiguration implements AopInfrastructureBean {
 
 	@Bean
 	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+	static MethodInterceptor permitParameterMethodInterceptor() {
+		return new PermitParameterMethodInterceptor();
+	}
+
+	@Bean
+	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+	@DependsOn("permitParameterMethodInterceptor")
 	static MethodInterceptor authorizeReturnObjectMethodInterceptor(ObjectProvider<AuthorizationAdvisor> provider,
 			AuthorizationAdvisorProxyFactory authorizationProxyFactory) {
 		provider.forEach(authorizationProxyFactory::addAdvisor);
