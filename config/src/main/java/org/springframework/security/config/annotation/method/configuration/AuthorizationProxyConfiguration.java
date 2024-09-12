@@ -31,6 +31,7 @@ import org.springframework.security.aot.hint.SecurityHintsRegistrar;
 import org.springframework.security.authorization.AuthorizationProxyFactory;
 import org.springframework.security.authorization.method.AuthorizationAdvisor;
 import org.springframework.security.authorization.method.AuthorizationAdvisorProxyFactory;
+import org.springframework.security.authorization.method.AuthorizationProxyTargetMethodInterceptor;
 import org.springframework.security.authorization.method.AuthorizeReturnObjectMethodInterceptor;
 import org.springframework.security.config.Customizer;
 
@@ -52,6 +53,16 @@ final class AuthorizationProxyConfiguration implements AopInfrastructureBean {
 			AuthorizationAdvisorProxyFactory authorizationProxyFactory) {
 		provider.forEach(authorizationProxyFactory::addAdvisor);
 		AuthorizeReturnObjectMethodInterceptor interceptor = new AuthorizeReturnObjectMethodInterceptor(
+				authorizationProxyFactory);
+		authorizationProxyFactory.addAdvisor(interceptor);
+		return interceptor;
+	}
+
+	@Bean
+	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+	static MethodInterceptor authorizationProxyTargetMethodInterceptor(
+			AuthorizationAdvisorProxyFactory authorizationProxyFactory) {
+		AuthorizationProxyTargetMethodInterceptor interceptor = new AuthorizationProxyTargetMethodInterceptor(
 				authorizationProxyFactory);
 		authorizationProxyFactory.addAdvisor(interceptor);
 		return interceptor;

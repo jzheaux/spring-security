@@ -977,11 +977,12 @@ public class PrePostMethodSecurityConfigurationTests {
 		this.spring.register(MethodSecurityServiceConfig.class).autowire();
 		AuthorizationAdvisorProxyFactory proxyFactory = this.spring.getContext()
 			.getBean(AuthorizationAdvisorProxyFactory.class);
-		assertThat(proxyFactory).hasSize(5);
-		assertThat(this.spring.getContext().getBeanNamesForType(AuthorizationAdvisor.class)).hasSize(5)
+		assertThat(proxyFactory).hasSize(6);
+		assertThat(this.spring.getContext().getBeanNamesForType(AuthorizationAdvisor.class)).hasSize(6)
 			.containsExactlyInAnyOrder("preFilterAuthorizationMethodInterceptor",
 					"preAuthorizeAuthorizationMethodInterceptor", "postAuthorizeAuthorizationMethodInterceptor",
-					"postFilterAuthorizationMethodInterceptor", "authorizeReturnObjectMethodInterceptor");
+					"postFilterAuthorizationMethodInterceptor", "authorizeReturnObjectMethodInterceptor",
+					"authorizationProxyTargetMethodInterceptor");
 	}
 
 	// gh-15592
@@ -990,11 +991,12 @@ public class PrePostMethodSecurityConfigurationTests {
 		this.spring.register(AspectJAwareAutoProxyAndFactoryBeansConfig.class).autowire();
 		AuthorizationAdvisorProxyFactory proxyFactory = this.spring.getContext()
 			.getBean(AuthorizationAdvisorProxyFactory.class);
-		assertThat(proxyFactory).hasSize(5);
-		assertThat(this.spring.getContext().getBeanNamesForType(AuthorizationAdvisor.class)).hasSize(5)
+		assertThat(proxyFactory).hasSize(6);
+		assertThat(this.spring.getContext().getBeanNamesForType(AuthorizationAdvisor.class)).hasSize(6)
 			.containsExactlyInAnyOrder("preFilterAuthorizationMethodInterceptor",
 					"preAuthorizeAuthorizationMethodInterceptor", "postAuthorizeAuthorizationMethodInterceptor",
-					"postFilterAuthorizationMethodInterceptor", "authorizeReturnObjectMethodInterceptor");
+					"postFilterAuthorizationMethodInterceptor", "authorizeReturnObjectMethodInterceptor",
+					"authorizationProxyTargetMethodInterceptor");
 	}
 
 	// gh-15651

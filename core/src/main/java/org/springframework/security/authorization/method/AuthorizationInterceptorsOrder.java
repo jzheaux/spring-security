@@ -43,6 +43,8 @@ public enum AuthorizationInterceptorsOrder {
 
 	JSR250,
 
+	PROXY_TARGET(425),
+
 	SECURE_RESULT(450),
 
 	POST_AUTHORIZE(500),

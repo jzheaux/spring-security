@@ -26,6 +26,8 @@ import org.springframework.aop.Pointcut;
 import org.springframework.aop.support.Pointcuts;
 import org.springframework.aop.support.StaticMethodMatcherPointcut;
 import org.springframework.security.authorization.AuthorizationProxyFactory;
+import org.springframework.security.core.annotation.SecurityAnnotationScanner;
+import org.springframework.security.core.annotation.SecurityAnnotationScanners;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 
@@ -38,6 +40,9 @@ import org.springframework.util.ClassUtils;
  * @see AuthorizationAdvisorProxyFactory
  */
 public final class AuthorizeReturnObjectMethodInterceptor implements AuthorizationAdvisor {
+
+	private final SecurityAnnotationScanner<AuthorizeReturnObject> scanner = SecurityAnnotationScanners
+		.requireUnique(AuthorizeReturnObject.class);
 
 	private final AuthorizationProxyFactory authorizationProxyFactory;
 

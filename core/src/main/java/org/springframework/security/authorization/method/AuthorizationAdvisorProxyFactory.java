@@ -79,8 +79,8 @@ import org.springframework.util.ClassUtils;
  * @author Josh Cummings
  * @since 6.3
  */
-public final class AuthorizationAdvisorProxyFactory
-		implements AuthorizationProxyFactory, Iterable<AuthorizationAdvisor>, AopInfrastructureBean {
+public final class AuthorizationAdvisorProxyFactory implements AuthorizationProxyFactory,
+		AuthorizationProxyTargetFactory, Iterable<AuthorizationAdvisor>, AopInfrastructureBean {
 
 	private static final boolean isReactivePresent = ClassUtils.isPresent("reactor.core.publisher.Mono", null);
 
@@ -125,6 +125,7 @@ public final class AuthorizationAdvisorProxyFactory
 		advisors.add(new PostFilterAuthorizationMethodInterceptor());
 		AuthorizationAdvisorProxyFactory proxyFactory = new AuthorizationAdvisorProxyFactory(advisors);
 		proxyFactory.addAdvisor(new AuthorizeReturnObjectMethodInterceptor(proxyFactory));
+		proxyFactory.addAdvisor(new AuthorizationProxyTargetMethodInterceptor(proxyFactory));
 		return proxyFactory;
 	}
 
@@ -142,6 +143,7 @@ public final class AuthorizationAdvisorProxyFactory
 		advisors.add(new PostFilterAuthorizationReactiveMethodInterceptor());
 		AuthorizationAdvisorProxyFactory proxyFactory = new AuthorizationAdvisorProxyFactory(advisors);
 		proxyFactory.addAdvisor(new AuthorizeReturnObjectMethodInterceptor(proxyFactory));
+		proxyFactory.addAdvisor(new AuthorizationProxyTargetMethodInterceptor(proxyFactory));
 		return proxyFactory;
 	}
 
@@ -182,6 +184,20 @@ public final class AuthorizationAdvisorProxyFactory
 		factory.setOpaque(true);
 		factory.setProxyTargetClass(!Modifier.isFinal(target.getClass().getModifiers()));
 		return factory.getProxy();
+	}
+
+	public Object target(Object proxy) {
+		if (proxy == null) {
+			return null;
+		}
+		Object kept = this.visitor.visit(this, proxy);
+		if (kept != null) {
+			return kept;
+		}
+		if (proxy instanceof AuthorizationProxy authorizationProxy) {
+			return authorizationProxy.toAuthorizedTarget();
+		}
+		return proxy;
 	}
 
 	/**
@@ -302,6 +318,10 @@ public final class AuthorizationAdvisorProxyFactory
 		 */
 		Object visit(AuthorizationAdvisorProxyFactory proxyFactory, Object target);
 
+		default Object visit(AuthorizationProxyTargetFactory targetFactory, Object target) {
+			return null;
+		}
+
 		/**
 		 * The default {@link TargetVisitor}, which will proxy {@link Class} instances as
 		 * well as instances contained in reactive types (if reactor is present),
@@ -350,6 +370,14 @@ public final class AuthorizationAdvisorProxyFactory
 
 		@Override
 		public Object visit(AuthorizationAdvisorProxyFactory proxyFactory, Object object) {
+			if (ClassUtils.isSimpleValueType(object.getClass())) {
+				return object;
+			}
+			return null;
+		}
+
+		@Override
+		public Object visit(AuthorizationProxyTargetFactory targetFactory, Object object) {
 			if (ClassUtils.isSimpleValueType(object.getClass())) {
 				return object;
 			}
@@ -425,13 +453,62 @@ public final class AuthorizationAdvisorProxyFactory
 			return null;
 		}
 
+		@Override
+		public Object visit(AuthorizationProxyTargetFactory targetFactory, Object target) {
+			if (target instanceof Iterator<?> iterator) {
+				return targetIterator(targetFactory, iterator);
+			}
+			if (target instanceof Queue<?> queue) {
+				return targetQueue(targetFactory, queue);
+			}
+			if (target instanceof List<?> list) {
+				return targetList(targetFactory, list);
+			}
+			if (target instanceof SortedSet<?> set) {
+				return targetSortedSet(targetFactory, set);
+			}
+			if (target instanceof Set<?> set) {
+				return targetSet(targetFactory, set);
+			}
+			if (target.getClass().isArray()) {
+				return targetArray(targetFactory, (Object[]) target);
+			}
+			if (target instanceof SortedMap<?, ?> map) {
+				return targetSortedMap(targetFactory, map);
+			}
+			if (target instanceof Iterable<?> iterable) {
+				return targetIterable(targetFactory, iterable);
+			}
+			if (target instanceof Map<?, ?> map) {
+				return targetMap(targetFactory, map);
+			}
+			if (target instanceof Stream<?> stream) {
+				return targetStream(targetFactory, stream);
+			}
+			if (target instanceof Optional<?> optional) {
+				return targetOptional(targetFactory, optional);
+			}
+			if (target instanceof Supplier<?> supplier) {
+				return targetSupplier(targetFactory, supplier);
+			}
+			return null;
+		}
+
 		@SuppressWarnings("unchecked")
 		private <T> T proxyCast(AuthorizationProxyFactory proxyFactory, T target) {
 			return (T) proxyFactory.proxy(target);
 		}
 
+		private <T> T targetCast(AuthorizationProxyTargetFactory unwrapper, T target) {
+			return (T) unwrapper.target(target);
+		}
+
 		private <T> Iterable<T> proxyIterable(AuthorizationProxyFactory proxyFactory, Iterable<T> iterable) {
 			return () -> proxyIterator(proxyFactory, iterable.iterator());
+		}
+
+		private <T> Iterable<T> targetIterable(AuthorizationProxyTargetFactory unwrapper, Iterable<T> iterable) {
+			return () -> targetIterator(unwrapper, iterable.iterator());
 		}
 
 		private <T> Iterator<T> proxyIterator(AuthorizationProxyFactory proxyFactory, Iterator<T> iterator) {
@@ -444,6 +521,20 @@ public final class AuthorizationAdvisorProxyFactory
 				@Override
 				public T next() {
 					return proxyCast(proxyFactory, iterator.next());
+				}
+			};
+		}
+
+		private <T> Iterator<T> targetIterator(AuthorizationProxyTargetFactory unwrapper, Iterator<T> iterator) {
+			return new Iterator<>() {
+				@Override
+				public boolean hasNext() {
+					return iterator.hasNext();
+				}
+
+				@Override
+				public T next() {
+					return targetCast(unwrapper, iterator.next());
 				}
 			};
 		}
@@ -463,10 +554,40 @@ public final class AuthorizationAdvisorProxyFactory
 			}
 		}
 
+		private <T> SortedSet<T> targetSortedSet(AuthorizationProxyTargetFactory unwrapper, SortedSet<T> set) {
+			SortedSet<T> unwrapped = new TreeSet<>(set.comparator());
+			for (T toProxy : set) {
+				unwrapped.add(targetCast(unwrapper, toProxy));
+			}
+			try {
+				set.clear();
+				set.addAll(unwrapped);
+				return unwrapped;
+			}
+			catch (UnsupportedOperationException ex) {
+				return Collections.unmodifiableSortedSet(unwrapped);
+			}
+		}
+
 		private <T> Set<T> proxySet(AuthorizationProxyFactory proxyFactory, Set<T> set) {
 			Set<T> proxies = new LinkedHashSet<>(set.size());
 			for (T toProxy : set) {
 				proxies.add(proxyCast(proxyFactory, toProxy));
+			}
+			try {
+				set.clear();
+				set.addAll(proxies);
+				return proxies;
+			}
+			catch (UnsupportedOperationException ex) {
+				return Collections.unmodifiableSet(proxies);
+			}
+		}
+
+		private <T> Set<T> targetSet(AuthorizationProxyTargetFactory targetFactory, Set<T> set) {
+			Set<T> proxies = new LinkedHashSet<>(set.size());
+			for (T toProxy : set) {
+				proxies.add(targetCast(targetFactory, toProxy));
 			}
 			try {
 				set.clear();
@@ -488,10 +609,35 @@ public final class AuthorizationAdvisorProxyFactory
 			return proxies;
 		}
 
+		private <T> Queue<T> targetQueue(AuthorizationProxyTargetFactory targetFactory, Queue<T> queue) {
+			Queue<T> proxies = new LinkedList<>();
+			for (T toProxy : queue) {
+				proxies.add(targetCast(targetFactory, toProxy));
+			}
+			queue.clear();
+			queue.addAll(proxies);
+			return proxies;
+		}
+
 		private <T> List<T> proxyList(AuthorizationProxyFactory proxyFactory, List<T> list) {
 			List<T> proxies = new ArrayList<>(list.size());
 			for (T toProxy : list) {
 				proxies.add(proxyCast(proxyFactory, toProxy));
+			}
+			try {
+				list.clear();
+				list.addAll(proxies);
+				return proxies;
+			}
+			catch (UnsupportedOperationException ex) {
+				return Collections.unmodifiableList(proxies);
+			}
+		}
+
+		private <T> List<T> targetList(AuthorizationProxyTargetFactory targetFactory, List<T> list) {
+			List<T> proxies = new ArrayList<>(list.size());
+			for (T toProxy : list) {
+				proxies.add(targetCast(targetFactory, toProxy));
 			}
 			try {
 				list.clear();
@@ -515,10 +661,38 @@ public final class AuthorizationAdvisorProxyFactory
 			return proxies;
 		}
 
+		private Object[] targetArray(AuthorizationProxyTargetFactory targetFactory, Object[] objects) {
+			List<Object> retain = new ArrayList<>(objects.length);
+			for (Object object : objects) {
+				retain.add(targetFactory.target(object));
+			}
+			Object[] proxies = (Object[]) Array.newInstance(objects.getClass().getComponentType(), retain.size());
+			for (int i = 0; i < retain.size(); i++) {
+				proxies[i] = retain.get(i);
+			}
+			return proxies;
+		}
+
 		private <K, V> SortedMap<K, V> proxySortedMap(AuthorizationProxyFactory proxyFactory, SortedMap<K, V> entries) {
 			SortedMap<K, V> proxies = new TreeMap<>(entries.comparator());
 			for (Map.Entry<K, V> entry : entries.entrySet()) {
 				proxies.put(entry.getKey(), proxyCast(proxyFactory, entry.getValue()));
+			}
+			try {
+				entries.clear();
+				entries.putAll(proxies);
+				return entries;
+			}
+			catch (UnsupportedOperationException ex) {
+				return Collections.unmodifiableSortedMap(proxies);
+			}
+		}
+
+		private <K, V> SortedMap<K, V> targetSortedMap(AuthorizationProxyTargetFactory targetFactory,
+				SortedMap<K, V> entries) {
+			SortedMap<K, V> proxies = new TreeMap<>(entries.comparator());
+			for (Map.Entry<K, V> entry : entries.entrySet()) {
+				proxies.put(entry.getKey(), targetCast(targetFactory, entry.getValue()));
 			}
 			try {
 				entries.clear();
@@ -545,8 +719,27 @@ public final class AuthorizationAdvisorProxyFactory
 			}
 		}
 
+		private <K, V> Map<K, V> targetMap(AuthorizationProxyTargetFactory targetFactory, Map<K, V> entries) {
+			Map<K, V> proxies = new LinkedHashMap<>(entries.size());
+			for (Map.Entry<K, V> entry : entries.entrySet()) {
+				proxies.put(entry.getKey(), targetCast(targetFactory, entry.getValue()));
+			}
+			try {
+				entries.clear();
+				entries.putAll(proxies);
+				return entries;
+			}
+			catch (UnsupportedOperationException ex) {
+				return Collections.unmodifiableMap(proxies);
+			}
+		}
+
 		private Stream<?> proxyStream(AuthorizationProxyFactory proxyFactory, Stream<?> stream) {
 			return stream.map(proxyFactory::proxy).onClose(stream::close);
+		}
+
+		private Stream<?> targetStream(AuthorizationProxyTargetFactory proxyFactory, Stream<?> stream) {
+			return stream.map(proxyFactory::target).onClose(stream::close);
 		}
 
 		@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -554,8 +747,17 @@ public final class AuthorizationAdvisorProxyFactory
 			return optional.map(proxyFactory::proxy);
 		}
 
+		@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+		private Optional<?> targetOptional(AuthorizationProxyTargetFactory proxyFactory, Optional<?> optional) {
+			return optional.map(proxyFactory::target);
+		}
+
 		private Supplier<?> proxySupplier(AuthorizationProxyFactory proxyFactory, Supplier<?> supplier) {
 			return () -> proxyFactory.proxy(supplier.get());
+		}
+
+		private Supplier<?> targetSupplier(AuthorizationProxyTargetFactory targetFactory, Supplier<?> supplier) {
+			return () -> targetFactory.target(supplier.get());
 		}
 
 	}
@@ -574,12 +776,32 @@ public final class AuthorizationAdvisorProxyFactory
 			return null;
 		}
 
+		@Override
+		@SuppressWarnings("ReactiveStreamsUnusedPublisher")
+		public Object visit(AuthorizationProxyTargetFactory targetFactory, Object target) {
+			if (target instanceof Mono<?> mono) {
+				return targetMono(targetFactory, mono);
+			}
+			if (target instanceof Flux<?> flux) {
+				return targetFlux(targetFactory, flux);
+			}
+			return null;
+		}
+
 		private Mono<?> proxyMono(AuthorizationProxyFactory proxyFactory, Mono<?> mono) {
 			return mono.map(proxyFactory::proxy);
 		}
 
+		private Mono<?> targetMono(AuthorizationProxyTargetFactory targetFactory, Mono<?> mono) {
+			return mono.map(targetFactory::target);
+		}
+
 		private Flux<?> proxyFlux(AuthorizationProxyFactory proxyFactory, Flux<?> flux) {
 			return flux.map(proxyFactory::proxy);
+		}
+
+		private Flux<?> targetFlux(AuthorizationProxyTargetFactory targetFactory, Flux<?> flux) {
+			return flux.map(targetFactory::target);
 		}
 
 	}
