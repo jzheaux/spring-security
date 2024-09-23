@@ -196,9 +196,8 @@ Java::
 [source,java,role="primary"]
 ----
 @Bean
-ObservationRegistryCustomizer<ObservationRegistry> noSpringSecurityObservations() {
-	ObservationPredicate predicate = (name, context) -> !name.startsWith("spring.security.");
-	return (registry) -> registry.observationConfig().observationPredicate(predicate);
+ObservationPredicate noSpringSecurityObservations() {
+	return SecurityObservationPredicate.noObservations();
 }
 ----
 
@@ -207,9 +206,8 @@ Kotlin::
 [source,kotlin,role="secondary"]
 ----
 @Bean
-fun noSpringSecurityObservations(): ObservationRegistryCustomizer<ObservationRegistry> {
-	ObservationPredicate predicate = (name: String, context: Observation.Context) -> !name.startsWith("spring.security.")
-	(registry: ObservationRegistry) -> registry.observationConfig().observationPredicate(predicate)
+fun noSpringSecurityObservations(): ObservationPredicate {
+	return SecurityObservationPredicate()
 }
 ----
 ======
@@ -217,6 +215,65 @@ fun noSpringSecurityObservations(): ObservationRegistryCustomizer<ObservationReg
 [TIP]
 There is no facility for disabling observations with XML support.
 Instead, simply do not set the `observation-registry-ref` attribute.
+
+You can also disable security for only a subset of Security's observations.
+For example, the `SecurityObservationPredicate` bean excludes the filter chain observations by default.
+So, you can also do:
+
+[tabs]
+======
+Java::
++
+[source,java,role="primary"]
+----
+@Bean
+SecurityObservationPredicate noSpringSecurityObservations() {
+	return SecurityObservationPredicate.withDefaults().build();
+}
+----
+
+Kotlin::
++
+[source,kotlin,role="secondary"]
+----
+@Bean
+fun noSpringSecurityObservations(): SecurityObservationPredicate {
+	return SecurityObservationPredicate.withDefaults().build()
+}
+----
+======
+
+Or you can turn on and off observations individually, based on the defaults:
+
+[tabs]
+======
+Java::
++
+[source,java,role="primary"]
+----
+@Bean
+SecurityObservationPredicate noSpringSecurityObservations() {
+	return SecurityObservationPredicate.withDefaults()
+            .shouldObserveFilterChains(true).build();
+}
+----
+
+Kotlin::
++
+[source,kotlin,role="secondary"]
+----
+@Bean
+fun noSpringSecurityObservations(): SecurityObservationPredicate {
+    return SecurityObservabilityDefaults.builder()
+            .shouldObserveFilterChains(true).build()
+}
+----
+======
+
+[TIP]
+====
+Note that in doing this, Spring Security will still wrap all of its observable components in `ObservationXXX` implementations; it's simply the case that Micrometer will not report these observations.
+====
 
 [[webflux-observability-tracing-listing]]
 === Trace Listing

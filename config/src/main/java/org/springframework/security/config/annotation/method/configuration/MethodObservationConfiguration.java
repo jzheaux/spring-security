@@ -14,35 +14,49 @@
  * limitations under the License.
  */
 
-package org.springframework.security.config.annotation.observation.configuration;
+package org.springframework.security.config.annotation.method.configuration;
 
 import io.micrometer.observation.ObservationRegistry;
+import org.aopalliance.intercept.MethodInvocation;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Role;
-import org.springframework.messaging.Message;
 import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.authorization.ObservationAuthorizationManager;
+import org.springframework.security.authorization.method.MethodInvocationResult;
 import org.springframework.security.config.annotation.ObjectPostProcessor;
+import org.springframework.security.config.observation.AbstractObservationObjectPostProcessor;
 
 @Configuration(proxyBeanMethods = false)
 @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-class WebSocketObservationConfiguration {
+class MethodObservationConfiguration {
 
-	private final ObjectProvider<ObservationRegistry> observationRegistry;
-
-	WebSocketObservationConfiguration(ObjectProvider<ObservationRegistry> observationRegistry) {
-		this.observationRegistry = observationRegistry;
+	@Bean
+	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+	static ObjectPostProcessor<AuthorizationManager<MethodInvocation>> methodAuthorizationManagerPostProcessor(
+			ObjectProvider<ObservationRegistry> registry) {
+		return new AbstractObservationObjectPostProcessor<>(registry) {
+			@Override
+			protected <O extends AuthorizationManager<MethodInvocation>> O postProcess(ObservationRegistry registry,
+					O object) {
+				return (O) new ObservationAuthorizationManager<>(registry, object);
+			}
+		};
 	}
 
 	@Bean
 	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-	ObjectPostProcessor<AuthorizationManager<Message<?>>> messageAuthorizationManagerPostProcessor() {
-		return new AbstractObservationObjectPostProcessor<>(this.observationRegistry,
-				ObservationAuthorizationManager::new) {
+	static ObjectPostProcessor<AuthorizationManager<MethodInvocationResult>> methodResultAuthorizationManagerPostProcessor(
+			ObjectProvider<ObservationRegistry> registry) {
+		return new AbstractObservationObjectPostProcessor<>(registry) {
+			@Override
+			protected <O extends AuthorizationManager<MethodInvocationResult>> O postProcess(
+					ObservationRegistry registry, O object) {
+				return (O) new ObservationAuthorizationManager<>(registry, object);
+			}
 		};
 	}
 

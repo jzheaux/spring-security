@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-package org.springframework.security.config.annotation.observation.configuration;
+package org.springframework.security.config.annotation.web.configuration;
 
 import io.micrometer.observation.ObservationRegistry;
 import jakarta.servlet.http.HttpServletRequest;
-import org.aopalliance.intercept.MethodInvocation;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.BeanDefinition;
@@ -29,58 +28,49 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ObservationAuthenticationManager;
 import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.authorization.ObservationAuthorizationManager;
-import org.springframework.security.authorization.method.MethodInvocationResult;
 import org.springframework.security.config.annotation.ObjectPostProcessor;
-import org.springframework.security.web.FilterChainProxy;
+import org.springframework.security.config.observation.AbstractObservationObjectPostProcessor;
+import org.springframework.security.web.FilterChainProxy.FilterChainDecorator;
 import org.springframework.security.web.ObservationFilterChainDecorator;
 
 @Configuration(proxyBeanMethods = false)
 @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 class ObservationConfiguration {
 
-	private final ObjectProvider<ObservationRegistry> observationRegistry;
-
-	ObservationConfiguration(ObjectProvider<ObservationRegistry> observationRegistry) {
-		this.observationRegistry = observationRegistry;
-	}
-
 	@Bean
 	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-	ObjectPostProcessor<AuthorizationManager<MethodInvocation>> methodAuthorizationManagerPostProcessor() {
-		return new AbstractObservationObjectPostProcessor<>(this.observationRegistry,
-				ObservationAuthorizationManager::new) {
+	static ObjectPostProcessor<AuthorizationManager<HttpServletRequest>> webAuthorizationManagerPostProcessor(
+			ObjectProvider<ObservationRegistry> registry) {
+		return new AbstractObservationObjectPostProcessor<>(registry) {
+			@Override
+			protected <O extends AuthorizationManager<HttpServletRequest>> O postProcess(ObservationRegistry registry,
+					O object) {
+				return (O) new ObservationAuthorizationManager<>(registry, object);
+			}
 		};
 	}
 
 	@Bean
 	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-	ObjectPostProcessor<AuthorizationManager<MethodInvocationResult>> methodResultAuthorizationManagerPostProcessor() {
-		return new AbstractObservationObjectPostProcessor<>(this.observationRegistry,
-				ObservationAuthorizationManager::new) {
+	static ObjectPostProcessor<AuthenticationManager> authenticationManagerPostProcessor(
+			ObjectProvider<ObservationRegistry> registry) {
+		return new AbstractObservationObjectPostProcessor<>(registry) {
+			@Override
+			protected AuthenticationManager postProcess(ObservationRegistry registry, AuthenticationManager object) {
+				return new ObservationAuthenticationManager(registry, object);
+			}
 		};
 	}
 
 	@Bean
 	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-	ObjectPostProcessor<AuthorizationManager<HttpServletRequest>> webAuthorizationManagerPostProcessor() {
-		return new AbstractObservationObjectPostProcessor<>(this.observationRegistry,
-				ObservationAuthorizationManager::new) {
-		};
-	}
-
-	@Bean
-	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-	ObjectPostProcessor<AuthenticationManager> authenticationManagerPostProcessor() {
-		return new AbstractObservationObjectPostProcessor<>(this.observationRegistry,
-				ObservationAuthenticationManager::new) {
-		};
-	}
-
-	@Bean
-	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-	ObjectPostProcessor<FilterChainProxy.FilterChainDecorator> filterChainDecoratorPostProcessor() {
-		return new AbstractObservationObjectPostProcessor<>(this.observationRegistry,
-				ObservationFilterChainDecorator::new) {
+	static ObjectPostProcessor<FilterChainDecorator> filterChainDecoratorPostProcessor(
+			ObjectProvider<ObservationRegistry> registry) {
+		return new AbstractObservationObjectPostProcessor<>(registry) {
+			@Override
+			protected FilterChainDecorator postProcess(ObservationRegistry registry, FilterChainDecorator object) {
+				return new ObservationFilterChainDecorator(registry);
+			}
 		};
 	}
 

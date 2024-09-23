@@ -28,6 +28,7 @@ import java.util.stream.Stream;
 
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationHandler;
+import io.micrometer.observation.ObservationPredicate;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.observation.ObservationTextPublisher;
 import jakarta.servlet.http.HttpServletRequest;
@@ -69,6 +70,7 @@ import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.config.annotation.SecurityContextChangedListenerConfig;
 import org.springframework.security.config.annotation.web.messaging.MessageSecurityMetadataSourceRegistry;
+import org.springframework.security.config.observation.SecurityObservationPredicate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AnnotationTemplateExpressionDefaults;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -106,6 +108,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.web.csrf.CsrfTokenAssert.assertThatCsrfToken;
 
 public class WebSocketMessageBrokerSecurityConfigurationTests {
@@ -412,6 +415,28 @@ public class WebSocketMessageBrokerSecurityConfigurationTests {
 			// okay
 		}
 		verify(observationHandler).onError(any());
+	}
+
+	@Test
+	public void sendMessageWhenExcludeAuthorizationObservationsThenUnobserved() {
+		loadConfig(WebSocketSecurityConfig.class, ObservationRegistryConfig.class, SelectableObservationsConfig.class);
+		SimpMessageHeaderAccessor headers = SimpMessageHeaderAccessor.create(SimpMessageType.CONNECT);
+		headers.setNativeHeader(this.token.getHeaderName(), XOR_CSRF_TOKEN_VALUE);
+		Message<?> message = message(headers, "/authenticated");
+		headers.getSessionAttributes().put(CsrfToken.class.getName(), this.token);
+		clientInboundChannel().send(message);
+		ObservationHandler<Observation.Context> observationHandler = this.context.getBean(ObservationHandler.class);
+		headers = SimpMessageHeaderAccessor.create(SimpMessageType.CONNECT);
+		headers.setNativeHeader(this.token.getHeaderName(), XOR_CSRF_TOKEN_VALUE);
+		message = message(headers, "/denyAll");
+		headers.getSessionAttributes().put(CsrfToken.class.getName(), this.token);
+		try {
+			clientInboundChannel().send(message);
+		}
+		catch (MessageDeliveryException ex) {
+			// okay
+		}
+		verifyNoInteractions(observationHandler);
 	}
 
 	private void assertHandshake(HttpServletRequest request) {
@@ -944,8 +969,9 @@ public class WebSocketMessageBrokerSecurityConfigurationTests {
 
 		@Bean
 		ObservationRegistryPostProcessor observationRegistryPostProcessor(
-				ObjectProvider<ObservationHandler<Observation.Context>> handler) {
-			return new ObservationRegistryPostProcessor(handler);
+				ObjectProvider<ObservationHandler<Observation.Context>> handler,
+				ObjectProvider<ObservationPredicate> predicates) {
+			return new ObservationRegistryPostProcessor(handler, predicates);
 		}
 
 	}
@@ -954,16 +980,31 @@ public class WebSocketMessageBrokerSecurityConfigurationTests {
 
 		private final ObjectProvider<ObservationHandler<Observation.Context>> handler;
 
-		ObservationRegistryPostProcessor(ObjectProvider<ObservationHandler<Observation.Context>> handler) {
+		private final ObjectProvider<ObservationPredicate> predicates;
+
+		ObservationRegistryPostProcessor(ObjectProvider<ObservationHandler<Observation.Context>> handler,
+				ObjectProvider<ObservationPredicate> predicates) {
 			this.handler = handler;
+			this.predicates = predicates;
 		}
 
 		@Override
 		public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
 			if (bean instanceof ObservationRegistry registry) {
 				registry.observationConfig().observationHandler(this.handler.getObject());
+				this.predicates.forEach((predicate) -> registry.observationConfig().observationPredicate(predicate));
 			}
 			return bean;
+		}
+
+	}
+
+	@Configuration
+	static class SelectableObservationsConfig {
+
+		@Bean
+		ObservationPredicate observabilityDefaults() {
+			return SecurityObservationPredicate.withDefaults().shouldObserveAuthorizations(false).build();
 		}
 
 	}

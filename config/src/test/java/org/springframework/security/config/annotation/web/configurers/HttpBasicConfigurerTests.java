@@ -18,6 +18,7 @@ package org.springframework.security.config.annotation.web.configurers;
 
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationHandler;
+import io.micrometer.observation.ObservationPredicate;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.observation.ObservationTextPublisher;
 import jakarta.servlet.http.HttpServletRequest;
@@ -39,6 +40,7 @@ import org.springframework.security.config.annotation.ObjectPostProcessor;
 import org.springframework.security.config.annotation.SecurityContextChangedListenerConfig;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.observation.SecurityObservationPredicate;
 import org.springframework.security.config.test.SpringTestContext;
 import org.springframework.security.config.test.SpringTestContextExtension;
 import org.springframework.security.core.AuthenticationException;
@@ -63,6 +65,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.config.Customizer.withDefaults;
@@ -187,6 +190,26 @@ public class HttpBasicConfigurerTests {
 		this.mvc.perform(get("/").with(httpBasic("user", "wrong"))).andExpect(status().isUnauthorized());
 		verify(handler).onError(context.capture());
 		assertThat(context.getValue()).isInstanceOf(AuthenticationObservationContext.class);
+	}
+
+	@Test
+	public void httpBasicWhenExcludeAuthenticationObservationsThenUnobserved() throws Exception {
+		this.spring
+			.register(HttpBasic.class, Users.class, Home.class, ObservationRegistryConfig.class,
+					SelectableObservationsConfig.class)
+			.autowire();
+		ObservationHandler<Observation.Context> handler = this.spring.getContext().getBean(ObservationHandler.class);
+		this.mvc.perform(get("/").with(httpBasic("user", "password")))
+			.andExpect(status().isOk())
+			.andExpect(content().string("user"));
+		ArgumentCaptor<Observation.Context> context = ArgumentCaptor.forClass(Observation.Context.class);
+		verify(handler, atLeastOnce()).onStart(context.capture());
+		assertThat(context.getAllValues()).noneMatch((c) -> c instanceof AuthenticationObservationContext);
+		context = ArgumentCaptor.forClass(Observation.Context.class);
+		verify(handler, atLeastOnce()).onStop(context.capture());
+		assertThat(context.getAllValues()).noneMatch((c) -> c instanceof AuthenticationObservationContext);
+		this.mvc.perform(get("/").with(httpBasic("user", "wrong"))).andExpect(status().isUnauthorized());
+		verify(handler, never()).onError(any());
 	}
 
 	@Configuration
@@ -431,8 +454,9 @@ public class HttpBasicConfigurerTests {
 
 		@Bean
 		ObservationRegistryPostProcessor observationRegistryPostProcessor(
-				ObjectProvider<ObservationHandler<Observation.Context>> handler) {
-			return new ObservationRegistryPostProcessor(handler);
+				ObjectProvider<ObservationHandler<Observation.Context>> handler,
+				ObjectProvider<ObservationPredicate> predicates) {
+			return new ObservationRegistryPostProcessor(handler, predicates);
 		}
 
 	}
@@ -441,16 +465,31 @@ public class HttpBasicConfigurerTests {
 
 		private final ObjectProvider<ObservationHandler<Observation.Context>> handler;
 
-		ObservationRegistryPostProcessor(ObjectProvider<ObservationHandler<Observation.Context>> handler) {
+		private final ObjectProvider<ObservationPredicate> predicates;
+
+		ObservationRegistryPostProcessor(ObjectProvider<ObservationHandler<Observation.Context>> handler,
+				ObjectProvider<ObservationPredicate> predicates) {
 			this.handler = handler;
+			this.predicates = predicates;
 		}
 
 		@Override
 		public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
 			if (bean instanceof ObservationRegistry registry) {
 				registry.observationConfig().observationHandler(this.handler.getObject());
+				this.predicates.forEach((predicate) -> registry.observationConfig().observationPredicate(predicate));
 			}
 			return bean;
+		}
+
+	}
+
+	@Configuration
+	static class SelectableObservationsConfig {
+
+		@Bean
+		ObservationPredicate observabilityDefaults() {
+			return SecurityObservationPredicate.withDefaults().shouldObserveAuthentications(false).build();
 		}
 
 	}

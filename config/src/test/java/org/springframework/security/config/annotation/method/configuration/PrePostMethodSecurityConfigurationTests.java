@@ -30,6 +30,7 @@ import java.util.function.Supplier;
 
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationHandler;
+import io.micrometer.observation.ObservationPredicate;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.observation.ObservationTextPublisher;
 import jakarta.annotation.security.DenyAll;
@@ -87,6 +88,7 @@ import org.springframework.security.authorization.method.PrePostTemplateDefaults
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.SecurityContextChangedListenerConfig;
 import org.springframework.security.config.core.GrantedAuthorityDefaults;
+import org.springframework.security.config.observation.SecurityObservationPredicate;
 import org.springframework.security.config.test.SpringTestContext;
 import org.springframework.security.config.test.SpringTestContextExtension;
 import org.springframework.security.config.test.SpringTestParentApplicationContextExecutionListener;
@@ -114,6 +116,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 /**
  * Tests for {@link PrePostMethodSecurityConfiguration}.
@@ -1062,6 +1065,43 @@ public class PrePostMethodSecurityConfigurationTests {
 		verify(handler).onError(any());
 	}
 
+	@Test
+	@WithMockUser
+	public void prePostMethodWhenExcludeAuthorizationObservationsThenUnobserved() {
+		this.spring
+			.register(MethodSecurityServiceEnabledConfig.class, ObservationRegistryConfig.class,
+					SelectableObservationsConfig.class)
+			.autowire();
+		this.methodSecurityService.preAuthorizePermitAll();
+		ObservationHandler<?> handler = this.spring.getContext().getBean(ObservationHandler.class);
+		assertThatExceptionOfType(AccessDeniedException.class).isThrownBy(this.methodSecurityService::preAuthorize);
+		verifyNoInteractions(handler);
+	}
+
+	@Test
+	@WithMockUser
+	public void securedMethodWhenExcludeAuthorizationObservationsThenUnobserved() {
+		this.spring
+			.register(MethodSecurityServiceEnabledConfig.class, ObservationRegistryConfig.class,
+					SelectableObservationsConfig.class)
+			.autowire();
+		this.methodSecurityService.securedUser();
+		ObservationHandler<?> handler = this.spring.getContext().getBean(ObservationHandler.class);
+		verifyNoInteractions(handler);
+	}
+
+	@Test
+	@WithMockUser
+	public void jsr250MethodWhenExcludeAuthorizationObservationsThenUnobserved() {
+		this.spring
+			.register(MethodSecurityServiceEnabledConfig.class, ObservationRegistryConfig.class,
+					SelectableObservationsConfig.class)
+			.autowire();
+		this.methodSecurityService.jsr250RolesAllowedUser();
+		ObservationHandler<?> handler = this.spring.getContext().getBean(ObservationHandler.class);
+		verifyNoInteractions(handler);
+	}
+
 	private static Consumer<ConfigurableWebApplicationContext> disallowBeanOverriding() {
 		return (context) -> ((AnnotationConfigWebApplicationContext) context).setAllowBeanDefinitionOverriding(false);
 	}
@@ -1718,8 +1758,9 @@ public class PrePostMethodSecurityConfigurationTests {
 
 		@Bean
 		ObservationRegistryPostProcessor observationRegistryPostProcessor(
-				ObjectProvider<ObservationHandler<Observation.Context>> handler) {
-			return new ObservationRegistryPostProcessor(handler);
+				ObjectProvider<ObservationHandler<Observation.Context>> handler,
+				ObjectProvider<ObservationPredicate> predicates) {
+			return new ObservationRegistryPostProcessor(handler, predicates);
 		}
 
 	}
@@ -1728,16 +1769,31 @@ public class PrePostMethodSecurityConfigurationTests {
 
 		private final ObjectProvider<ObservationHandler<Observation.Context>> handler;
 
-		ObservationRegistryPostProcessor(ObjectProvider<ObservationHandler<Observation.Context>> handler) {
+		private final ObjectProvider<ObservationPredicate> predicates;
+
+		ObservationRegistryPostProcessor(ObjectProvider<ObservationHandler<Observation.Context>> handler,
+				ObjectProvider<ObservationPredicate> predicates) {
 			this.handler = handler;
+			this.predicates = predicates;
 		}
 
 		@Override
 		public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
 			if (bean instanceof ObservationRegistry registry) {
 				registry.observationConfig().observationHandler(this.handler.getObject());
+				this.predicates.forEach((predicate) -> registry.observationConfig().observationPredicate(predicate));
 			}
 			return bean;
+		}
+
+	}
+
+	@Configuration
+	static class SelectableObservationsConfig {
+
+		@Bean
+		ObservationPredicate observabilityDefaults() {
+			return SecurityObservationPredicate.withDefaults().shouldObserveAuthorizations(false).build();
 		}
 
 	}
