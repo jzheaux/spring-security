@@ -29,6 +29,7 @@ import org.springframework.security.authorization.ObservationReactiveAuthorizati
 import org.springframework.security.authorization.ReactiveAuthorizationManager;
 import org.springframework.security.config.annotation.ObjectPostProcessor;
 import org.springframework.security.config.observation.AbstractObservationObjectPostProcessor;
+import org.springframework.security.config.observation.ObservationObjectPostProcessor;
 import org.springframework.security.web.server.ObservationWebFilterChainDecorator;
 import org.springframework.security.web.server.WebFilterChainProxy.WebFilterChainDecorator;
 import org.springframework.web.server.ServerWebExchange;
@@ -40,12 +41,14 @@ class ReactiveObservationConfiguration {
 	@Bean
 	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 	static ObjectPostProcessor<ReactiveAuthorizationManager<ServerWebExchange>> webAuthorizationManagerPostProcessor(
-			ObjectProvider<ObservationRegistry> registry) {
+			ObjectProvider<ObservationRegistry> registry,
+			ObjectProvider<ObservationObjectPostProcessor<ReactiveAuthorizationManager<ServerWebExchange>>> postProcessor) {
 		return new AbstractObservationObjectPostProcessor<>(registry) {
 			@Override
 			protected <O extends ReactiveAuthorizationManager<ServerWebExchange>> O postProcess(
 					ObservationRegistry registry, O object) {
-				return (O) new ObservationReactiveAuthorizationManager(registry, object);
+				return (O) postProcessor.getIfUnique(() -> ObservationReactiveAuthorizationManager::new)
+					.postProcess(registry, object);
 			}
 		};
 	}
@@ -53,11 +56,13 @@ class ReactiveObservationConfiguration {
 	@Bean
 	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 	static ObjectPostProcessor<ReactiveAuthenticationManager> authenticationManagerPostProcessor(
-			ObjectProvider<ObservationRegistry> registry) {
+			ObjectProvider<ObservationRegistry> registry,
+			ObjectProvider<ObservationObjectPostProcessor<ReactiveAuthenticationManager>> postProcessor) {
 		return new AbstractObservationObjectPostProcessor<>(registry) {
 			@Override
 			protected <O extends ReactiveAuthenticationManager> O postProcess(ObservationRegistry registry, O object) {
-				return (O) new ObservationReactiveAuthenticationManager(registry, object);
+				return (O) postProcessor.getIfUnique(() -> ObservationReactiveAuthenticationManager::new)
+					.postProcess(registry, object);
 			}
 		};
 	}
@@ -65,11 +70,13 @@ class ReactiveObservationConfiguration {
 	@Bean
 	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 	static ObjectPostProcessor<WebFilterChainDecorator> filterChainDecoratorPostProcessor(
-			ObjectProvider<ObservationRegistry> registry) {
+			ObjectProvider<ObservationRegistry> registry,
+			ObjectProvider<ObservationObjectPostProcessor<WebFilterChainDecorator>> postProcessor) {
 		return new AbstractObservationObjectPostProcessor<>(registry) {
 			@Override
 			protected <O extends WebFilterChainDecorator> O postProcess(ObservationRegistry registry, O object) {
-				return (O) new ObservationWebFilterChainDecorator(registry);
+				return (O) postProcessor.getIfUnique(() -> (r, o) -> new ObservationWebFilterChainDecorator(r))
+					.postProcess(registry, object);
 			}
 		};
 	}

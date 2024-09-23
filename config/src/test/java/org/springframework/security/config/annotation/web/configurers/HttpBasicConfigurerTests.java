@@ -17,6 +17,7 @@
 package org.springframework.security.config.annotation.web.configurers;
 
 import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationConvention;
 import io.micrometer.observation.ObservationHandler;
 import io.micrometer.observation.ObservationPredicate;
 import io.micrometer.observation.ObservationRegistry;
@@ -33,13 +34,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationObservationContext;
+import org.springframework.security.authentication.AuthenticationObservationConvention;
+import org.springframework.security.authentication.ObservationAuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.ObjectPostProcessor;
 import org.springframework.security.config.annotation.SecurityContextChangedListenerConfig;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.observation.ObservationObjectPostProcessor;
 import org.springframework.security.config.observation.SecurityObservationPredicate;
 import org.springframework.security.config.test.SpringTestContext;
 import org.springframework.security.config.test.SpringTestContextExtension;
@@ -210,6 +215,19 @@ public class HttpBasicConfigurerTests {
 		assertThat(context.getAllValues()).noneMatch((c) -> c instanceof AuthenticationObservationContext);
 		this.mvc.perform(get("/").with(httpBasic("user", "wrong"))).andExpect(status().isUnauthorized());
 		verify(handler, never()).onError(any());
+	}
+
+	@Test
+	public void httpBasicWhenCustomObservationConventionThenUses() throws Exception {
+		this.spring
+			.register(HttpBasic.class, Users.class, Home.class, ObservationRegistryConfig.class,
+					CustomObservationConfig.class)
+			.autowire();
+		this.mvc.perform(get("/").with(httpBasic("user", "password")))
+			.andExpect(status().isOk())
+			.andExpect(content().string("user"));
+		ObservationConvention<?> convention = this.spring.getContext().getBean(ObservationConvention.class);
+		verify(convention).supportsContext(any());
 	}
 
 	@Configuration
@@ -490,6 +508,32 @@ public class HttpBasicConfigurerTests {
 		@Bean
 		ObservationPredicate observabilityDefaults() {
 			return SecurityObservationPredicate.withDefaults().shouldObserveAuthentications(false).build();
+		}
+
+	}
+
+	@Configuration
+	static class CustomObservationConfig {
+
+		private final ObservationConvention<AuthenticationObservationContext> convention = spy(
+				new AuthenticationObservationConvention());
+
+		@Bean
+		ObservationObjectPostProcessor<AuthenticationManager> observationObjectPostProcessor() {
+			return new ObservationObjectPostProcessor<>() {
+				@Override
+				public AuthenticationManager postProcess(ObservationRegistry registry, AuthenticationManager object) {
+					ObservationAuthenticationManager authenticationManager = new ObservationAuthenticationManager(
+							registry, object);
+					authenticationManager.setObservationConvention(CustomObservationConfig.this.convention);
+					return authenticationManager;
+				}
+			};
+		}
+
+		@Bean
+		ObservationConvention<AuthenticationObservationContext> observationConvention() {
+			return this.convention;
 		}
 
 	}

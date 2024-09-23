@@ -280,6 +280,86 @@ fun noSpringSecurityObservations(): SecurityObservationPredicate {
 Note that in doing this, Spring Security will still wrap all of its observable components in `ObservationXXX` implementations; it's simply the case that Micrometer will not report these observations.
 ====
 
+=== Customizing Observation Wiring
+
+You can customize how observations are attached to security components, you can publish an `ObservationObjectPostProcessor`.
+The type for the `ObservationObjectPostProcessor` is the type of security component you want to configure for observations.
+
+For example, the following makes so that the filter chain is not configured for observations:
+
+[tabs]
+======
+Java::
++
+[source,java,role="primary"]
+----
+@Bean
+ObservationObjectPostProcessor<FilterChainDecorator> noSpringSecurityRequestObservationInfrastructure() {
+	return ObservationObjectPostProcessor.noop();
+}
+----
+
+Kotlin::
++
+[source,kotlin,role="secondary"]
+----
+@Bean
+fun noSpringSecurityRequestObservationInfrastructure(): ObservationObjectPostProcessor<FilterChainDecorator> {
+	return ObservationObjectPostProcessor.noop()
+}
+----
+======
+
+[TIP]
+=====
+The above is handy if you know you never want to use the filter chain observations and also don't want the extra stack trace elements for each wrapped security filter.
+=====
+
+And the following makes so that all Spring Security-managed ``AuthorizationManager``s are attached with a different `ObservationConvention`:
+
+[tabs]
+======
+Java::
++
+[source,java,role="primary"]
+----
+@Bean
+ObservationObjectPostProcessor<AuthorizationManager<?>> customAuthorizationObservationConvention() {
+	return new ObservationObjectPostProcessor<>() {
+		@Override
+		<O extends AuthorizationManager<?>> O postProcess(ObservationRegistry registry, O manager) {
+			ObservationAuthorizationManager<?> observed =
+					new ObservationAuthorizationManager<>(registry, manager);
+			observed.setObservationConvention(myObservationConvention);
+			return observed;
+		}
+	};
+}
+----
+
+Kotlin::
++
+[source,kotlin,role="secondary"]
+----
+@Bean
+fun customAuthorizationObservationConvention(): ObservationObjectPostProcessor<AuthorizationManager<*>> {
+	return object : ObservationObjectPostProcessor() {
+		override fun <O : AuthorizationManager<*>> postProcess(registry: ObservationRegistry?, manager: O): O {
+			val observed = ObservationAuthorizationManager(registry, manager)
+			observed.setObservationConvention(myObservationConvention)
+			return observed
+		}
+	}
+}
+----
+======
+
+[NOTE]
+=====
+Even though you can replace these anonymous classes with a lambda expression, it is important to leave them as anonymous classes so that the generic typing is preserved at runtime.
+This allows for Spring to correctly resolve which `ObservationObjectPostProcessor` to use for which Security component.
+=====
+
 [[observability-tracing-listing]]
 === Trace Listing
 

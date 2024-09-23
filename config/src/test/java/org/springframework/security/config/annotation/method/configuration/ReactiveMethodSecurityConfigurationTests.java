@@ -24,6 +24,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationConvention;
 import io.micrometer.observation.ObservationHandler;
 import io.micrometer.observation.ObservationPredicate;
 import io.micrometer.observation.ObservationRegistry;
@@ -52,12 +53,17 @@ import org.springframework.security.access.prepost.PostFilter;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.access.prepost.PreFilter;
 import org.springframework.security.authentication.TestAuthentication;
+import org.springframework.security.authorization.AuthorizationObservationContext;
+import org.springframework.security.authorization.AuthorizationObservationConvention;
+import org.springframework.security.authorization.ObservationReactiveAuthorizationManager;
+import org.springframework.security.authorization.ReactiveAuthorizationManager;
 import org.springframework.security.authorization.method.AuthorizationAdvisorProxyFactory;
 import org.springframework.security.authorization.method.AuthorizationAdvisorProxyFactory.TargetVisitor;
 import org.springframework.security.authorization.method.AuthorizeReturnObject;
 import org.springframework.security.authorization.method.MethodAuthorizationDeniedHandler;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.core.GrantedAuthorityDefaults;
+import org.springframework.security.config.observation.ObservationObjectPostProcessor;
 import org.springframework.security.config.observation.SecurityObservationPredicate;
 import org.springframework.security.config.test.SpringTestContext;
 import org.springframework.security.config.test.SpringTestContextExtension;
@@ -286,6 +292,21 @@ public class ReactiveMethodSecurityConfigurationTests {
 		verifyNoInteractions(handler);
 	}
 
+	@Test
+	public void prePostMethodWhenCustomObservationConventionThenUses() {
+		this.spring
+			.register(MethodSecurityServiceConfig.class, ObservationRegistryConfig.class, CustomObservationConfig.class)
+			.autowire();
+		ReactiveMethodSecurityService service = this.spring.getContext().getBean(ReactiveMethodSecurityService.class);
+		Authentication user = TestAuthentication.authenticatedUser();
+		StepVerifier
+			.create(service.preAuthorizeUser().contextWrite(ReactiveSecurityContextHolder.withAuthentication(user)))
+			.expectNextCount(1)
+			.verifyComplete();
+		ObservationConvention<?> convention = this.spring.getContext().getBean(ObservationConvention.class);
+		verify(convention).supportsContext(any());
+	}
+
 	private static Consumer<User.UserBuilder> authorities(String... authorities) {
 		return (builder) -> builder.authorities(authorities);
 	}
@@ -495,6 +516,33 @@ public class ReactiveMethodSecurityConfigurationTests {
 		@Bean
 		ObservationPredicate observabilityDefaults() {
 			return SecurityObservationPredicate.withDefaults().shouldObserveAuthorizations(false).build();
+		}
+
+	}
+
+	@Configuration
+	static class CustomObservationConfig {
+
+		private final ObservationConvention<AuthorizationObservationContext<?>> convention = spy(
+				new AuthorizationObservationConvention());
+
+		@Bean
+		ObservationObjectPostProcessor<ReactiveAuthorizationManager<?>> observationObjectPostProcessor() {
+			return new ObservationObjectPostProcessor<>() {
+				@Override
+				public ReactiveAuthorizationManager<?> postProcess(ObservationRegistry registry,
+						ReactiveAuthorizationManager<?> object) {
+					ObservationReactiveAuthorizationManager<?> authorizationManager = new ObservationReactiveAuthorizationManager<>(
+							registry, object);
+					authorizationManager.setObservationConvention(CustomObservationConfig.this.convention);
+					return authorizationManager;
+				}
+			};
+		}
+
+		@Bean
+		ObservationConvention<AuthorizationObservationContext<?>> observationConvention() {
+			return this.convention;
 		}
 
 	}

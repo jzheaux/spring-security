@@ -28,6 +28,7 @@ import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.authorization.ObservationAuthorizationManager;
 import org.springframework.security.config.annotation.ObjectPostProcessor;
 import org.springframework.security.config.observation.AbstractObservationObjectPostProcessor;
+import org.springframework.security.config.observation.ObservationObjectPostProcessor;
 
 @Configuration(proxyBeanMethods = false)
 @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
@@ -36,12 +37,14 @@ class WebSocketObservationConfiguration {
 	@Bean
 	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 	static ObjectPostProcessor<AuthorizationManager<Message<?>>> messageAuthorizationManagerPostProcessor(
-			ObjectProvider<ObservationRegistry> registry) {
+			ObjectProvider<ObservationRegistry> registry,
+			ObjectProvider<ObservationObjectPostProcessor<AuthorizationManager<Message<?>>>> postProcessor) {
 		return new AbstractObservationObjectPostProcessor<>(registry) {
 			@Override
 			protected <O extends AuthorizationManager<Message<?>>> O postProcess(ObservationRegistry registry,
 					O object) {
-				return (O) new ObservationAuthorizationManager<>(registry, object);
+				return (O) postProcessor.getIfUnique(() -> ObservationAuthorizationManager::new)
+					.postProcess(registry, object);
 			}
 		};
 	}

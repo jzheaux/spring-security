@@ -30,6 +30,7 @@ import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.authorization.ObservationAuthorizationManager;
 import org.springframework.security.config.annotation.ObjectPostProcessor;
 import org.springframework.security.config.observation.AbstractObservationObjectPostProcessor;
+import org.springframework.security.config.observation.ObservationObjectPostProcessor;
 import org.springframework.security.web.FilterChainProxy.FilterChainDecorator;
 import org.springframework.security.web.ObservationFilterChainDecorator;
 
@@ -40,12 +41,14 @@ class ObservationConfiguration {
 	@Bean
 	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 	static ObjectPostProcessor<AuthorizationManager<HttpServletRequest>> webAuthorizationManagerPostProcessor(
-			ObjectProvider<ObservationRegistry> registry) {
+			ObjectProvider<ObservationRegistry> registry,
+			ObjectProvider<ObservationObjectPostProcessor<AuthorizationManager<HttpServletRequest>>> postProcessor) {
 		return new AbstractObservationObjectPostProcessor<>(registry) {
 			@Override
 			protected <O extends AuthorizationManager<HttpServletRequest>> O postProcess(ObservationRegistry registry,
 					O object) {
-				return (O) new ObservationAuthorizationManager<>(registry, object);
+				return (O) postProcessor.getIfUnique(() -> ObservationAuthorizationManager::new)
+					.postProcess(registry, object);
 			}
 		};
 	}
@@ -53,11 +56,13 @@ class ObservationConfiguration {
 	@Bean
 	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 	static ObjectPostProcessor<AuthenticationManager> authenticationManagerPostProcessor(
-			ObjectProvider<ObservationRegistry> registry) {
+			ObjectProvider<ObservationRegistry> registry,
+			ObjectProvider<ObservationObjectPostProcessor<AuthenticationManager>> postProcessor) {
 		return new AbstractObservationObjectPostProcessor<>(registry) {
 			@Override
 			protected AuthenticationManager postProcess(ObservationRegistry registry, AuthenticationManager object) {
-				return new ObservationAuthenticationManager(registry, object);
+				return postProcessor.getIfUnique(() -> ObservationAuthenticationManager::new)
+					.postProcess(registry, object);
 			}
 		};
 	}
@@ -65,11 +70,13 @@ class ObservationConfiguration {
 	@Bean
 	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 	static ObjectPostProcessor<FilterChainDecorator> filterChainDecoratorPostProcessor(
-			ObjectProvider<ObservationRegistry> registry) {
+			ObjectProvider<ObservationRegistry> registry,
+			ObjectProvider<ObservationObjectPostProcessor<FilterChainDecorator>> postProcessor) {
 		return new AbstractObservationObjectPostProcessor<>(registry) {
 			@Override
 			protected FilterChainDecorator postProcess(ObservationRegistry registry, FilterChainDecorator object) {
-				return new ObservationFilterChainDecorator(registry);
+				return postProcessor.getIfUnique(() -> (r, o) -> new ObservationFilterChainDecorator(r))
+					.postProcess(registry, object);
 			}
 		};
 	}

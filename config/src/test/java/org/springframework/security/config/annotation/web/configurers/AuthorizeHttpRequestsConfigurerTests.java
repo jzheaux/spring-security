@@ -19,6 +19,7 @@ package org.springframework.security.config.annotation.web.configurers;
 import java.util.function.Supplier;
 
 import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationConvention;
 import io.micrometer.observation.ObservationHandler;
 import io.micrometer.observation.ObservationPredicate;
 import io.micrometer.observation.ObservationRegistry;
@@ -43,11 +44,14 @@ import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationEventPublisher;
 import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.authorization.AuthorizationObservationContext;
+import org.springframework.security.authorization.AuthorizationObservationConvention;
+import org.springframework.security.authorization.ObservationAuthorizationManager;
 import org.springframework.security.config.annotation.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.AbstractRequestMatcherRegistry;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.core.GrantedAuthorityDefaults;
+import org.springframework.security.config.observation.ObservationObjectPostProcessor;
 import org.springframework.security.config.observation.SecurityObservationPredicate;
 import org.springframework.security.config.test.SpringTestContext;
 import org.springframework.security.config.test.SpringTestContextExtension;
@@ -663,6 +667,17 @@ public class AuthorizeHttpRequestsConfigurerTests {
 		this.mvc.perform(get("/").with(user("user").roles("USER"))).andExpect(status().isOk());
 		this.mvc.perform(get("/").with(user("user").roles("WRONG"))).andExpect(status().isForbidden());
 		verifyNoInteractions(handler);
+	}
+
+	@Test
+	public void getWhenCustomObservationConventionThenUses() throws Exception {
+		this.spring
+			.register(RoleUserConfig.class, BasicController.class, ObservationRegistryConfig.class,
+					CustomObservationConfig.class)
+			.autowire();
+		this.mvc.perform(get("/").with(user("user").roles("USER"))).andExpect(status().isOk());
+		ObservationConvention<?> convention = this.spring.getContext().getBean(ObservationConvention.class);
+		verify(convention).supportsContext(any());
 	}
 
 	@Configuration
@@ -1315,6 +1330,33 @@ public class AuthorizeHttpRequestsConfigurerTests {
 		@Bean
 		ObservationPredicate observabilityDefaults() {
 			return SecurityObservationPredicate.withDefaults().shouldObserveAuthorizations(false).build();
+		}
+
+	}
+
+	@Configuration
+	static class CustomObservationConfig {
+
+		private final ObservationConvention<AuthorizationObservationContext<?>> convention = spy(
+				new AuthorizationObservationConvention());
+
+		@Bean
+		ObservationObjectPostProcessor<AuthorizationManager<?>> observationObjectPostProcessor() {
+			return new ObservationObjectPostProcessor<>() {
+				@Override
+				public AuthorizationManager<?> postProcess(ObservationRegistry registry,
+						AuthorizationManager<?> object) {
+					ObservationAuthorizationManager<?> authorizationManager = new ObservationAuthorizationManager<>(
+							registry, object);
+					authorizationManager.setObservationConvention(CustomObservationConfig.this.convention);
+					return authorizationManager;
+				}
+			};
+		}
+
+		@Bean
+		ObservationConvention<AuthorizationObservationContext<?>> observationConvention() {
+			return this.convention;
 		}
 
 	}

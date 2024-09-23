@@ -29,6 +29,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationConvention;
 import io.micrometer.observation.ObservationHandler;
 import io.micrometer.observation.ObservationPredicate;
 import io.micrometer.observation.ObservationRegistry;
@@ -76,6 +77,9 @@ import org.springframework.security.access.prepost.PreFilter;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationEventPublisher;
 import org.springframework.security.authorization.AuthorizationManager;
+import org.springframework.security.authorization.AuthorizationObservationContext;
+import org.springframework.security.authorization.AuthorizationObservationConvention;
+import org.springframework.security.authorization.ObservationAuthorizationManager;
 import org.springframework.security.authorization.method.AuthorizationAdvisor;
 import org.springframework.security.authorization.method.AuthorizationAdvisorProxyFactory;
 import org.springframework.security.authorization.method.AuthorizationAdvisorProxyFactory.TargetVisitor;
@@ -88,6 +92,7 @@ import org.springframework.security.authorization.method.PrePostTemplateDefaults
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.SecurityContextChangedListenerConfig;
 import org.springframework.security.config.core.GrantedAuthorityDefaults;
+import org.springframework.security.config.observation.ObservationObjectPostProcessor;
 import org.springframework.security.config.observation.SecurityObservationPredicate;
 import org.springframework.security.config.test.SpringTestContext;
 import org.springframework.security.config.test.SpringTestContextExtension;
@@ -1102,6 +1107,42 @@ public class PrePostMethodSecurityConfigurationTests {
 		verifyNoInteractions(handler);
 	}
 
+	@Test
+	@WithMockUser
+	public void prePostMethodWhenCustomObservationContextThenUses() {
+		this.spring
+			.register(MethodSecurityServiceEnabledConfig.class, ObservationRegistryConfig.class,
+					CustomObservationConfig.class)
+			.autowire();
+		this.methodSecurityService.preAuthorizePermitAll();
+		ObservationConvention<?> convention = this.spring.getContext().getBean(ObservationConvention.class);
+		verify(convention).supportsContext(any());
+	}
+
+	@Test
+	@WithMockUser
+	public void securedMethodWhenCustomObservationContextThenUses() {
+		this.spring
+			.register(MethodSecurityServiceEnabledConfig.class, ObservationRegistryConfig.class,
+					CustomObservationConfig.class)
+			.autowire();
+		this.methodSecurityService.securedUser();
+		ObservationConvention<?> convention = this.spring.getContext().getBean(ObservationConvention.class);
+		verify(convention).supportsContext(any());
+	}
+
+	@Test
+	@WithMockUser
+	public void jsr250MethodWhenCustomObservationContextThenUses() {
+		this.spring
+			.register(MethodSecurityServiceEnabledConfig.class, ObservationRegistryConfig.class,
+					CustomObservationConfig.class)
+			.autowire();
+		this.methodSecurityService.jsr250RolesAllowedUser();
+		ObservationConvention<?> convention = this.spring.getContext().getBean(ObservationConvention.class);
+		verify(convention).supportsContext(any());
+	}
+
 	private static Consumer<ConfigurableWebApplicationContext> disallowBeanOverriding() {
 		return (context) -> ((AnnotationConfigWebApplicationContext) context).setAllowBeanDefinitionOverriding(false);
 	}
@@ -1794,6 +1835,33 @@ public class PrePostMethodSecurityConfigurationTests {
 		@Bean
 		ObservationPredicate observabilityDefaults() {
 			return SecurityObservationPredicate.withDefaults().shouldObserveAuthorizations(false).build();
+		}
+
+	}
+
+	@Configuration
+	static class CustomObservationConfig {
+
+		private final ObservationConvention<AuthorizationObservationContext<?>> convention = spy(
+				new AuthorizationObservationConvention());
+
+		@Bean
+		ObservationObjectPostProcessor<AuthorizationManager<?>> observationObjectPostProcessor() {
+			return new ObservationObjectPostProcessor<>() {
+				@Override
+				public AuthorizationManager<?> postProcess(ObservationRegistry registry,
+						AuthorizationManager<?> object) {
+					ObservationAuthorizationManager<?> authorizationManager = new ObservationAuthorizationManager<>(
+							registry, object);
+					authorizationManager.setObservationConvention(CustomObservationConfig.this.convention);
+					return authorizationManager;
+				}
+			};
+		}
+
+		@Bean
+		ObservationConvention<AuthorizationObservationContext<?>> observationConvention() {
+			return this.convention;
 		}
 
 	}

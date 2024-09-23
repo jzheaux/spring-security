@@ -27,6 +27,7 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationConvention;
 import io.micrometer.observation.ObservationHandler;
 import io.micrometer.observation.ObservationPredicate;
 import io.micrometer.observation.ObservationRegistry;
@@ -68,8 +69,12 @@ import org.springframework.security.authentication.RememberMeAuthenticationToken
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;
+import org.springframework.security.authorization.AuthorizationObservationContext;
+import org.springframework.security.authorization.AuthorizationObservationConvention;
+import org.springframework.security.authorization.ObservationAuthorizationManager;
 import org.springframework.security.config.annotation.SecurityContextChangedListenerConfig;
 import org.springframework.security.config.annotation.web.messaging.MessageSecurityMetadataSourceRegistry;
+import org.springframework.security.config.observation.ObservationObjectPostProcessor;
 import org.springframework.security.config.observation.SecurityObservationPredicate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AnnotationTemplateExpressionDefaults;
@@ -437,6 +442,18 @@ public class WebSocketMessageBrokerSecurityConfigurationTests {
 			// okay
 		}
 		verifyNoInteractions(observationHandler);
+	}
+
+	@Test
+	public void sendMessageWhenCustomObservationConventionThenUses() {
+		loadConfig(WebSocketSecurityConfig.class, ObservationRegistryConfig.class, CustomObservationConfig.class);
+		SimpMessageHeaderAccessor headers = SimpMessageHeaderAccessor.create(SimpMessageType.CONNECT);
+		headers.setNativeHeader(this.token.getHeaderName(), XOR_CSRF_TOKEN_VALUE);
+		Message<?> message = message(headers, "/authenticated");
+		headers.getSessionAttributes().put(CsrfToken.class.getName(), this.token);
+		clientInboundChannel().send(message);
+		ObservationConvention<?> convention = this.context.getBean(ObservationConvention.class);
+		verify(convention).supportsContext(any());
 	}
 
 	private void assertHandshake(HttpServletRequest request) {
@@ -1005,6 +1022,33 @@ public class WebSocketMessageBrokerSecurityConfigurationTests {
 		@Bean
 		ObservationPredicate observabilityDefaults() {
 			return SecurityObservationPredicate.withDefaults().shouldObserveAuthorizations(false).build();
+		}
+
+	}
+
+	@Configuration
+	static class CustomObservationConfig {
+
+		private final ObservationConvention<AuthorizationObservationContext<?>> convention = spy(
+				new AuthorizationObservationConvention());
+
+		@Bean
+		ObservationObjectPostProcessor<AuthorizationManager<?>> observationObjectPostProcessor() {
+			return new ObservationObjectPostProcessor<>() {
+				@Override
+				public AuthorizationManager<?> postProcess(ObservationRegistry registry,
+						AuthorizationManager<?> object) {
+					ObservationAuthorizationManager<?> authorizationManager = new ObservationAuthorizationManager<>(
+							registry, object);
+					authorizationManager.setObservationConvention(CustomObservationConfig.this.convention);
+					return authorizationManager;
+				}
+			};
+		}
+
+		@Bean
+		ObservationConvention<AuthorizationObservationContext<?>> observationConvention() {
+			return this.convention;
 		}
 
 	}

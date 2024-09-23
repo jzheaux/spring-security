@@ -29,6 +29,7 @@ import org.springframework.security.authorization.ObservationAuthorizationManage
 import org.springframework.security.authorization.method.MethodInvocationResult;
 import org.springframework.security.config.annotation.ObjectPostProcessor;
 import org.springframework.security.config.observation.AbstractObservationObjectPostProcessor;
+import org.springframework.security.config.observation.ObservationObjectPostProcessor;
 
 @Configuration(proxyBeanMethods = false)
 @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
@@ -37,27 +38,40 @@ class MethodObservationConfiguration {
 	@Bean
 	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 	static ObjectPostProcessor<AuthorizationManager<MethodInvocation>> methodAuthorizationManagerPostProcessor(
-			ObjectProvider<ObservationRegistry> registry) {
-		return new AbstractObservationObjectPostProcessor<>(registry) {
-			@Override
-			protected <O extends AuthorizationManager<MethodInvocation>> O postProcess(ObservationRegistry registry,
-					O object) {
-				return (O) new ObservationAuthorizationManager<>(registry, object);
-			}
+			ObjectProvider<ObservationRegistry> registry,
+			ObjectProvider<ObservationObjectPostProcessor<AuthorizationManager<MethodInvocation>>> postProcessor) {
+		return new AbstractMethodSecurityObservationObjectPostProcessor<>(registry, postProcessor) {
+
 		};
 	}
 
 	@Bean
 	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 	static ObjectPostProcessor<AuthorizationManager<MethodInvocationResult>> methodResultAuthorizationManagerPostProcessor(
-			ObjectProvider<ObservationRegistry> registry) {
-		return new AbstractObservationObjectPostProcessor<>(registry) {
-			@Override
-			protected <O extends AuthorizationManager<MethodInvocationResult>> O postProcess(
-					ObservationRegistry registry, O object) {
-				return (O) new ObservationAuthorizationManager<>(registry, object);
-			}
+			ObjectProvider<ObservationRegistry> registry,
+			ObjectProvider<ObservationObjectPostProcessor<AuthorizationManager<MethodInvocationResult>>> postProcessor) {
+		return new AbstractMethodSecurityObservationObjectPostProcessor<>(registry, postProcessor) {
+
 		};
+	}
+
+	private static class AbstractMethodSecurityObservationObjectPostProcessor<T>
+			extends AbstractObservationObjectPostProcessor<AuthorizationManager<T>> {
+
+		ObjectProvider<ObservationObjectPostProcessor<AuthorizationManager<T>>> postProcessor;
+
+		AbstractMethodSecurityObservationObjectPostProcessor(ObjectProvider<ObservationRegistry> registry,
+				ObjectProvider<ObservationObjectPostProcessor<AuthorizationManager<T>>> postProcessor) {
+			super(registry);
+			this.postProcessor = postProcessor;
+		}
+
+		@Override
+		protected <O extends AuthorizationManager<T>> O postProcess(ObservationRegistry registry, O object) {
+			return (O) this.postProcessor.getIfUnique(() -> ObservationAuthorizationManager::new)
+				.postProcess(registry, object);
+		}
+
 	}
 
 }
