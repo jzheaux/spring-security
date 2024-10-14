@@ -21,7 +21,7 @@ import org.springframework.security.authentication.ott.reactive.ReactiveOneTimeT
 import org.springframework.security.web.server.authentication.ServerAuthenticationConverter
 import org.springframework.security.web.server.authentication.ServerAuthenticationFailureHandler
 import org.springframework.security.web.server.authentication.ServerAuthenticationSuccessHandler
-import org.springframework.security.web.server.authentication.ott.ServerGeneratedOneTimeTokenHandler
+import org.springframework.security.web.server.authentication.ott.ServerOneTimeTokenGenerationSuccessHandler
 import org.springframework.security.web.server.context.ServerSecurityContextRepository
 
 
@@ -39,7 +39,7 @@ import org.springframework.security.web.server.context.ServerSecurityContextRepo
  * @property showDefaultSubmitPage configures whether the default one-time token submit page should be shown
  * @property loginProcessingUrl the URL to process the login request
  * @property generateTokenUrl the URL that a One-Time Token generate request will be processed
- * @property generatedOneTimeTokenHandler the strategy to be used to handle generated one-time tokens
+ * @property tokenGenerationSuccessHandler the strategy to be used to handle generated one-time tokens
  * @property securityContextRepository the [ServerSecurityContextRepository] used to save the [Authentication]. For the [SecurityContext] to be loaded on subsequent requests the [ReactorContextWebFilter] must be configured to be able to load the value (they are not implicitly linked).
  */
 @ServerSecurityMarker
@@ -49,7 +49,7 @@ class ServerOneTimeTokenLoginDsl {
     var authenticationConverter: ServerAuthenticationConverter? = null
     var authenticationFailureHandler: ServerAuthenticationFailureHandler? = null
     var authenticationSuccessHandler: ServerAuthenticationSuccessHandler? = null
-    var generatedOneTimeTokenHandler: ServerGeneratedOneTimeTokenHandler? = null
+    var tokenGenerationSuccessHandler: ServerOneTimeTokenGenerationSuccessHandler? = null
     var securityContextRepository: ServerSecurityContextRepository? = null
     var defaultSubmitPageUrl: String? = null
     var loginProcessingUrl: String? = null
@@ -59,7 +59,7 @@ class ServerOneTimeTokenLoginDsl {
     internal fun get(): (ServerHttpSecurity.OneTimeTokenLoginSpec) -> Unit {
         return { oneTimeTokenLogin ->
             authenticationManager?.also { oneTimeTokenLogin.authenticationManager(authenticationManager) }
-            oneTimeTokenService?.also { oneTimeTokenLogin.oneTimeTokenService(oneTimeTokenService) }
+            oneTimeTokenService?.also { oneTimeTokenLogin.tokenService(oneTimeTokenService) }
             authenticationConverter?.also { oneTimeTokenLogin.authenticationConverter(authenticationConverter) }
             authenticationFailureHandler?.also {
                 oneTimeTokenLogin.authenticationFailureHandler(
@@ -75,10 +75,10 @@ class ServerOneTimeTokenLoginDsl {
             defaultSubmitPageUrl?.also { oneTimeTokenLogin.defaultSubmitPageUrl(defaultSubmitPageUrl) }
             showDefaultSubmitPage?.also { oneTimeTokenLogin.showDefaultSubmitPage(showDefaultSubmitPage!!) }
             loginProcessingUrl?.also { oneTimeTokenLogin.loginProcessingUrl(loginProcessingUrl) }
-            generateTokenUrl?.also { oneTimeTokenLogin.generateTokenUrl(generateTokenUrl) }
-            generatedOneTimeTokenHandler?.also {
-                oneTimeTokenLogin.generatedOneTimeTokenHandler(
-                    generatedOneTimeTokenHandler
+            generateTokenUrl?.also { oneTimeTokenLogin.tokenGeneratingUrl(generateTokenUrl) }
+            tokenGenerationSuccessHandler?.also {
+                oneTimeTokenLogin.tokenGenerationSuccessHandler(
+                    tokenGenerationSuccessHandler
                 )
             }
         }

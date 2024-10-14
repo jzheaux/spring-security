@@ -18,13 +18,11 @@ package org.springframework.security.config.web.server
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import reactor.core.publisher.Mono
-
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
-import org.springframework.context.ApplicationContext
 import org.springframework.http.MediaType
 import org.springframework.security.authentication.ott.OneTimeToken
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity
@@ -36,13 +34,14 @@ import org.springframework.security.core.userdetails.User
 import org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers
 import org.springframework.security.web.server.SecurityWebFilterChain
 import org.springframework.security.web.server.authentication.RedirectServerAuthenticationSuccessHandler
-import org.springframework.security.web.server.authentication.ott.ServerGeneratedOneTimeTokenHandler
-import org.springframework.security.web.server.authentication.ott.ServerRedirectGeneratedOneTimeTokenHandler
+import org.springframework.security.web.server.authentication.ott.ServerOneTimeTokenGenerationSuccessHandler
+import org.springframework.security.web.server.authentication.ott.ServerRedirectOneTimeTokenGenerationSuccessHandler
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.reactive.config.EnableWebFlux
 import org.springframework.web.reactive.function.BodyInserters
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.util.UriBuilder
+import reactor.core.publisher.Mono
 
 /**
  * Tests for [ServerOneTimeTokenLoginDsl]
@@ -95,7 +94,7 @@ class ServerOneTimeTokenLoginDslTests {
             .is3xxRedirection()
             .expectHeader().valueEquals("Location", "/login/ott")
 
-        val token = TestServerGeneratedOneTimeTokenHandler.lastToken?.tokenValue
+        val token = TestServerOneTimeTokenGenerationSuccessHandler.lastToken?.tokenValue
 
         client.mutateWith(SecurityMockServerConfigurers.csrf())
             .post()
@@ -129,7 +128,7 @@ class ServerOneTimeTokenLoginDslTests {
             .is3xxRedirection()
             .expectHeader().valueEquals("Location", "/redirected")
 
-        val token = TestServerGeneratedOneTimeTokenHandler.lastToken?.tokenValue
+        val token = TestServerOneTimeTokenGenerationSuccessHandler.lastToken?.tokenValue
 
         client.mutateWith(SecurityMockServerConfigurers.csrf())
             .post()
@@ -160,7 +159,7 @@ class ServerOneTimeTokenLoginDslTests {
                     authorize(anyExchange, authenticated)
                 }
                 oneTimeTokenLogin {
-                    generatedOneTimeTokenHandler = TestServerGeneratedOneTimeTokenHandler()
+                    tokenGenerationSuccessHandler = TestServerOneTimeTokenGenerationSuccessHandler()
                 }
             }
             // @formatter:on
@@ -182,7 +181,7 @@ class ServerOneTimeTokenLoginDslTests {
                 }
                 oneTimeTokenLogin {
                     generateTokenUrl = "/generateurl"
-                    generatedOneTimeTokenHandler = TestServerGeneratedOneTimeTokenHandler("/redirected")
+                    tokenGenerationSuccessHandler = TestServerOneTimeTokenGenerationSuccessHandler("/redirected")
                     loginProcessingUrl = "/loginprocessingurl"
                     authenticationSuccessHandler = RedirectServerAuthenticationSuccessHandler("/authenticated")
                 }
@@ -199,19 +198,19 @@ class ServerOneTimeTokenLoginDslTests {
             MapReactiveUserDetailsService(User("user", "password", listOf()))
     }
 
-    private class TestServerGeneratedOneTimeTokenHandler: ServerGeneratedOneTimeTokenHandler {
-        private var delegate: ServerRedirectGeneratedOneTimeTokenHandler? = null
+    private class TestServerOneTimeTokenGenerationSuccessHandler: ServerOneTimeTokenGenerationSuccessHandler {
+        private var delegate: ServerRedirectOneTimeTokenGenerationSuccessHandler? = null
 
         companion object {
             var lastToken: OneTimeToken? = null
         }
 
         constructor() {
-            this.delegate = ServerRedirectGeneratedOneTimeTokenHandler("/login/ott")
+            this.delegate = ServerRedirectOneTimeTokenGenerationSuccessHandler("/login/ott")
         }
 
         constructor(redirectUrl: String?) {
-            this.delegate = ServerRedirectGeneratedOneTimeTokenHandler(redirectUrl)
+            this.delegate = ServerRedirectOneTimeTokenGenerationSuccessHandler(redirectUrl)
         }
 
         override fun handle(exchange: ServerWebExchange?, oneTimeToken: OneTimeToken?): Mono<Void> {
