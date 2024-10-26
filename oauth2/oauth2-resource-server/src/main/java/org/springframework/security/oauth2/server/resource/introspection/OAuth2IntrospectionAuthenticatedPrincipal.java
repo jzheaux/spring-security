@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -78,6 +78,11 @@ public final class OAuth2IntrospectionAuthenticatedPrincipal
 	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {
 		return this.delegate.getAuthorities();
+	}
+
+	@Override
+	public String getNameAttributeKey() {
+		return this.delegate.getNameAttributeKey();
 	}
 
 	@Override

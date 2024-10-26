@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,5 +56,12 @@ public interface OAuth2AuthenticatedPrincipal extends AuthenticatedPrincipal {
 	 * @return the OAuth 2.0 token authorities
 	 */
 	Collection<? extends GrantedAuthority> getAuthorities();
+
+	/**
+	 * Get the key used to access the user's &quot;name&quot; from {@link #getAttributes()}
+	 * @return the key used to access the user's &quot;name&quot;
+	 * @since 6.4
+	 */
+	String getNameAttributeKey();
 
 }
