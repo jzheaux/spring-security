@@ -190,6 +190,14 @@ public class RequestMatcherDelegatingAuthorizationManagerTests {
 			.anyRequest()
 			.denyAll()
 			.build();
+		RequestMatcherDelegatingAuthorizationManager.builder(null)
+				.rootServlet((paths) -> paths
+						.requestMatchers(null, "/").authenticated()
+						.requestMatchers(null, "/**").denyAll())
+				.servletPath("/mvc", (paths) -> paths
+						.requestMatchers(null, "/").authenticated()
+						.requestMatchers(null, "/**").denyAll()
+				).build();
 		AuthorizationDecision decision = manager.check(TestAuthentication::authenticatedAdmin, null);
 		assertThat(decision).isNotNull();
 		assertThat(decision.isGranted()).isFalse();
