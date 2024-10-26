@@ -64,4 +64,9 @@ public interface OAuth2AuthenticatedPrincipal extends AuthenticatedPrincipal {
 	 */
 	String getNameAttributeKey();
 
+	@Override
+	default String getName() {
+		return getAttribute(getNameAttributeKey()).toString();
+	}
+
 }
