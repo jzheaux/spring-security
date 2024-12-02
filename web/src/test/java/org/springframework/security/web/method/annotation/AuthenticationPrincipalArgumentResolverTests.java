@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 
 import org.springframework.core.MethodParameter;
 import org.springframework.core.annotation.AliasFor;
+import org.springframework.core.annotation.AnnotationConfigurationException;
 import org.springframework.expression.BeanResolver;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.annotation.AnnotationTemplateExpressionDefaults;
@@ -199,6 +200,7 @@ public class AuthenticationPrincipalArgumentResolverTests {
 	public void resolveArgumentCustomMetaAnnotation() throws Exception {
 		CustomUserPrincipal principal = new CustomUserPrincipal();
 		setAuthenticationPrincipal(principal);
+		this.resolver.setTemplateDefaults(new AnnotationTemplateExpressionDefaults());
 		this.expectedPrincipal = principal.id;
 		assertThat(this.resolver.resolveArgument(showUserCustomMetaAnnotation(), null, null, null))
 			.isEqualTo(this.expectedPrincipal);
@@ -212,6 +214,17 @@ public class AuthenticationPrincipalArgumentResolverTests {
 		this.expectedPrincipal = principal.id;
 		assertThat(this.resolver.resolveArgument(showUserCustomMetaAnnotationTpl(), null, null, null))
 			.isEqualTo(this.expectedPrincipal);
+	}
+
+	@Test
+	public void resolveArgumentAnnotationFromInterface() {
+		CustomUserPrincipal principal = new CustomUserPrincipal();
+		setAuthenticationPrincipal(principal);
+		this.resolver.setTemplateDefaults(new AnnotationTemplateExpressionDefaults());
+		assertThat(this.resolver.supportsParameter(getMethodParameter("getUserByInterface", CustomUserPrincipal.class)))
+			.isTrue();
+		assertThatExceptionOfType(AnnotationConfigurationException.class).isThrownBy(() -> this.resolver
+			.resolveArgument(getMethodParameter("username", CustomUserPrincipal.class), null, null, null));
 	}
 
 	private MethodParameter showUserNoAnnotation() {
@@ -312,7 +325,31 @@ public class AuthenticationPrincipalArgumentResolverTests {
 
 	}
 
-	public static class TestController {
+	interface UserApi {
+
+		String getUserByInterface(@AuthenticationPrincipal CustomUserPrincipal user);
+
+		Object username(@AuthenticationPrincipal CustomUserPrincipal user);
+
+	}
+
+	interface UserPublicApi {
+
+		Object username(@AuthenticationPrincipal CustomUserPrincipal user);
+
+	}
+
+	public static class TestController implements UserApi, UserPublicApi {
+
+		@Override
+		public String getUserByInterface(CustomUserPrincipal user) {
+			return "";
+		}
+
+		@Override
+		public Object username(CustomUserPrincipal user) {
+			return user.getPrincipal();
+		}
 
 		public void showUserNoAnnotation(String user) {
 		}

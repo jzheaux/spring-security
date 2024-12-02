@@ -18,9 +18,11 @@ package org.springframework.security.core.annotation;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -29,6 +31,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.core.MethodClassKey;
+import org.springframework.core.ResolvableType;
 import org.springframework.core.annotation.AnnotationConfigurationException;
 import org.springframework.core.annotation.MergedAnnotation;
 import org.springframework.core.annotation.MergedAnnotations;
@@ -107,7 +110,7 @@ final class UniqueSecurityAnnotationScanner<A extends Annotation> extends Abstra
 	MergedAnnotation<A> merge(AnnotatedElement element, Class<?> targetClass) {
 		if (element instanceof Parameter parameter) {
 			return this.uniqueParameterAnnotationCache.computeIfAbsent(parameter, (p) -> {
-				List<MergedAnnotation<A>> annotations = findDirectAnnotations(p);
+				List<MergedAnnotation<A>> annotations = findParameterAnnotations(p);
 				return requireUnique(p, annotations);
 			});
 		}
@@ -135,6 +138,64 @@ final class UniqueSecurityAnnotationScanner<A extends Annotation> extends Abstra
 						synthesized));
 			}
 		};
+	}
+
+	private List<MergedAnnotation<A>> findParameterAnnotations(Method method, Class<?> superOrIfc, Parameter current) {
+		List<MergedAnnotation<A>> directAnnotations = Collections.emptyList();
+		for (Method candidate : superOrIfc.getMethods()) {
+			if (isOverrideFor(method, candidate)) {
+				for (Parameter parameter : candidate.getParameters()) {
+					if (parameter.getName().equals(current.getName())) {
+						directAnnotations = findDirectAnnotations(parameter);
+						if (!directAnnotations.isEmpty()) {
+							return directAnnotations;
+						}
+					}
+				}
+			}
+		}
+		return directAnnotations;
+	}
+
+	private List<MergedAnnotation<A>> findParameterAnnotations(Parameter current) {
+		List<MergedAnnotation<A>> directAnnotations = new ArrayList<>(findDirectAnnotations(current));
+		if (directAnnotations.isEmpty()) {
+			Executable executable = current.getDeclaringExecutable();
+			if (executable instanceof Method method) {
+				Class<?> clazz = method.getDeclaringClass();
+				while (clazz != null) {
+					for (Class<?> ifc : clazz.getInterfaces()) {
+						directAnnotations.addAll(findParameterAnnotations(method, ifc, current));
+					}
+					clazz = clazz.getSuperclass();
+					if (clazz == Object.class) {
+						clazz = null;
+					}
+					if (clazz != null) {
+						directAnnotations.addAll(findParameterAnnotations(method, clazz, current));
+					}
+				}
+			}
+		}
+		return directAnnotations;
+	}
+
+	private boolean isOverrideFor(Method method, Method candidate) {
+		if (!candidate.getName().equals(method.getName())
+				|| candidate.getParameterCount() != method.getParameterCount()) {
+			return false;
+		}
+		Class<?>[] paramTypes = method.getParameterTypes();
+		if (Arrays.equals(candidate.getParameterTypes(), paramTypes)) {
+			return true;
+		}
+		for (int i = 0; i < paramTypes.length; i++) {
+			if (paramTypes[i] != ResolvableType.forMethodParameter(candidate, i, method.getDeclaringClass())
+				.resolve()) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private List<MergedAnnotation<A>> findMethodAnnotations(Method method, Class<?> targetClass) {
