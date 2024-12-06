@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 
 import org.springframework.core.MethodParameter;
 import org.springframework.core.annotation.AliasFor;
+import org.springframework.core.annotation.AnnotatedMethod;
 import org.springframework.core.annotation.AnnotationConfigurationException;
 import org.springframework.expression.BeanResolver;
 import org.springframework.security.authentication.TestingAuthenticationToken;
@@ -200,7 +201,6 @@ public class AuthenticationPrincipalArgumentResolverTests {
 	public void resolveArgumentCustomMetaAnnotation() throws Exception {
 		CustomUserPrincipal principal = new CustomUserPrincipal();
 		setAuthenticationPrincipal(principal);
-		this.resolver.setTemplateDefaults(new AnnotationTemplateExpressionDefaults());
 		this.expectedPrincipal = principal.id;
 		assertThat(this.resolver.resolveArgument(showUserCustomMetaAnnotation(), null, null, null))
 			.isEqualTo(this.expectedPrincipal);
@@ -217,7 +217,7 @@ public class AuthenticationPrincipalArgumentResolverTests {
 	}
 
 	@Test
-	public void resolveArgumentAnnotationFromInterface() {
+	public void resolveArgumentAnnotationTemplateFromInterface() {
 		CustomUserPrincipal principal = new CustomUserPrincipal();
 		setAuthenticationPrincipal(principal);
 		this.resolver.setTemplateDefaults(new AnnotationTemplateExpressionDefaults());
@@ -225,6 +225,17 @@ public class AuthenticationPrincipalArgumentResolverTests {
 			.isTrue();
 		assertThatExceptionOfType(AnnotationConfigurationException.class).isThrownBy(() -> this.resolver
 			.resolveArgument(getMethodParameter("username", CustomUserPrincipal.class), null, null, null));
+	}
+
+	@Test
+	public void resolveArgumentAnnotationFromInterface() {
+		CustomUserPrincipal principal = new CustomUserPrincipal();
+		setAuthenticationPrincipal(principal);
+		assertThat(this.resolver.supportsParameter(getMethodParameter("getUserByInterface", CustomUserPrincipal.class)))
+			.isTrue();
+		assertThat(this.resolver.resolveArgument(getMethodParameter("username", CustomUserPrincipal.class), null, null,
+				null))
+			.isEqualTo(this.expectedPrincipal);
 	}
 
 	private MethodParameter showUserNoAnnotation() {
@@ -285,7 +296,7 @@ public class AuthenticationPrincipalArgumentResolverTests {
 
 	private MethodParameter getMethodParameter(String methodName, Class<?>... paramTypes) {
 		Method method = ReflectionUtils.findMethod(TestController.class, methodName, paramTypes);
-		return new MethodParameter(method, 0);
+		return new AnnotatedMethod(method).getMethodParameters()[0];
 	}
 
 	private void setAuthenticationPrincipal(Object principal) {

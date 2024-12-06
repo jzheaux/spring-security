@@ -20,6 +20,7 @@ import java.lang.annotation.Annotation;
 
 import org.springframework.core.MethodParameter;
 import org.springframework.core.annotation.AnnotationUtils;
+import org.springframework.core.annotation.MergedAnnotations;
 import org.springframework.expression.BeanResolver;
 import org.springframework.expression.Expression;
 import org.springframework.expression.ExpressionParser;
@@ -191,7 +192,7 @@ public final class AuthenticationPrincipalArgumentResolver implements HandlerMet
 		for (Annotation toSearch : annotationsToSearch) {
 			annotation = AnnotationUtils.findAnnotation(toSearch.annotationType(), this.annotationType);
 			if (annotation != null) {
-				return annotation;
+				return MergedAnnotations.from(toSearch).get(this.annotationType).synthesize();
 			}
 		}
 		return null;
