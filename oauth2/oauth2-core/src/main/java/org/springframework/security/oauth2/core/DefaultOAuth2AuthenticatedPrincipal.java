@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2024 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -64,7 +64,7 @@ public final class DefaultOAuth2AuthenticatedPrincipal implements OAuth2Authenti
 		this.attributes = Collections.unmodifiableMap(attributes);
 		this.authorities = (authorities != null) ? Collections.unmodifiableCollection(authorities)
 				: AuthorityUtils.NO_AUTHORITIES;
-		this.name = (name != null) ? name : (String) this.attributes.get(this.getNameAttributeKey());
+		this.name = (name != null) ? name : (String) this.attributes.get("sub");
 	}
 
 	/**
@@ -79,11 +79,6 @@ public final class DefaultOAuth2AuthenticatedPrincipal implements OAuth2Authenti
 	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {
 		return this.authorities;
-	}
-
-	@Override
-	public String getNameAttributeKey() {
-		return "sub";
 	}
 
 	@Override

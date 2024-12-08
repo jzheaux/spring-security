@@ -94,11 +94,6 @@ public class DefaultOAuth2User implements OAuth2User, Serializable {
 		return this.attributes;
 	}
 
-	@Override
-	public String getNameAttributeKey() {
-		return this.nameAttributeKey;
-	}
-
 	private Set<GrantedAuthority> sortAuthorities(Collection<? extends GrantedAuthority> authorities) {
 		SortedSet<GrantedAuthority> sortedAuthorities = new TreeSet<>(
 				Comparator.comparing(GrantedAuthority::getAuthority));
