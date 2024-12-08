@@ -64,7 +64,7 @@ public final class DefaultOAuth2AuthenticatedPrincipal implements OAuth2Authenti
 		this.attributes = Collections.unmodifiableMap(attributes);
 		this.authorities = (authorities != null) ? Collections.unmodifiableCollection(authorities)
 				: AuthorityUtils.NO_AUTHORITIES;
-		this.name = (name != null) ? name : (String) this.attributes.get("sub");
+		this.name = (name != null) ? name : (String) this.attributes.get(this.getNameAttributeKey());
 	}
 
 	/**

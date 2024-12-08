@@ -80,6 +80,11 @@ public class DefaultOAuth2User implements OAuth2User, Serializable {
 	}
 
 	@Override
+	public String getName() {
+		return this.getAttribute(this.nameAttributeKey).toString();
+	}
+
+	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {
 		return this.authorities;
 	}
