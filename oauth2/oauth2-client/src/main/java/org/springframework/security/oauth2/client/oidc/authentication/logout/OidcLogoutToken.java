@@ -16,6 +16,7 @@
 
 package org.springframework.security.oauth2.client.oidc.authentication.logout;
 
+import java.io.Serial;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
@@ -44,6 +45,9 @@ import org.springframework.util.Assert;
  * Token</a>
  */
 public class OidcLogoutToken extends AbstractOAuth2Token implements LogoutTokenClaimAccessor {
+
+	@Serial
+	private static final long serialVersionUID = -5705409698230609696L;
 
 	private static final String BACKCHANNEL_LOGOUT_TOKEN_EVENT_NAME = "http://schemas.openid.net/event/backchannel-logout";
 

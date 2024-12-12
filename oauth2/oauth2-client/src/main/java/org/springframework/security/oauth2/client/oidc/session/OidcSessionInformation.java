@@ -16,6 +16,7 @@
 
 package org.springframework.security.oauth2.client.oidc.session;
 
+import java.io.Serial;
 import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedHashMap;
@@ -32,6 +33,9 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
  * @since 6.2
  */
 public class OidcSessionInformation extends SessionInformation {
+
+	@Serial
+	private static final long serialVersionUID = -1703808683027974918L;
 
 	private final Map<String, String> authorities;
 

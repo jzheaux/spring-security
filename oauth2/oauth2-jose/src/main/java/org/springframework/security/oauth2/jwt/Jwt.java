@@ -16,6 +16,7 @@
 
 package org.springframework.security.oauth2.jwt;
 
+import java.io.Serial;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
@@ -48,6 +49,9 @@ import org.springframework.util.Assert;
  * (JWE)</a>
  */
 public class Jwt extends AbstractOAuth2Token implements JwtClaimAccessor {
+
+	@Serial
+	private static final long serialVersionUID = 4872843562494199108L;
 
 	private final Map<String, Object> headers;
 

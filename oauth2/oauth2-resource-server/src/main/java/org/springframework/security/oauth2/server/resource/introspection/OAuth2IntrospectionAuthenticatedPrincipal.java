@@ -16,6 +16,7 @@
 
 package org.springframework.security.oauth2.server.resource.introspection;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Map;
@@ -35,6 +36,9 @@ import org.springframework.security.oauth2.core.OAuth2TokenIntrospectionClaimAcc
  */
 public final class OAuth2IntrospectionAuthenticatedPrincipal
 		implements OAuth2TokenIntrospectionClaimAccessor, OAuth2AuthenticatedPrincipal, Serializable {
+
+	@Serial
+	private static final long serialVersionUID = 382069143804098909L;
 
 	private final OAuth2AuthenticatedPrincipal delegate;
 

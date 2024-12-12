@@ -16,6 +16,7 @@
 
 package org.springframework.security.oauth2.core.oidc;
 
+import java.io.Serial;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
@@ -47,6 +48,9 @@ import org.springframework.util.Assert;
  * Claims</a>
  */
 public class OidcIdToken extends AbstractOAuth2Token implements IdTokenClaimAccessor {
+
+	@Serial
+	private static final long serialVersionUID = -1840734870428968020L;
 
 	private final Map<String, Object> claims;
 

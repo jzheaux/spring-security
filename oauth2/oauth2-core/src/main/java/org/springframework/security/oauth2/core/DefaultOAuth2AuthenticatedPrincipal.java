@@ -16,6 +16,7 @@
 
 package org.springframework.security.oauth2.core;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
@@ -33,6 +34,9 @@ import org.springframework.util.Assert;
  * @since 5.2
  */
 public final class DefaultOAuth2AuthenticatedPrincipal implements OAuth2AuthenticatedPrincipal, Serializable {
+
+	@Serial
+	private static final long serialVersionUID = 4631662622577433065L;
 
 	private final Map<String, Object> attributes;
 

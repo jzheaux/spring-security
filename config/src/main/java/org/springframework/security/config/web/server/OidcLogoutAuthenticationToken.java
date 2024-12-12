@@ -16,6 +16,8 @@
 
 package org.springframework.security.config.web.server;
 
+import java.io.Serial;
+
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
@@ -28,6 +30,9 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
  * @since 6.2
  */
 class OidcLogoutAuthenticationToken extends AbstractAuthenticationToken {
+
+	@Serial
+	private static final long serialVersionUID = -1568528983223505540L;
 
 	private final String logoutToken;
 

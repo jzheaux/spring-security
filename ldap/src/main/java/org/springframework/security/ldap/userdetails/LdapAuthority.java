@@ -31,6 +31,8 @@ import org.springframework.util.Assert;
  */
 public class LdapAuthority implements GrantedAuthority {
 
+	private static final long serialVersionUID = 343193700821611354L;
+
 	private final String dn;
 
 	private final String role;

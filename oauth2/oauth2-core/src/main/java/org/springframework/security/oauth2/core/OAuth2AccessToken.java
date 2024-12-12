@@ -16,6 +16,7 @@
 
 package org.springframework.security.oauth2.core;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.Collections;
@@ -40,6 +41,9 @@ import org.springframework.util.Assert;
  * 1.4 Access Token</a>
  */
 public class OAuth2AccessToken extends AbstractOAuth2Token {
+
+	@Serial
+	private static final long serialVersionUID = -3041884478533441940L;
 
 	private final TokenType tokenType;
 

@@ -57,6 +57,14 @@ public class BearerTokenAuthentication extends AbstractOAuth2TokenAuthentication
 		setAuthenticated(true);
 	}
 
+	public BearerTokenAuthentication(OAuth2AuthenticatedPrincipal principal, OAuth2AccessToken credentials) {
+		super(credentials, principal, credentials, principal.getAuthorities());
+		Assert.isTrue(credentials.getTokenType() == OAuth2AccessToken.TokenType.BEARER,
+				"credentials must be a bearer token");
+		this.attributes = Collections.unmodifiableMap(new LinkedHashMap<>(principal.getAttributes()));
+		setAuthenticated(true);
+	}
+
 	@Override
 	public Map<String, Object> getTokenAttributes() {
 		return this.attributes;

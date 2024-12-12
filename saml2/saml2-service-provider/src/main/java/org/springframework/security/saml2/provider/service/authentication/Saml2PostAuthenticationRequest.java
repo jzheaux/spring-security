@@ -16,6 +16,8 @@
 
 package org.springframework.security.saml2.provider.service.authentication;
 
+import java.io.Serial;
+
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 import org.springframework.security.saml2.provider.service.registration.Saml2MessageBinding;
 
@@ -29,6 +31,9 @@ import org.springframework.security.saml2.provider.service.registration.Saml2Mes
  * @see org.springframework.security.saml2.provider.service.web.authentication.Saml2AuthenticationRequestResolver
  */
 public class Saml2PostAuthenticationRequest extends AbstractSaml2AuthenticationRequest {
+
+	@Serial
+	private static final long serialVersionUID = -6412064305715642123L;
 
 	Saml2PostAuthenticationRequest(String samlRequest, String relayState, String authenticationRequestUri,
 			String relyingPartyRegistrationId, String id) {

@@ -16,6 +16,8 @@
 
 package org.springframework.security.oauth2.server.resource;
 
+import java.io.Serial;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.util.Assert;
@@ -33,6 +35,9 @@ import org.springframework.util.Assert;
  * Section 3: The WWW-Authenticate Response Header Field</a>
  */
 public final class BearerTokenError extends OAuth2Error {
+
+	@Serial
+	private static final long serialVersionUID = 4521118368930341766L;
 
 	private final HttpStatus httpStatus;
 
