@@ -145,7 +145,7 @@ public class OidcUserAuthority extends OAuth2UserAuthority {
 		return result;
 	}
 
-	public static Map<String, Object> collectClaims(OidcIdToken idToken, OidcUserInfo userInfo) {
+	static Map<String, Object> collectClaims(OidcIdToken idToken, OidcUserInfo userInfo) {
 		Assert.notNull(idToken, "idToken cannot be null");
 		Map<String, Object> claims = new HashMap<>();
 		if (userInfo != null) {

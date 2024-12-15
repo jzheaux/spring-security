@@ -848,8 +848,11 @@ public final class SecurityMockServerConfigurers {
 		}
 
 		private OAuth2User defaultPrincipal() {
-			String name = this.attributes.get().get(this.nameAttributeKey).toString();
-			return new DefaultOAuth2User(name, this.attributes.get(), this.authorities.get());
+			return new DefaultOAuth2User.Builder()
+				.nameAttributeKey(this.nameAttributeKey)
+				.attributes(this.attributes.get())
+				.authorities(this.authorities.get())
+				.build();
 		}
 
 	}
@@ -1024,7 +1027,11 @@ public final class SecurityMockServerConfigurers {
 		}
 
 		private OidcUser defaultPrincipal() {
-			return new DefaultOidcUser(getOidcIdToken(), this.userInfo, getAuthorities());
+			return new DefaultOidcUser.Builder()
+				.idToken(getOidcIdToken())
+				.userInfo(this.userInfo)
+				.authorities(getAuthorities())
+				.build();
 		}
 
 	}

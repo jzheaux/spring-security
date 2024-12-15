@@ -35,11 +35,6 @@ import org.springframework.util.Assert;
 /**
  * The default implementation of an {@link OAuth2User}.
  *
- * <p>
- * User attribute names are <b>not</b> standardized between providers, and therefore it is
- * required to supply the user's &quot;name&quot; or &quot;name&quot; attribute to one of
- * the constructors.
- *
  * @author Joe Grandja
  * @author Eddú Meléndez
  * @author Park Hyojong
@@ -146,11 +141,76 @@ public class DefaultOAuth2User implements OAuth2User, Serializable {
 		return sb.toString();
 	}
 
-	private static String getNameFromAttributes(Map<String, Object> attributes, String nameAttributeKey) {
+	protected static String getNameFromAttributes(Map<String, Object> attributes, String nameAttributeKey) {
 		Assert.hasText(nameAttributeKey, "nameAttributeKey cannot be empty");
 		Assert.notNull(attributes.get(nameAttributeKey),
 				"Attribute value for '" + nameAttributeKey + "' cannot be null");
 		return attributes.get(nameAttributeKey).toString();
+	}
+
+	/**
+	 * A builder for {@link DefaultOAuth2User}.
+	 */
+	public static class Builder {
+
+		private String name;
+
+		private String nameAttributeKey;
+
+		private Map<String, Object> attributes;
+
+		private Collection<? extends GrantedAuthority> authorities;
+
+		/**
+		 * Sets the name of the user.
+		 * @param name the name of the user
+		 * @return the {@link Builder}
+		 */
+		public Builder name(String name) {
+			this.name = name;
+			return this;
+		}
+
+		/**
+		 * Sets the key used to access the user's &quot;name&quot; from the user attributes if no &quot;name&quot; is
+		 * provided.
+		 * @param nameAttributeKey the key used to access the user's &quot;name&quot; from the user attributes.
+		 * @return the {@link Builder}
+		 */
+		public Builder nameAttributeKey(String nameAttributeKey) {
+			this.nameAttributeKey = nameAttributeKey;
+			return this;
+		}
+
+		/**
+		 * Sets the attributes about the user.
+		 * @param attributes the attributes about the user
+		 * @return the {@link Builder}
+		 */
+		public Builder attributes(Map<String, Object> attributes) {
+			this.attributes = attributes;
+			return this;
+		}
+
+		/**
+		 * Sets the authorities granted to the user.
+		 * @param authorities the authorities granted to the user
+		 * @return the {@link Builder}
+		 */
+		public Builder authorities(Collection<? extends GrantedAuthority> authorities) {
+			this.authorities = authorities;
+			return this;
+		}
+
+		/**
+		 * Builds a new {@link DefaultOAuth2User}.
+		 * @return a {@link DefaultOAuth2User}
+		 */
+		public DefaultOAuth2User build() {
+			String name = this.name != null ? this.name : getNameFromAttributes(this.attributes, this.nameAttributeKey);
+			return new DefaultOAuth2User(name, this.attributes, this.authorities);
+		}
+
 	}
 
 }
