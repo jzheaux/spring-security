@@ -17,7 +17,8 @@
 package org.springframework.security.oauth2.server.resource.authentication;
 
 import java.util.Collection;
-import java.util.Map;
+import java.util.Collections;
+import java.util.HashSet;
 
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
@@ -45,17 +46,23 @@ import org.springframework.security.oauth2.jwt.Jwt;
  */
 public final class JwtBearerTokenAuthenticationConverter implements Converter<Jwt, AbstractAuthenticationToken> {
 
-	private final JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
+	private final JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
+
+	private Converter<Jwt, OAuth2AuthenticatedPrincipal> principalConverter = (jwt) ->
+		new DefaultOAuth2AuthenticatedPrincipal(jwt.getSubject(), jwt.getClaims(), Collections.emptyList());
 
 	@Override
 	public AbstractAuthenticationToken convert(Jwt jwt) {
 		OAuth2AccessToken accessToken = new OAuth2AccessToken(OAuth2AccessToken.TokenType.BEARER, jwt.getTokenValue(),
 				jwt.getIssuedAt(), jwt.getExpiresAt());
-		Map<String, Object> attributes = jwt.getClaims();
-		AbstractAuthenticationToken token = this.jwtAuthenticationConverter.convert(jwt);
-		Collection<GrantedAuthority> authorities = token.getAuthorities();
-		OAuth2AuthenticatedPrincipal principal = new DefaultOAuth2AuthenticatedPrincipal(attributes, authorities);
+		Collection<GrantedAuthority> authorities = this.grantedAuthoritiesConverter.convert(jwt);
+		OAuth2AuthenticatedPrincipal principal = this.principalConverter.convert(jwt);
+		Collection<GrantedAuthority> userAuthorities = new HashSet<>(principal.getAuthorities());
+		authorities.addAll(userAuthorities);
 		return new BearerTokenAuthentication(principal, accessToken, authorities);
 	}
 
+	public void setJwtPrincipalConverter(Converter<Jwt, OAuth2AuthenticatedPrincipal> principalConverter) {
+		this.principalConverter = principalConverter;
+	}
 }

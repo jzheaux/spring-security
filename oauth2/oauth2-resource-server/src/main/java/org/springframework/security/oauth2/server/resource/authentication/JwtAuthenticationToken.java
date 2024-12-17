@@ -72,6 +72,12 @@ public class JwtAuthenticationToken extends AbstractOAuth2TokenAuthenticationTok
 		this.name = name;
 	}
 
+	public JwtAuthenticationToken(Jwt jwt, Object principal, Collection<? extends GrantedAuthority> authorities) {
+		super(jwt, principal, jwt, authorities);
+		setAuthenticated(true);
+		this.name = null;
+	}
+
 	@Override
 	public Map<String, Object> getTokenAttributes() {
 		return this.getToken().getClaims();
@@ -82,7 +88,7 @@ public class JwtAuthenticationToken extends AbstractOAuth2TokenAuthenticationTok
 	 */
 	@Override
 	public String getName() {
-		return this.name;
+		return (this.name != null) ? this.name : super.getName();
 	}
 
 }
