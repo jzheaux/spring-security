@@ -633,18 +633,12 @@ Xml::
 ----
 ======
 
-The primary reason for this is that Spring MVC URIs are relative to the servlet.
-In other words, an authorization rule usually doesn't include the servlet path.
+This is because Spring Security requires all URIs to be absolute (minus the context path).
 
-Other URIs may include the servlet path.
-Because of that, the best practice is to always supply the servlet path when your application has more than one servlet.
+==== Supplying the Servlet Path as a `@Bean`
 
-==== But I do only have one servlet, why is Spring Security complaining?
-
-Sometimes, application containers include additional servlets.
-This can cause some confusion when you know as the developer that the only authorization rules you are writing are for your one servlet (Spring MVC, for example)
-
-In this case, in the Java DSL you can publish a `ServletRequestMatcherBuilders#servletPath` as a `@Bean` and Spring Security will use it for all URIs.
+Specifying the servlet path for every URI can be cumbersome.
+To remove this repetitive boilerplate, you can publish a `ServletRequestMatcherBuilders#servletPath` as a `@Bean` and Spring Security will use it for all URIs.
 
 For example, the above Java sample can be rewritten as:
 
