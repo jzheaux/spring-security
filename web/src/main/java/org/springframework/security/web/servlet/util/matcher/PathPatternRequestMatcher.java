@@ -43,21 +43,14 @@ import org.springframework.web.util.pattern.PathPatternParser;
  * class.
  * </p>
  *
- * <p>
- * The pattern must be specified separately from the servlet path. If no servlet path is
- * given, the pattern is still assumed to be relative to the servlet path.
- * </p>
- *
  * @author Josh Cummings
  * @since 6.5
  */
 public final class PathPatternRequestMatcher implements RequestMatcher {
 
-	private final PathPattern pattern;
-
-	private String servletPath;
-
 	private HttpMethod method;
+
+	private final PathPattern pattern;
 
 	PathPatternRequestMatcher(PathPattern pattern) {
 		this.pattern = pattern;
@@ -99,16 +92,9 @@ public final class PathPatternRequestMatcher implements RequestMatcher {
 		if (this.method != null && !this.method.name().equals(request.getMethod())) {
 			return MatchResult.notMatch();
 		}
-		if (this.servletPath != null && !this.servletPath.equals(request.getServletPath())) {
-			return MatchResult.notMatch();
-		}
 		PathContainer path = getRequestPath(request).pathWithinApplication();
 		PathPattern.PathMatchInfo info = this.pattern.matchAndExtract(path);
 		return (info != null) ? MatchResult.match(info.getUriVariables()) : MatchResult.notMatch();
-	}
-
-	void setServletPath(String servletPath) {
-		this.servletPath = servletPath;
 	}
 
 	void setMethod(HttpMethod method) {
@@ -129,8 +115,7 @@ public final class PathPatternRequestMatcher implements RequestMatcher {
 		if (!(o instanceof PathPatternRequestMatcher that)) {
 			return false;
 		}
-		return Objects.equals(this.pattern, that.pattern) && Objects.equals(this.servletPath, that.servletPath)
-				&& Objects.equals(this.method, that.method);
+		return Objects.equals(this.method, that.method) && Objects.equals(this.pattern, that.pattern);
 	}
 
 	/**
@@ -138,7 +123,7 @@ public final class PathPatternRequestMatcher implements RequestMatcher {
 	 */
 	@Override
 	public int hashCode() {
-		return Objects.hash(this.pattern, this.servletPath, this.method);
+		return Objects.hash(this.method, this.pattern);
 	}
 
 	/**
@@ -146,8 +131,7 @@ public final class PathPatternRequestMatcher implements RequestMatcher {
 	 */
 	@Override
 	public String toString() {
-		return "PathPatternRequestMatcher [pattern=" + this.pattern + ", servletPath=" + this.servletPath + ", method="
-				+ this.method + ']';
+		return "PathPatternRequestMatcher [method=" + this.method + ", pattern=" + this.pattern + "]";
 	}
 
 	/**
@@ -160,8 +144,6 @@ public final class PathPatternRequestMatcher implements RequestMatcher {
 
 		private final PathPatternParser parser;
 
-		private String servletPath;
-
 		/**
 		 * Construct a new instance of this builder
 		 */
@@ -171,32 +153,21 @@ public final class PathPatternRequestMatcher implements RequestMatcher {
 		}
 
 		/**
-		 * Match requests that have this {@code servletPath}
-		 * @param servletPath the servlet path to use
-		 * @return the {@link PathPatternRequestMatcher.Builder} for further configuration
-		 */
-		public Builder servletPath(String servletPath) {
-			this.servletPath = servletPath;
-			return this;
-		}
-
-		/**
 		 * Creates an {@link PathPatternRequestMatcher} that uses the provided
 		 * {@code pattern} and HTTP {@code method} to match.
 		 * <p>
-		 * If the {@code pattern} is a path, it must be specified relative to the servlet
-		 * path, even if no {@link #servletPath} is specified.
+		 * If the {@code pattern} is a path, it must be specified relative to its servlet
+		 * path.
 		 * </p>
 		 * @param method the {@link HttpMethod}, can be null
-		 * @param pattern the pattern used to match; if a path, must be relative to the
-		 * servlet path, even if no {@link #servletPath} is specified
+		 * @param pattern the pattern used to match; if a path, must be relative to its
+		 * servlet path
 		 * @return the generated {@link PathPatternRequestMatcher}
 		 */
 		public PathPatternRequestMatcher pattern(HttpMethod method, String pattern) {
 			String parsed = this.parser.initFullPathPattern(pattern);
 			PathPattern pathPattern = this.parser.parse(parsed);
 			PathPatternRequestMatcher requestMatcher = new PathPatternRequestMatcher(pathPattern);
-			requestMatcher.setServletPath(this.servletPath);
 			requestMatcher.setMethod(method);
 			return requestMatcher;
 		}

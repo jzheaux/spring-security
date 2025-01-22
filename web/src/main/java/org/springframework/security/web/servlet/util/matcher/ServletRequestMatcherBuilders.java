@@ -27,6 +27,7 @@ import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.http.HttpMethod;
 import org.springframework.security.web.servlet.util.matcher.ServletRegistrationsSupport.RegistrationMapping;
+import org.springframework.security.web.util.matcher.AndRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcherBuilder;
 import org.springframework.util.Assert;
@@ -54,6 +55,8 @@ import org.springframework.util.Assert;
  */
 public final class ServletRequestMatcherBuilders {
 
+	private static final RequestMatcher DEFAULT_SERVLET = ServletRequestMatcher.defaultServlet();
+
 	private ServletRequestMatcherBuilders() {
 	}
 
@@ -64,7 +67,7 @@ public final class ServletRequestMatcherBuilders {
 	 * default servlet
 	 */
 	public static RequestMatcherBuilder defaultServlet() {
-		return servletPathInternal("");
+		return servletPathInternal(DEFAULT_SERVLET);
 	}
 
 	/**
@@ -80,18 +83,15 @@ public final class ServletRequestMatcherBuilders {
 	 * given servlet path
 	 */
 	public static RequestMatcherBuilder servletPath(String servletPath) {
-		Assert.notNull(servletPath, "servletPath cannot be null");
-		Assert.isTrue(servletPath.startsWith("/"), "servletPath must start with '/'");
-		Assert.isTrue(!servletPath.endsWith("/"), "servletPath must not end with '/'");
-		Assert.isTrue(!servletPath.endsWith("/*"), "servletPath must not end with '/*'");
-		return servletPathInternal(servletPath);
+		return servletPathInternal(new ServletRequestMatcher(servletPath));
 	}
 
-	private static RequestMatcherBuilder servletPathInternal(String servletPath) {
+	private static RequestMatcherBuilder servletPathInternal(RequestMatcher servletPath) {
+		PathPatternRequestMatcher.Builder builder = PathPatternRequestMatcher.builder();
 		return (method, pattern) -> {
 			Assert.notNull(pattern, "pattern cannot be null");
 			Assert.isTrue(pattern.startsWith("/"), "pattern must start with '/'");
-			return PathPatternRequestMatcher.builder().servletPath(servletPath).pattern(method, pattern);
+			return new AndRequestMatcher(servletPath, builder.pattern(method, pattern));
 		};
 	}
 
@@ -113,9 +113,9 @@ public final class ServletRequestMatcherBuilders {
 
 		private final Map<ServletContext, RequestMatcher> delegates = new ConcurrentHashMap<>();
 
-		private HttpMethod method;
+		private final HttpMethod method;
 
-		private String pattern;
+		private final String pattern;
 
 		PathDeducingRequestMatcher(HttpMethod method, String pattern) {
 			this.method = method;
@@ -124,16 +124,15 @@ public final class ServletRequestMatcherBuilders {
 
 		RequestMatcher requestMatcher(HttpServletRequest request) {
 			return this.delegates.computeIfAbsent(request.getServletContext(), (servletContext) -> {
-				PathPatternRequestMatcher absolute = PathPatternRequestMatcher.builder()
-					.pattern(this.method, this.pattern);
+				PathPatternRequestMatcher path = PathPatternRequestMatcher.builder().pattern(this.method, this.pattern);
 				ServletRegistrationsSupport registrations = new ServletRegistrationsSupport(servletContext);
 				Collection<RegistrationMapping> mappings = registrations.mappings();
 				if (mappings.isEmpty()) {
-					return absolute;
+					return path;
 				}
 				Collection<RegistrationMapping> dispatcherServletMappings = registrations.dispatcherServletMappings();
 				if (dispatcherServletMappings.isEmpty()) {
-					return absolute;
+					return path;
 				}
 				if (dispatcherServletMappings.size() > 1) {
 					String errorMessage = computeErrorMessage(servletContext.getServletRegistrations().values());
@@ -145,13 +144,13 @@ public final class ServletRequestMatcherBuilders {
 					throw new IllegalArgumentException(errorMessage);
 				}
 				if (dispatcherServlet.isDefault()) {
-					absolute.setServletPath("");
+					return path;
 				}
 				else {
 					String mapping = dispatcherServlet.mapping();
-					absolute.setServletPath(mapping.substring(0, mapping.length() - 2));
+					return new AndRequestMatcher(
+							ServletRequestMatcher.servletPath(mapping.substring(0, mapping.length() - 2)), path);
 				}
-				return absolute;
 			});
 		}
 

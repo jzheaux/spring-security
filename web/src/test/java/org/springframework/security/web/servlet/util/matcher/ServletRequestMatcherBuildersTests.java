@@ -37,14 +37,14 @@ class ServletRequestMatcherBuildersTests {
 	void patternWhenServletPathThenUsesPathPattern() {
 		RequestMatcherBuilder builder = ServletRequestMatcherBuilders.servletPath("/servlet/path");
 		RequestMatcher requestMatcher = builder.pattern(HttpMethod.GET, "/endpoint");
-		assertThat(requestMatcher).isInstanceOf(PathPatternRequestMatcher.class);
+		assertThat(requestMatcher.toString()).contains(PathPatternRequestMatcher.class.getSimpleName());
 	}
 
 	@Test
 	void patternWhenDefaultServletThenUsesPathPattern() {
 		RequestMatcherBuilder builder = ServletRequestMatcherBuilders.defaultServlet();
 		RequestMatcher requestMatcher = builder.pattern(HttpMethod.GET, "/endpoint");
-		assertThat(requestMatcher).isInstanceOf(PathPatternRequestMatcher.class);
+		assertThat(requestMatcher.toString()).contains(PathPatternRequestMatcher.class.getSimpleName());
 	}
 
 	@Test
@@ -92,7 +92,7 @@ class ServletRequestMatcherBuildersTests {
 			.servletPathDeducing()
 			.pattern("/**");
 		RequestMatcher deduced = requestMatcher.requestMatcher(new MockHttpServletRequest(servletContext));
-		assertThat(deduced).isInstanceOf(PathPatternRequestMatcher.class);
+		assertThat(deduced.toString()).contains(PathPatternRequestMatcher.class.getSimpleName());
 	}
 
 	@Test
@@ -103,7 +103,7 @@ class ServletRequestMatcherBuildersTests {
 			.servletPathDeducing()
 			.pattern("/**");
 		RequestMatcher deduced = requestMatcher.requestMatcher(new MockHttpServletRequest(servletContext));
-		assertThat(deduced).isInstanceOf(PathPatternRequestMatcher.class);
+		assertThat(deduced.toString()).contains(PathPatternRequestMatcher.class.getSimpleName());
 	}
 
 	@Test
@@ -116,7 +116,7 @@ class ServletRequestMatcherBuildersTests {
 			.servletPathDeducing()
 			.pattern("/**");
 		RequestMatcher deduced = requestMatcher.requestMatcher(new MockHttpServletRequest(servletContext));
-		assertThat(deduced).isInstanceOf(PathPatternRequestMatcher.class);
+		assertThat(deduced.toString()).contains(PathPatternRequestMatcher.class.getSimpleName());
 	}
 
 	@Test
@@ -128,7 +128,7 @@ class ServletRequestMatcherBuildersTests {
 			.servletPathDeducing()
 			.pattern("/services/**");
 		RequestMatcher deduced = requestMatcher.requestMatcher(new MockHttpServletRequest(servletContext));
-		assertThat(deduced).isInstanceOf(PathPatternRequestMatcher.class);
+		assertThat(deduced.toString()).contains(PathPatternRequestMatcher.class.getSimpleName());
 		MockHttpServletRequest request = new MockHttpServletRequest(servletContext, "GET", "/services/endpoint");
 		request.setServletPath("");
 		assertThat(deduced.matcher(request).isMatch()).isTrue();

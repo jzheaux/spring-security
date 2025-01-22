@@ -64,7 +64,7 @@ import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.access.intercept.RequestMatcherDelegatingAuthorizationManager;
 import org.springframework.security.web.servlet.util.matcher.MvcRequestMatcher;
-import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.servlet.util.matcher.ServletRequestMatcherBuilders;
 import org.springframework.security.web.util.matcher.RequestMatcherBuilder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -1344,7 +1344,7 @@ public class AuthorizeHttpRequestsConfigurerTests {
 
 		@Bean
 		RequestMatcherBuilder servletPath() {
-			return PathPatternRequestMatcher.builder().servletPath("/mvc");
+			return ServletRequestMatcherBuilders.servletPath("/mvc");
 		}
 
 		@Bean

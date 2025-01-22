@@ -43,8 +43,8 @@ public class PathPatternRequestMatcherTests {
 	}
 
 	@Test
-	void matcherWhenSameServletPathThenMatchResult() {
-		RequestMatcher matcher = PathPatternRequestMatcher.builder().servletPath("/mvc").pattern("/uri");
+	void matcherWhenPathInfoMatchesThenMatchResult() {
+		RequestMatcher matcher = PathPatternRequestMatcher.builder().pattern("/uri");
 		assertThat(matcher.matches(request("GET", "/mvc/uri", "/mvc"))).isTrue();
 	}
 
@@ -56,17 +56,13 @@ public class PathPatternRequestMatcherTests {
 
 	@Test
 	void matcherWhenDifferentPathThenNotMatchResult() {
-		RequestMatcher matcher = PathPatternRequestMatcher.builder()
-			.servletPath("/mvc")
-			.pattern(HttpMethod.GET, "/uri");
-		assertThat(matcher.matches(request("GET", "/uri", ""))).isFalse();
+		RequestMatcher matcher = PathPatternRequestMatcher.builder().pattern(HttpMethod.GET, "/uri");
+		assertThat(matcher.matches(request("GET", "/mvc/urj", "/mvc"))).isFalse();
 	}
 
 	@Test
 	void matcherWhenDifferentMethodThenNotMatchResult() {
-		RequestMatcher matcher = PathPatternRequestMatcher.builder()
-			.servletPath("/mvc")
-			.pattern(HttpMethod.GET, "/uri");
+		RequestMatcher matcher = PathPatternRequestMatcher.builder().pattern(HttpMethod.GET, "/uri");
 		assertThat(matcher.matches(request("POST", "/mvc/uri", "/mvc"))).isFalse();
 	}
 
