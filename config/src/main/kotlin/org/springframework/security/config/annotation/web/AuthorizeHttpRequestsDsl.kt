@@ -33,8 +33,7 @@ import org.springframework.security.web.access.intercept.AuthorizationFilter
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext
 import org.springframework.security.web.servlet.util.matcher.MvcRequestMatcher
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher
-import org.springframework.security.web.servlet.util.matcher.ServletRequestMatcher
-import org.springframework.security.web.util.matcher.AndRequestMatcher
+import org.springframework.security.web.servlet.util.matcher.ServletRequestMatcherBuilders
 import org.springframework.security.web.util.matcher.AnyRequestMatcher
 import org.springframework.security.web.util.matcher.RequestMatcher
 import org.springframework.util.ClassUtils
@@ -299,12 +298,11 @@ class AuthorizeHttpRequestsDsl : AbstractRequestMatcherDsl {
                                 if (introspector.allHandlerMappingsUsePathPatternParser()) {
                                     val pathPatternParser: PathPatternParser = requests.applicationContext.getBeanProvider(PathPatternParser::class.java)
                                         .getIfUnique({PathPatternParser.defaultInstance})
-                                    var mvcMatcher: RequestMatcher = PathPatternRequestMatcher.withPathPatternParser(pathPatternParser)
-                                        .pattern(rule.httpMethod, rule.pattern)
-                                    if (rule.servletPath != null) {
-                                        val servletRequestMatcher = ServletRequestMatcher.servletPath(rule.servletPath)
-                                        mvcMatcher = AndRequestMatcher(servletRequestMatcher, mvcMatcher)
-                                    }
+                                    val mvcMatcher = if (rule.servletPath != null) {
+                                        ServletRequestMatcherBuilders.servletPath(rule.servletPath)
+                                    } else {
+                                        PathPatternRequestMatcher.withPathPatternParser(pathPatternParser)
+                                    }.pattern(rule.httpMethod, rule.pattern)
                                     requests.requestMatchers(mvcMatcher).access(rule.rule)
                                 } else {
                                     val mvcMatcher = MvcRequestMatcher.Builder(introspector)

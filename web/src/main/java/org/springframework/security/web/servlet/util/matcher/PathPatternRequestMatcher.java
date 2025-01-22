@@ -26,7 +26,7 @@ import org.springframework.http.server.RequestPath;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcherBuilder;
 import org.springframework.util.Assert;
-import org.springframework.web.util.ServletRequestPathUtils;
+import org.springframework.web.util.WebUtils;
 import org.springframework.web.util.pattern.PathPattern;
 import org.springframework.web.util.pattern.PathPatternParser;
 
@@ -102,9 +102,9 @@ public final class PathPatternRequestMatcher implements RequestMatcher {
 	}
 
 	private RequestPath getRequestPath(HttpServletRequest request) {
-		return ServletRequestPathUtils.hasParsedRequestPath(request)
-				? ServletRequestPathUtils.getParsedRequestPath(request)
-				: ServletRequestPathUtils.parseAndCache(request);
+		String requestUri = (String) request.getAttribute(WebUtils.INCLUDE_REQUEST_URI_ATTRIBUTE);
+		requestUri = (requestUri != null) ? requestUri : request.getRequestURI();
+		return RequestPath.parse(requestUri, request.getContextPath());
 	}
 
 	/**

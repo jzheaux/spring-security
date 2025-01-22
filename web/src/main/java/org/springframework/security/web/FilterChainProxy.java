@@ -32,7 +32,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import org.springframework.core.log.LogMessage;
-import org.springframework.http.server.RequestPath;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.web.firewall.FirewalledRequest;
@@ -47,7 +46,6 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
 import org.springframework.web.filter.DelegatingFilterProxy;
 import org.springframework.web.filter.GenericFilterBean;
-import org.springframework.web.util.ServletRequestPathUtils;
 
 /**
  * Delegates {@code Filter} requests to a list of Spring-managed filter beans. As of
@@ -209,19 +207,6 @@ public class FilterChainProxy extends GenericFilterBean {
 	}
 
 	private void doFilterInternal(ServletRequest request, ServletResponse response, FilterChain chain)
-			throws IOException, ServletException {
-		RequestPath requestPath = ServletRequestPathUtils.hasParsedRequestPath(request)
-				? ServletRequestPathUtils.getParsedRequestPath(request) : null;
-		try {
-			ServletRequestPathUtils.parseAndCache((HttpServletRequest) request);
-			doFilterInternalParsedRequest(request, response, chain);
-		}
-		finally {
-			ServletRequestPathUtils.setParsedRequestPath(requestPath, request);
-		}
-	}
-
-	private void doFilterInternalParsedRequest(ServletRequest request, ServletResponse response, FilterChain chain)
 			throws IOException, ServletException {
 		FirewalledRequest firewallRequest = this.firewall.getFirewalledRequest((HttpServletRequest) request);
 		HttpServletResponse firewallResponse = this.firewall.getFirewalledResponse((HttpServletResponse) response);

@@ -27,12 +27,12 @@ import org.springframework.beans.factory.xml.ParserContext;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.web.servlet.util.matcher.MvcRequestMatcher;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
-import org.springframework.security.web.servlet.util.matcher.ServletRequestMatcher;
-import org.springframework.security.web.util.matcher.AndRequestMatcher;
+import org.springframework.security.web.servlet.util.matcher.ServletRequestMatcherBuilders;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.AnyRequestMatcher;
 import org.springframework.security.web.util.matcher.RegexRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcherBuilder;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.handler.HandlerMappingIntrospector;
@@ -127,13 +127,10 @@ public enum MatcherType {
 		@Override
 		public RequestMatcher getObject() {
 			if (this.introspector.allHandlerMappingsUsePathPatternParser()) {
-				RequestMatcher requestMatcher = PathPatternRequestMatcher.withPathPatternParser(this.pathPatternParser)
-					.pattern(this.method, this.pattern);
-				if (this.servletPath != null) {
-					RequestMatcher servletRequestMatcher = ServletRequestMatcher.servletPath(this.servletPath);
-					return new AndRequestMatcher(servletRequestMatcher, requestMatcher);
-				}
-				return requestMatcher;
+				RequestMatcherBuilder requestMatcherBuilder = (this.servletPath != null)
+						? ServletRequestMatcherBuilders.servletPath(this.servletPath)
+						: PathPatternRequestMatcher.withPathPatternParser(this.pathPatternParser);
+				return requestMatcherBuilder.pattern(this.method, this.pattern);
 			}
 			return new MvcRequestMatcher.Builder(this.introspector).servletPath(this.servletPath)
 				.pattern(this.method, this.pattern);
