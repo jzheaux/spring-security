@@ -16,13 +16,12 @@
 
 package org.springframework.security.web.servlet.util.matcher;
 
-import jakarta.servlet.http.MappingMatch;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.http.HttpMethod;
-import org.springframework.mock.web.MockHttpServletMapping;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.web.util.ServletRequestPathUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -34,13 +33,13 @@ public class PathPatternRequestMatcherTests {
 	@Test
 	void matcherWhenPatternMatchesRequestThenMatchResult() {
 		RequestMatcher matcher = PathPatternRequestMatcher.builder().pattern("/uri");
-		assertThat(matcher.matches(request("GET", "/uri"))).isTrue();
+		assertThat(matcher.matches(request("/uri"))).isTrue();
 	}
 
 	@Test
 	void matcherWhenPatternContainsPlaceholdersThenMatchResult() {
 		RequestMatcher matcher = PathPatternRequestMatcher.builder().pattern("/uri/{username}");
-		assertThat(matcher.matcher(request("GET", "/uri/bob")).getVariables()).containsEntry("username", "bob");
+		assertThat(matcher.matcher(request("/uri/bob")).getVariables()).containsEntry("username", "bob");
 	}
 
 	@Test
@@ -52,7 +51,7 @@ public class PathPatternRequestMatcherTests {
 	@Test
 	void matcherWhenSameMethodThenMatchResult() {
 		RequestMatcher matcher = PathPatternRequestMatcher.builder().pattern(HttpMethod.GET, "/uri");
-		assertThat(matcher.matches(request("GET", "/uri"))).isTrue();
+		assertThat(matcher.matches(request("/uri"))).isTrue();
 	}
 
 	@Test
@@ -72,21 +71,29 @@ public class PathPatternRequestMatcherTests {
 	}
 
 	@Test
-	void matcherWhenNoServletPathThenMatchAbsolute() {
+	void matcherWhenNoServletPathThenMatches() {
 		RequestMatcher matcher = PathPatternRequestMatcher.builder().pattern(HttpMethod.GET, "/uri");
-		assertThat(matcher.matches(request("GET", "/mvc/uri", "/mvc"))).isFalse();
+		assertThat(matcher.matches(request("GET", "/mvc/uri", "/mvc"))).isTrue();
 		assertThat(matcher.matches(request("GET", "/uri", ""))).isTrue();
 	}
 
-	MockHttpServletRequest request(String method, String uri) {
-		return new MockHttpServletRequest(method, uri);
+	@Test
+	void matcherWhenNoMethodThenMatches() {
+		RequestMatcher matcher = PathPatternRequestMatcher.builder().pattern("/uri");
+		assertThat(matcher.matches(request("POST", "/uri", ""))).isTrue();
+		assertThat(matcher.matches(request("GET", "/uri", ""))).isTrue();
+	}
+
+	MockHttpServletRequest request(String uri) {
+		MockHttpServletRequest request = new MockHttpServletRequest("GET", uri);
+		ServletRequestPathUtils.parseAndCache(request);
+		return request;
 	}
 
 	MockHttpServletRequest request(String method, String uri, String servletPath) {
 		MockHttpServletRequest request = new MockHttpServletRequest(method, uri);
 		request.setServletPath(servletPath);
-		request
-			.setHttpServletMapping(new MockHttpServletMapping(uri, servletPath + "/*", "servlet", MappingMatch.PATH));
+		ServletRequestPathUtils.parseAndCache(request);
 		return request;
 	}
 
