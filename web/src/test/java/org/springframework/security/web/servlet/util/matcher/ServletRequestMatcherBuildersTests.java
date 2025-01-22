@@ -22,12 +22,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.web.servlet.MockServletContext;
-import org.springframework.security.web.servlet.TestMockHttpServletMappings;
-import org.springframework.security.web.servlet.util.matcher.ServletRequestMatcherBuilders.EitherRequestMatcher;
 import org.springframework.security.web.servlet.util.matcher.ServletRequestMatcherBuilders.PathDeducingRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcherBuilder;
 import org.springframework.web.servlet.DispatcherServlet;
+import org.springframework.web.util.ServletRequestPathUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -117,55 +116,26 @@ class ServletRequestMatcherBuildersTests {
 			.servletPathDeducing()
 			.pattern("/**");
 		RequestMatcher deduced = requestMatcher.requestMatcher(new MockHttpServletRequest(servletContext));
-		assertThat(deduced).isInstanceOf(EitherRequestMatcher.class);
+		assertThat(deduced).isInstanceOf(PathPatternRequestMatcher.class);
 	}
 
 	@Test
-	void requestMatchersWhenPathBasedNonDispatcherServletThenAllows() {
+	void requestMatchersWhenPathBasedServletRequiresServletPath() {
 		MockServletContext servletContext = new MockServletContext();
 		servletContext.addServlet("path", Servlet.class).addMapping("/services/*");
 		servletContext.addServlet("default", DispatcherServlet.class).addMapping("/");
 		PathDeducingRequestMatcher requestMatcher = (PathDeducingRequestMatcher) ServletRequestMatcherBuilders
 			.servletPathDeducing()
-			.pattern("/services/*");
+			.pattern("/services/**");
 		RequestMatcher deduced = requestMatcher.requestMatcher(new MockHttpServletRequest(servletContext));
-		assertThat(deduced).isInstanceOf(EitherRequestMatcher.class);
+		assertThat(deduced).isInstanceOf(PathPatternRequestMatcher.class);
 		MockHttpServletRequest request = new MockHttpServletRequest(servletContext, "GET", "/services/endpoint");
-		request.setHttpServletMapping(TestMockHttpServletMappings.defaultMapping());
 		request.setServletPath("");
 		assertThat(deduced.matcher(request).isMatch()).isTrue();
-		request.setHttpServletMapping(TestMockHttpServletMappings.path(request, "/services"));
+		ServletRequestPathUtils.clearParsedRequestPath(request);
 		request.setServletPath("/services");
 		request.setPathInfo("/endpoint");
-		assertThat(deduced.matcher(request).isMatch()).isTrue();
-	}
-
-	@Test
-	void matchesWhenDispatcherServletThenMvc() {
-		MockServletContext servletContext = new MockServletContext();
-		servletContext.addServlet("default", DispatcherServlet.class).addMapping("/");
-		servletContext.addServlet("path", Servlet.class).addMapping("/services/*");
-		PathDeducingRequestMatcher requestMatcher = (PathDeducingRequestMatcher) ServletRequestMatcherBuilders
-			.servletPathDeducing()
-			.pattern("/services/*");
-		MockHttpServletRequest request = new MockHttpServletRequest(servletContext, "GET", "/services/endpoint");
-		request.setHttpServletMapping(TestMockHttpServletMappings.defaultMapping());
-		EitherRequestMatcher either = (EitherRequestMatcher) requestMatcher.requestMatcher(request);
-		RequestMatcher deduced = either.requestMatcher(request);
-		assertThat(deduced).isEqualTo(either.right);
-		request.setHttpServletMapping(TestMockHttpServletMappings.path(request, "/services"));
-		deduced = either.requestMatcher(request);
-		assertThat(deduced).isEqualTo(either.left);
-	}
-
-	@Test
-	void matchesWhenNoMappingThenException() {
-		MockServletContext servletContext = new MockServletContext();
-		servletContext.addServlet("default", DispatcherServlet.class).addMapping("/");
-		servletContext.addServlet("path", Servlet.class).addMapping("/services/*");
-		MockHttpServletRequest request = new MockHttpServletRequest(servletContext, "GET", "/services/endpoint");
-		RequestMatcher requestMatcher = ServletRequestMatcherBuilders.servletPathDeducing().pattern("/services/*");
-		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> requestMatcher.matcher(request));
+		assertThat(deduced.matcher(request).isMatch()).isFalse();
 	}
 
 }

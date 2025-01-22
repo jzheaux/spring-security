@@ -27,11 +27,9 @@ import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.http.HttpMethod;
 import org.springframework.security.web.servlet.util.matcher.ServletRegistrationsSupport.RegistrationMapping;
-import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcherBuilder;
 import org.springframework.util.Assert;
-import org.springframework.web.servlet.DispatcherServlet;
 
 /**
  * A {@link RequestMatcherBuilder} for specifying the servlet path separately from the
@@ -98,10 +96,8 @@ public final class ServletRequestMatcherBuilders {
 	}
 
 	/**
-	 * Create {@link RequestMatcher}s that will deduce the servlet path by testing the
-	 * given patterns as relative and absolute. If the target servlet is
-	 * {@link DispatcherServlet}, then it tests the pattern as relative to the servlet
-	 * path; otherwise, it tests the pattern as absolute
+	 * Create {@link RequestMatcher}s that will deduce the servlet path by inspecting
+	 * {@link ServletRegistration}s at runtime
 	 * @return a {@link ServletRequestMatcherBuilders} that deduces the servlet path at
 	 * request time
 	 */
@@ -114,18 +110,6 @@ public final class ServletRequestMatcherBuilders {
 	}
 
 	static final class PathDeducingRequestMatcher implements RequestMatcher {
-
-		private static final RequestMatcher isMockMvc = (request) -> request
-			.getAttribute("org.springframework.test.web.servlet.MockMvc.MVC_RESULT_ATTRIBUTE") != null;
-
-		private static final RequestMatcher isDispatcherServlet = (request) -> {
-			String name = request.getHttpServletMapping().getServletName();
-			ServletContext servletContext = request.getServletContext();
-			ServletRegistration registration = servletContext.getServletRegistration(name);
-			Assert.notNull(registration, () -> computeErrorMessage(servletContext.getServletRegistrations().values()));
-			String mapping = request.getHttpServletMapping().getPattern();
-			return new RegistrationMapping(registration, mapping).isDispatcherServlet();
-		};
 
 		private final Map<ServletContext, RequestMatcher> delegates = new ConcurrentHashMap<>();
 
@@ -142,18 +126,14 @@ public final class ServletRequestMatcherBuilders {
 			return this.delegates.computeIfAbsent(request.getServletContext(), (servletContext) -> {
 				PathPatternRequestMatcher absolute = PathPatternRequestMatcher.builder()
 					.pattern(this.method, this.pattern);
-				PathPatternRequestMatcher relative = PathPatternRequestMatcher.builder()
-					.pattern(this.method, this.pattern);
 				ServletRegistrationsSupport registrations = new ServletRegistrationsSupport(servletContext);
 				Collection<RegistrationMapping> mappings = registrations.mappings();
 				if (mappings.isEmpty()) {
-					relative.setServletPath(PathPatternRequestMatcher.ANY_SERVLET);
-					return new EitherRequestMatcher(relative, absolute, isMockMvc);
+					return absolute;
 				}
 				Collection<RegistrationMapping> dispatcherServletMappings = registrations.dispatcherServletMappings();
 				if (dispatcherServletMappings.isEmpty()) {
-					relative.setServletPath(PathPatternRequestMatcher.ANY_SERVLET);
-					return new EitherRequestMatcher(relative, absolute, isMockMvc);
+					return absolute;
 				}
 				if (dispatcherServletMappings.size() > 1) {
 					String errorMessage = computeErrorMessage(servletContext.getServletRegistrations().values());
@@ -165,16 +145,13 @@ public final class ServletRequestMatcherBuilders {
 					throw new IllegalArgumentException(errorMessage);
 				}
 				if (dispatcherServlet.isDefault()) {
-					relative.setServletPath("");
-					if (mappings.size() == 1) {
-						return relative;
-					}
-					return new EitherRequestMatcher(relative, absolute,
-							new OrRequestMatcher(isMockMvc, isDispatcherServlet));
+					absolute.setServletPath("");
 				}
-				String mapping = dispatcherServlet.mapping();
-				relative.setServletPath(mapping.substring(0, mapping.length() - 2));
-				return relative;
+				else {
+					String mapping = dispatcherServlet.mapping();
+					absolute.setServletPath(mapping.substring(0, mapping.length() - 2));
+				}
+				return absolute;
 			});
 		}
 
@@ -207,41 +184,6 @@ public final class ServletRequestMatcherBuilders {
 		@Override
 		public String toString() {
 			return "PathDeducingRequestMatcher [delegates = " + this.delegates + "]";
-		}
-
-	}
-
-	static class EitherRequestMatcher implements RequestMatcher {
-
-		final RequestMatcher right;
-
-		final RequestMatcher left;
-
-		final RequestMatcher test;
-
-		EitherRequestMatcher(RequestMatcher right, RequestMatcher left, RequestMatcher test) {
-			this.left = left;
-			this.right = right;
-			this.test = test;
-		}
-
-		RequestMatcher requestMatcher(HttpServletRequest request) {
-			return this.test.matches(request) ? this.right : this.left;
-		}
-
-		@Override
-		public boolean matches(HttpServletRequest request) {
-			return requestMatcher(request).matches(request);
-		}
-
-		@Override
-		public MatchResult matcher(HttpServletRequest request) {
-			return requestMatcher(request).matcher(request);
-		}
-
-		@Override
-		public String toString() {
-			return "Either [" + "left = " + this.left + ", right = " + this.right + "]";
 		}
 
 	}
