@@ -51,7 +51,6 @@ public class DefaultOidcUser extends DefaultOAuth2User implements OidcUser {
 	 * @param authorities the authorities granted to the user
 	 * @param idToken the {@link OidcIdToken ID Token} containing claims about the user
 	 */
-	@Deprecated
 	public DefaultOidcUser(Collection<? extends GrantedAuthority> authorities, OidcIdToken idToken) {
 		this(authorities, idToken, IdTokenClaimNames.SUB);
 	}
@@ -63,7 +62,6 @@ public class DefaultOidcUser extends DefaultOAuth2User implements OidcUser {
 	 * @param nameAttributeKey the key used to access the user's &quot;name&quot; from
 	 * {@link #getAttributes()}
 	 */
-	@Deprecated
 	public DefaultOidcUser(Collection<? extends GrantedAuthority> authorities, OidcIdToken idToken,
 			String nameAttributeKey) {
 		this(authorities, idToken, null, nameAttributeKey);
@@ -76,7 +74,6 @@ public class DefaultOidcUser extends DefaultOAuth2User implements OidcUser {
 	 * @param userInfo the {@link OidcUserInfo UserInfo} containing claims about the user,
 	 * may be {@code null}
 	 */
-	@Deprecated
 	public DefaultOidcUser(Collection<? extends GrantedAuthority> authorities, OidcIdToken idToken,
 			OidcUserInfo userInfo) {
 		this(authorities, idToken, userInfo, IdTokenClaimNames.SUB);
@@ -91,7 +88,6 @@ public class DefaultOidcUser extends DefaultOAuth2User implements OidcUser {
 	 * @param nameAttributeKey the key used to access the user's &quot;name&quot; from
 	 * {@link #getAttributes()}
 	 */
-	@Deprecated
 	public DefaultOidcUser(Collection<? extends GrantedAuthority> authorities, OidcIdToken idToken,
 			OidcUserInfo userInfo, String nameAttributeKey) {
 		super(authorities, OidcUserAuthority.collectClaims(idToken, userInfo), nameAttributeKey);
@@ -100,18 +96,15 @@ public class DefaultOidcUser extends DefaultOAuth2User implements OidcUser {
 	}
 
 	/**
-	 * Constructs a {@code DefaultOidcUser} using the provided parameters.
-	 * @param name the name of the user
-	 * @param idToken the {@link OidcIdToken ID Token} containing claims about the user
-	 * @param userInfo the {@link OidcUserInfo UserInfo} containing claims about the user,
-	 * may be {@code null}
-	 * @param authorities the authorities granted to the user
+	 * Constructs a copy of the given {@code DefaultOidcUser}
+	 *
+	 * @param copy the instance to copy
+	 * @since 6.5
 	 */
-	public DefaultOidcUser(String name, OidcIdToken idToken, OidcUserInfo userInfo,
-			Collection<? extends GrantedAuthority> authorities) {
-		super(name, OidcUserAuthority.collectClaims(idToken, userInfo), authorities);
-		this.idToken = idToken;
-		this.userInfo = userInfo;
+	public DefaultOidcUser(DefaultOidcUser copy) {
+		super(copy);
+		this.idToken = copy.idToken;
+		this.userInfo = copy.userInfo;
 	}
 
 	@Override
@@ -129,42 +122,46 @@ public class DefaultOidcUser extends DefaultOAuth2User implements OidcUser {
 		return this.userInfo;
 	}
 
-	public static class Builder {
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Builder mutate() {
+		return new Builder(this);
+	}
 
-		private String name;
-
-		private String nameAttributeKey;
+	/**
+	 * A builder for {@link DefaultOAuth2User}.
+	 *
+	 * @since 6.5
+	 */
+	public static class Builder extends DefaultOAuth2User.Builder<Builder> {
 
 		private OidcIdToken idToken;
 
 		private OidcUserInfo userInfo;
 
-		private Collection<? extends GrantedAuthority> authorities;
-
-		/**
-		 * Sets the name of the user.
-		 * @param name the name of the user
-		 * @return the {@link Builder}
-		 */
-		public Builder name(String name) {
-			this.name = name;
-			return this;
+		private Builder(DefaultOidcUser user) {
+			this.idToken = user.idToken;
+			this.userInfo = user.userInfo;
 		}
 
 		/**
-		 * Sets the key used to access the user's &quot;name&quot; from the user attributes if no &quot;name&quot; is
-		 * provided.
-		 * @param nameAttributeKey the key used to access the user's &quot;name&quot; from the user attributes.
-		 * @return the {@link Builder}
+		 * Please instead use
+		 * @param attributes the attributes about the user
+		 * @deprecated Please use {@link #idToken} and {@link #userInfo} instead
 		 */
-		public Builder nameAttributeKey(String nameAttributeKey) {
-			this.nameAttributeKey = nameAttributeKey;
-			return this;
+		@Deprecated
+		@Override
+		public Builder attributes(Map<String, Object> attributes) {
+			throw new UnsupportedOperationException(
+					"since you are creating a DefaultOidcUser, please use #idToken and #userInfo to supply the attributes");
 		}
 
 		/**
 		 * Sets the {@link OidcIdToken ID Token} containing claims about the user.
-		 * @param idToken the {@link OidcIdToken ID Token} containing claims about the user.
+		 * @param idToken the {@link OidcIdToken ID Token} containing claims about the
+		 * user.
 		 * @return the {@link Builder}
 		 */
 		public Builder idToken(OidcIdToken idToken) {
@@ -174,7 +171,8 @@ public class DefaultOidcUser extends DefaultOAuth2User implements OidcUser {
 
 		/**
 		 * Sets the {@link OidcUserInfo UserInfo} containing claims about the user.
-		 * @param userInfo the {@link OidcUserInfo UserInfo} containing claims about the user.
+		 * @param userInfo the {@link OidcUserInfo UserInfo} containing claims about the
+		 * user.
 		 * @return the {@link Builder}
 		 */
 		public Builder userInfo(OidcUserInfo userInfo) {
@@ -183,26 +181,11 @@ public class DefaultOidcUser extends DefaultOAuth2User implements OidcUser {
 		}
 
 		/**
-		 * Sets the authorities granted to the user.
-		 * @param authorities the authorities granted to the user
-		 * @return the {@link Builder}
-		 */
-		public Builder authorities(Collection<? extends GrantedAuthority> authorities) {
-			this.authorities = authorities;
-			return this;
-		}
-
-		/**
 		 * Builds a new {@link DefaultOidcUser}.
 		 * @return a {@link DefaultOidcUser}
 		 */
 		public DefaultOidcUser build() {
-			String name = this.name;
-			if (name == null) {
-				Map<String, Object> attributes = OidcUserAuthority.collectClaims(this.idToken, userInfo);
-				name = getNameFromAttributes(attributes, this.nameAttributeKey);
-			}
-			return new DefaultOidcUser(name, idToken, userInfo, authorities);
+			return new DefaultOidcUser(this.authorities, this.idToken, this.userInfo, this.nameAttributeKey);
 		}
 
 	}
