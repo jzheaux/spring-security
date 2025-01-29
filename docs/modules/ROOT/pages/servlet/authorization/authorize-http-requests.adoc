@@ -596,8 +596,8 @@ import static org.springframework.security.web.servlet.util.matcher.ServletReque
 SecurityFilterChain appEndpoints(HttpSecurity http) {
 	http
         .authorizeHttpRequests((authorize) -> authorize
-            .requestMatchers(servletPath("/spring-mvc").pattern("/admin/**")).hasAuthority("admin")
-            .requestMatchers(servletPath("/spring-mvc").pattern("/my/controller/**")).hasAuthority("controller")
+            .requestMatchers(servletPath("/spring-mvc").matcher("/admin/**")).hasAuthority("admin")
+            .requestMatchers(servletPath("/spring-mvc").matcher("/my/controller/**")).hasAuthority("controller")
             .anyRequest().authenticated()
         );
 
@@ -646,8 +646,8 @@ SecurityFilterChain appEndpoints(HttpSecurity http) {
 	RequestMatcherBuilder mvc = servletPath("/spring-mvc");
 	http
         .authorizeHttpRequests((authorize) -> authorize
-            .requestMatchers(mvc.pattern("/admin/**")).hasAuthority("admin")
-            .requestMatchers(mvc.pattern("/my/controller/**")).hasAuthority("controller")
+            .requestMatchers(mvc.matcher("/admin/**")).hasAuthority("admin")
+            .requestMatchers(mvc.matcher("/my/controller/**")).hasAuthority("controller")
             .anyRequest().authenticated()
         );
 

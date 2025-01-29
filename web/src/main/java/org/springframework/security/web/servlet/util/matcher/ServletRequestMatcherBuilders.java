@@ -29,6 +29,7 @@ import jakarta.servlet.http.HttpServletMapping;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.MappingMatch;
 
+import org.springframework.http.HttpMethod;
 import org.springframework.lang.Nullable;
 import org.springframework.security.web.util.matcher.AndRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
@@ -90,14 +91,23 @@ public final class ServletRequestMatcherBuilders {
 		Assert.isTrue(servletPath.startsWith("/"), "servletPath must start with '/'");
 		Assert.isTrue(!servletPath.endsWith("/"), "servletPath must not end with a slash");
 		Assert.isTrue(!servletPath.contains("*"), "servletPath must not contain a star");
-		RequestMatcher servletPathMatcher = new ServletPathRequestMatcher(servletPath);
-		return (method, pattern) -> {
+		return new ServletRequestMatcherBuilder(servletPath);
+	}
+
+	private record ServletRequestMatcherBuilder(String servletPath) implements RequestMatcherBuilder {
+		@Override
+		public RequestMatcher anyRequest() {
+			return new ServletPathRequestMatcher(this.servletPath);
+		}
+
+		@Override
+		public RequestMatcher matcher(HttpMethod method, String pattern) {
 			Assert.notNull(pattern, "pattern cannot be null");
 			Assert.isTrue(pattern.startsWith("/"), "pattern must start with '/'");
 			PathPatternRequestMatcher pathPattern = PathPatternRequestMatcher.pathPattern(method,
-					servletPath + pattern);
-			return new AndRequestMatcher(servletPathMatcher, pathPattern);
-		};
+					this.servletPath + pattern);
+			return new AndRequestMatcher(new ServletPathRequestMatcher(this.servletPath), pathPattern);
+		}
 	}
 
 	private record ServletPathRequestMatcher(String path) implements RequestMatcher {

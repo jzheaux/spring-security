@@ -1348,7 +1348,7 @@ public class AuthorizeHttpRequestsConfigurerTests {
 			// @formatter:off
 			http
 				.authorizeHttpRequests((authorize) -> authorize
-					.requestMatchers(mvc.pattern("/path/**")).hasRole("USER")
+					.requestMatchers(mvc.matcher("/path/**")).hasRole("USER")
 				)
 				.httpBasic(withDefaults());
 			// @formatter:on

@@ -35,25 +35,25 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 class ServletRequestMatcherBuildersTests {
 
 	@Test
-	void patternWhenServletPathThenMatchesOnlyServletPath() {
+	void matcherWhenServletPathThenMatchesOnlyServletPath() {
 		RequestMatcherBuilder builder = ServletRequestMatcherBuilders.servletPath("/servlet/path");
-		RequestMatcher requestMatcher = builder.pattern(HttpMethod.GET, "/endpoint");
+		RequestMatcher requestMatcher = builder.matcher(HttpMethod.GET, "/endpoint");
 		assertThat(requestMatcher.matches(request("/servlet/path/endpoint", "/servlet/path"))).isTrue();
 		assertThat(requestMatcher.matches(request("/endpoint", "/endpoint", "/servlet/path/*"))).isFalse();
 	}
 
 	@Test
-	void patternWhenRequestPathThenIgnoresServletPath() {
+	void matcherWhenRequestPathThenIgnoresServletPath() {
 		RequestMatcherBuilder builder = ServletRequestMatcherBuilders.requestPath();
-		RequestMatcher requestMatcher = builder.pattern(HttpMethod.GET, "/endpoint");
+		RequestMatcher requestMatcher = builder.matcher(HttpMethod.GET, "/endpoint");
 		assertThat(requestMatcher.matches(request("/servlet/path/endpoint", "/servlet/path", "/endpoint"))).isFalse();
 		assertThat(requestMatcher.matches(request("/endpoint", "/endpoint"))).isTrue();
 	}
 
 	@Test
-	void patternWhenServletPathThenRequiresServletPathToExist() {
+	void matcherWhenServletPathThenRequiresServletPathToExist() {
 		RequestMatcherBuilder builder = ServletRequestMatcherBuilders.servletPath("/servlet/path");
-		RequestMatcher requestMatcher = builder.pattern(HttpMethod.GET, "/endpoint");
+		RequestMatcher requestMatcher = builder.matcher(HttpMethod.GET, "/endpoint");
 		assertThatExceptionOfType(IllegalArgumentException.class)
 			.isThrownBy(() -> requestMatcher.matches(request("/servlet/path/endpoint", "/servlet/path", "")));
 	}
