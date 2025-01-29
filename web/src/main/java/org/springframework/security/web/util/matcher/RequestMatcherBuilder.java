@@ -39,10 +39,10 @@ public interface RequestMatcherBuilder {
 	 * @param patterns the separate set of patterns to match
 	 * @return one {@link RequestMatcher} per pattern
 	 */
-	default RequestMatcher pattern(HttpMethod method, String... patterns) {
+	default RequestMatcher matcher(HttpMethod method, String... patterns) {
 		List<RequestMatcher> requestMatchers = new ArrayList<>();
 		for (String pattern : patterns) {
-			requestMatchers.add(pattern(method, pattern));
+			requestMatchers.add(matcher(method, pattern));
 		}
 		return new OrRequestMatcher(requestMatchers);
 	}
@@ -56,8 +56,8 @@ public interface RequestMatcherBuilder {
 	 * @param patterns the separate set of patterns to match
 	 * @return one {@link RequestMatcher} per pattern
 	 */
-	default RequestMatcher pattern(String... patterns) {
-		return pattern(null, patterns);
+	default RequestMatcher matcher(String... patterns) {
+		return matcher(null, patterns);
 	}
 
 	/**
@@ -68,8 +68,8 @@ public interface RequestMatcherBuilder {
 	 * @param pattern the pattern to match
 	 * @return a {@link RequestMatcher} that matches this pattern
 	 */
-	default RequestMatcher pattern(String pattern) {
-		return pattern(null, pattern);
+	default RequestMatcher matcher(String pattern) {
+		return matcher(null, pattern);
 	}
 
 	/**
@@ -77,9 +77,9 @@ public interface RequestMatcherBuilder {
 	 * @return a {@link RequestMatcher} that matches any request
 	 */
 	default RequestMatcher anyRequest() {
-		return pattern(null, "/**");
+		return AnyRequestMatcher.INSTANCE;
 	}
 
-	RequestMatcher pattern(HttpMethod method, String pattern);
+	RequestMatcher matcher(HttpMethod method, String pattern);
 
 }
