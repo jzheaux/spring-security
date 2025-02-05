@@ -47,6 +47,10 @@ public interface RequestMatcherBuilder {
 		return new OrRequestMatcher(requestMatchers);
 	}
 
+	default RequestMatcher matcher(HttpMethod method) {
+		return matcher(method, "/*");
+	}
+
 	/**
 	 * Create an array of {@link RequestMatcher}s that matches each respective pattern
 	 * regardless of the HTTP method

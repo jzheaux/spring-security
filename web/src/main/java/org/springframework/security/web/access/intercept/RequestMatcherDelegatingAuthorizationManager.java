@@ -26,15 +26,23 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import org.springframework.core.log.LogMessage;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authorization.AuthenticatedAuthorizationManager;
 import org.springframework.security.authorization.AuthorityAuthorizationManager;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.web.access.intercept.RequestMatcherDelegatingAuthorizationManager.DefaultRequestMatcherSpec.DefaultAuthorizationSpec;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.servlet.util.matcher.RequestMatcherSpec;
+import org.springframework.security.web.servlet.util.matcher.ServletRequestMatcherBuilders;
 import org.springframework.security.web.util.UrlUtils;
+import org.springframework.security.web.util.matcher.AndRequestMatcher;
 import org.springframework.security.web.util.matcher.AnyRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher.MatchResult;
+import org.springframework.security.web.util.matcher.RequestMatcherBuilder;
 import org.springframework.security.web.util.matcher.RequestMatcherEntry;
 import org.springframework.util.Assert;
 
@@ -52,11 +60,11 @@ public final class RequestMatcherDelegatingAuthorizationManager implements Autho
 
 	private final Log logger = LogFactory.getLog(getClass());
 
-	private final List<RequestMatcherEntry<AuthorizationManager<RequestAuthorizationContext>>> mappings;
+	final List<RequestMatcherEntry<AuthorizationManager<RequestAuthorizationContext>>> mappings;
 
 	private RequestMatcherDelegatingAuthorizationManager(
 			List<RequestMatcherEntry<AuthorizationManager<RequestAuthorizationContext>>> mappings) {
-		Assert.notEmpty(mappings, "mappings cannot be empty");
+		Assert.notEmpty(mappings, "At least one mapping is required (for example, anyRequest().authenticated())");
 		this.mappings = mappings;
 	}
 
@@ -111,7 +119,7 @@ public final class RequestMatcherDelegatingAuthorizationManager implements Autho
 	/**
 	 * A builder for {@link RequestMatcherDelegatingAuthorizationManager}.
 	 */
-	public static final class Builder {
+	public static final class Builder implements RequestMatcherSpec {
 
 		private boolean anyRequestConfigured;
 
@@ -151,7 +159,9 @@ public final class RequestMatcherDelegatingAuthorizationManager implements Autho
 		 * Maps any request.
 		 * @return the {@link AuthorizedUrl} for further customizations
 		 * @since 6.2
+		 * @deprecated please use {@link #authorize()} instead
 		 */
+		@Deprecated
 		public AuthorizedUrl anyRequest() {
 			Assert.state(!this.anyRequestConfigured, "Can't configure anyRequest after itself");
 			this.anyRequestConfigured = true;
@@ -163,10 +173,46 @@ public final class RequestMatcherDelegatingAuthorizationManager implements Autho
 		 * @param matchers the {@link RequestMatcher}s to map
 		 * @return the {@link AuthorizedUrl} for further customizations
 		 * @since 6.2
+		 * @deprecated please use {@link #matching(RequestMatcher...)} instead
 		 */
+		@Deprecated
 		public AuthorizedUrl requestMatchers(RequestMatcher... matchers) {
 			Assert.state(!this.anyRequestConfigured, "Can't configure requestMatchers after anyRequest");
 			return new AuthorizedUrl(matchers);
+		}
+
+		public RequestMatcherSpec servletPath(String path) {
+			Assert.state(!this.anyRequestConfigured, "Can't configure anyRequest after itself");
+			return new DefaultRequestMatcherSpec(this, ServletRequestMatcherBuilders.servletPath(path));
+		}
+
+		@Override
+		public RequestMatcherSpec uris(String... uris) {
+			Assert.state(!this.anyRequestConfigured, "Can't configure anyRequest after itself");
+			return new DefaultRequestMatcherSpec(this).uris(uris);
+		}
+
+		@Override
+		public RequestMatcherSpec methods(HttpMethod... methods) {
+			Assert.state(!this.anyRequestConfigured, "Can't configure anyRequest after itself");
+			return new DefaultRequestMatcherSpec(this).methods(methods);
+		}
+
+		@Override
+		public RequestMatcherSpec matching(RequestMatcher... matchers) {
+			Assert.state(!this.anyRequestConfigured, "Can't configure anyRequest after itself");
+			return new DefaultRequestMatcherSpec(this).matching(matchers);
+		}
+
+		@Override
+		public AuthorizationSpec authorize() {
+			return new DefaultAuthorizationSpec(this, AnyRequestMatcher.INSTANCE);
+		}
+
+		@Override
+		public void authorize(AuthorizationManager<RequestAuthorizationContext> manager) {
+			this.anyRequestConfigured = true;
+			add(AnyRequestMatcher.INSTANCE, manager);
 		}
 
 		/**
@@ -183,7 +229,9 @@ public final class RequestMatcherDelegatingAuthorizationManager implements Autho
 		 *
 		 * @author Evgeniy Cheban
 		 * @since 6.2
+		 * @deprecated please use {@link RequestMatcherSpec} methods instead
 		 */
+		@Deprecated
 		public final class AuthorizedUrl {
 
 			private final List<RequestMatcher> matchers;
@@ -290,6 +338,136 @@ public final class RequestMatcherDelegatingAuthorizationManager implements Autho
 					Builder.this.mappings.add(new RequestMatcherEntry<>(matcher, manager));
 				}
 				return Builder.this;
+			}
+
+		}
+
+	}
+
+	static class DefaultRequestMatcherSpec implements RequestMatcherSpec {
+
+		private final RequestMatcherDelegatingAuthorizationManager.Builder builder;
+
+		private final RequestMatcherBuilder matcherBuilder;
+
+		private RequestMatcher uris = AnyRequestMatcher.INSTANCE;
+
+		private RequestMatcher methods = AnyRequestMatcher.INSTANCE;
+
+		private RequestMatcher matcher = AnyRequestMatcher.INSTANCE;
+
+		DefaultRequestMatcherSpec(RequestMatcherDelegatingAuthorizationManager.Builder builder) {
+			this(builder, PathPatternRequestMatcher::pathPattern);
+		}
+
+		DefaultRequestMatcherSpec(RequestMatcherDelegatingAuthorizationManager.Builder builder,
+				RequestMatcherBuilder matcherBuilder) {
+			this.builder = builder;
+			this.matcherBuilder = matcherBuilder;
+		}
+
+		@Override
+		public RequestMatcherSpec uris(String... uris) { // replaces
+			if (uris.length == 0) {
+				this.uris = this.matcherBuilder.anyRequest();
+			}
+			else {
+				this.uris = this.matcherBuilder.matcher(uris);
+			}
+			return this;
+		}
+
+		@Override
+		public RequestMatcherSpec methods(HttpMethod... methods) {
+			if (methods.length == 0) {
+				this.methods = AnyRequestMatcher.INSTANCE;
+			}
+			else {
+				List<RequestMatcher> matchers = new ArrayList<>();
+				for (HttpMethod method : methods) {
+					matchers.add(this.matcherBuilder.matcher(method));
+				}
+				this.methods = new OrRequestMatcher(matchers);
+			}
+			return this;
+		}
+
+		@Override
+		public RequestMatcherSpec matching(RequestMatcher... matchers) {
+			this.matcher = new OrRequestMatcher(matchers);
+			return this;
+		}
+
+		@Override
+		public AuthorizationSpec authorize() {
+			return new DefaultAuthorizationSpec(this.builder, requestMatcher());
+		}
+
+		@Override
+		public void authorize(AuthorizationManager<RequestAuthorizationContext> manager) {
+			this.builder.add(requestMatcher(), manager);
+		}
+
+		RequestMatcher requestMatcher() {
+			return new AndRequestMatcher(this.methods, this.uris, this.matcher);
+		}
+
+		static final class DefaultAuthorizationSpec implements AuthorizationSpec {
+
+			private final RequestMatcherDelegatingAuthorizationManager.Builder builder;
+
+			private final RequestMatcher matcher;
+
+			DefaultAuthorizationSpec(RequestMatcherDelegatingAuthorizationManager.Builder builder,
+					RequestMatcher matcher) {
+				this.builder = builder;
+				this.matcher = matcher;
+			}
+
+			@Override
+			public void everyone() {
+				this.builder.add(this.matcher, (a, o) -> new AuthorizationDecision(true));
+			}
+
+			@Override
+			public void none() {
+				this.builder.add(this.matcher, (a, o) -> new AuthorizationDecision(false));
+			}
+
+			@Override
+			public void authenticated() {
+				this.builder.add(this.matcher, AuthenticatedAuthorizationManager.authenticated());
+				this.builder.anyRequestConfigured = this.matcher instanceof AnyRequestMatcher;
+			}
+
+			@Override
+			public void roles(String... roles) {
+				this.builder.add(this.matcher, AuthorityAuthorizationManager.hasAnyRole(roles));
+				this.builder.anyRequestConfigured = this.matcher instanceof AnyRequestMatcher;
+			}
+
+			@Override
+			public void authorities(String... authorities) {
+				this.builder.add(this.matcher, AuthorityAuthorizationManager.hasAnyAuthority(authorities));
+				this.builder.anyRequestConfigured = this.matcher instanceof AnyRequestMatcher;
+			}
+
+			@Override
+			public void anonymous() {
+				this.builder.add(this.matcher, AuthenticatedAuthorizationManager.anonymous());
+				this.builder.anyRequestConfigured = this.matcher instanceof AnyRequestMatcher;
+			}
+
+			@Override
+			public void rememberMe() {
+				this.builder.add(this.matcher, AuthenticatedAuthorizationManager.rememberMe());
+				this.builder.anyRequestConfigured = this.matcher instanceof AnyRequestMatcher;
+			}
+
+			@Override
+			public void fullyAuthenticated() {
+				this.builder.add(this.matcher, AuthenticatedAuthorizationManager.fullyAuthenticated());
+				this.builder.anyRequestConfigured = this.matcher instanceof AnyRequestMatcher;
 			}
 
 		}

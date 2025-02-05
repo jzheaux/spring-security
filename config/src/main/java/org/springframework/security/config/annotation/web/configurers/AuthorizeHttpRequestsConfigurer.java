@@ -25,6 +25,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.ResolvableType;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.access.hierarchicalroles.NullRoleHierarchy;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authorization.AuthenticatedAuthorizationManager;
@@ -42,6 +43,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.access.intercept.RequestMatcherDelegatingAuthorizationManager;
+import org.springframework.security.web.servlet.util.matcher.RequestMatcherSpec;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcherEntry;
 import org.springframework.util.Assert;
@@ -136,15 +138,13 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 	 *
 	 * @author Evgeniy Cheban
 	 */
-	public final class AuthorizationManagerRequestMatcherRegistry
-			extends AbstractRequestMatcherRegistry<AuthorizedUrl> {
+	public final class AuthorizationManagerRequestMatcherRegistry extends AbstractRequestMatcherRegistry<AuthorizedUrl>
+			implements RequestMatcherSpec {
 
 		private final RequestMatcherDelegatingAuthorizationManager.Builder managerBuilder = RequestMatcherDelegatingAuthorizationManager
 			.builder();
 
 		private List<RequestMatcher> unmappedMatchers;
-
-		private int mappingCount;
 
 		private boolean shouldFilterAllDispatcherTypes = true;
 
@@ -155,21 +155,17 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 		private void addMapping(RequestMatcher matcher, AuthorizationManager<RequestAuthorizationContext> manager) {
 			this.unmappedMatchers = null;
 			this.managerBuilder.add(matcher, manager);
-			this.mappingCount++;
 		}
 
 		private void addFirst(RequestMatcher matcher, AuthorizationManager<RequestAuthorizationContext> manager) {
 			this.unmappedMatchers = null;
 			this.managerBuilder.mappings((m) -> m.add(0, new RequestMatcherEntry<>(matcher, manager)));
-			this.mappingCount++;
 		}
 
 		private AuthorizationManager<HttpServletRequest> createAuthorizationManager() {
 			Assert.state(this.unmappedMatchers == null,
 					() -> "An incomplete mapping was found for " + this.unmappedMatchers
 							+ ". Try completing it with something like requestUrls().<something>.hasRole('USER')");
-			Assert.state(this.mappingCount > 0,
-					"At least one mapping is required (for example, authorizeHttpRequests().anyRequest().authenticated())");
 			AuthorizationManager<HttpServletRequest> manager = postProcess(
 					(AuthorizationManager<HttpServletRequest>) this.managerBuilder.build());
 			return AuthorizeHttpRequestsConfigurer.this.postProcessor.postProcess(manager);
@@ -242,6 +238,43 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 		@Deprecated(since = "6.1", forRemoval = true)
 		public H and() {
 			return AuthorizeHttpRequestsConfigurer.this.and();
+		}
+
+		public RequestMatcherSpec servletPath(String path) {
+			Assert.state(!this.anyRequestConfigured, "Can't configure servlet paths after anyRequest");
+			return this.managerBuilder.servletPath(path);
+		}
+
+		@Override
+		public RequestMatcherSpec uris(String... uris) {
+			Assert.state(!this.anyRequestConfigured, "Can't configure uris after anyRequest");
+			return this.managerBuilder.uris(uris);
+		}
+
+		@Override
+		public RequestMatcherSpec methods(HttpMethod... methods) {
+			Assert.state(!this.anyRequestConfigured, "Can't configure methodw after anyRequest");
+			return this.managerBuilder.methods(methods);
+		}
+
+		@Override
+		public RequestMatcherSpec matching(RequestMatcher... matchers) {
+			Assert.state(!this.anyRequestConfigured, "Can't configure matchers after anyRequest");
+			return this.managerBuilder.matching(matchers);
+		}
+
+		@Override
+		public AuthorizationSpec authorize() {
+			Assert.state(!this.anyRequestConfigured, "Can't configure any request after anyRequest");
+			this.anyRequestConfigured = true;
+			return this.managerBuilder.authorize();
+		}
+
+		@Override
+		public void authorize(AuthorizationManager<RequestAuthorizationContext> manager) {
+			Assert.state(!this.anyRequestConfigured, "Can't configure any request after anyRequest");
+			this.anyRequestConfigured = true;
+			this.managerBuilder.authorize(manager);
 		}
 
 	}

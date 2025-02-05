@@ -20,6 +20,7 @@ import java.util.function.Supplier;
 
 import org.junit.jupiter.api.Test;
 
+import org.springframework.http.HttpMethod;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.authentication.TestAuthentication;
 import org.springframework.security.authentication.TestingAuthenticationToken;
@@ -28,8 +29,10 @@ import org.springframework.security.authorization.AuthorityAuthorizationManager;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.servlet.util.matcher.MvcRequestMatcher;
+import org.springframework.security.web.servlet.util.matcher.RequestMatcherSpec;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.AnyRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestHeaderRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcherEntry;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -48,7 +51,7 @@ public class RequestMatcherDelegatingAuthorizationManagerTests {
 	public void buildWhenMappingsEmptyThenException() {
 		assertThatIllegalArgumentException()
 			.isThrownBy(() -> RequestMatcherDelegatingAuthorizationManager.builder().build())
-			.withMessage("mappings cannot be empty");
+			.withMessageContaining("At least one mapping is required");
 	}
 
 	@Test
@@ -402,6 +405,24 @@ public class RequestMatcherDelegatingAuthorizationManagerTests {
 		AuthorizationDecision decision = manager.check(TestAuthentication::anonymousUser, null);
 		assertThat(decision).isNotNull();
 		assertThat(decision.isGranted()).isFalse();
+	}
+
+	@Test
+	public void requestMatcherSpecWhenCompleteThenRegisters() {
+		RequestMatcherDelegatingAuthorizationManager.Builder request = RequestMatcherDelegatingAuthorizationManager
+			.builder();
+		request.methods(HttpMethod.GET, HttpMethod.POST).uris("/path/**").authorize().authenticated();
+		request.uris("/path/**").authorize().everyone();
+
+		RequestMatcherSpec servlet = request.servletPath("/servlet");
+		servlet.uris("/path/**").authorize().none();
+		servlet.methods(HttpMethod.GET).uris("/path/**").authorize().authorities("path");
+		servlet.matching(new RequestHeaderRequestMatcher("X-Authorize")).authorize().authenticated();
+
+		request.authorize().authenticated();
+
+		RequestMatcherDelegatingAuthorizationManager manager = request.build();
+		assertThat(manager.mappings).hasSize(6);
 	}
 
 }

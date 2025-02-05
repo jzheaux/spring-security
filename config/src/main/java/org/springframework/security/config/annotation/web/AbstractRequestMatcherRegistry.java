@@ -76,7 +76,7 @@ public abstract class AbstractRequestMatcherRegistry<C> {
 
 	private ApplicationContext context;
 
-	private boolean anyRequestConfigured = false;
+	protected boolean anyRequestConfigured = false;
 
 	static {
 		mvcPresent = ClassUtils.isPresent(HANDLER_MAPPING_INTROSPECTOR,

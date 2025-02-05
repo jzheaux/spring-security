@@ -112,16 +112,14 @@ public class AuthorizeHttpRequestsConfigurerTests {
 	public void configureWhenAuthorizedHttpRequestsAndNoRequestsThenException() {
 		assertThatExceptionOfType(BeanCreationException.class)
 			.isThrownBy(() -> this.spring.register(NoRequestsConfig.class).autowire())
-			.withMessageContaining(
-					"At least one mapping is required (for example, authorizeHttpRequests().anyRequest().authenticated())");
+			.withMessageContaining("At least one mapping is required");
 	}
 
 	@Test
 	public void configureNoParameterWhenAuthorizedHttpRequestsAndNoRequestsThenException() {
 		assertThatExceptionOfType(BeanCreationException.class)
 			.isThrownBy(() -> this.spring.register(NoRequestsNoParameterConfig.class).autowire())
-			.withMessageContaining(
-					"At least one mapping is required (for example, authorizeHttpRequests().anyRequest().authenticated())");
+			.withMessageContaining("At least one mapping is required");
 	}
 
 	@Test
@@ -673,6 +671,19 @@ public class AuthorizeHttpRequestsConfigurerTests {
 	@Test
 	public void requestMatchersWhenMultipleDispatcherServletsAndPathBeanThenAllows() throws Exception {
 		this.spring.register(MvcRequestMatcherBuilderConfig.class, BasicController.class)
+			.postProcessor((context) -> context.getServletContext()
+				.addServlet("otherDispatcherServlet", DispatcherServlet.class)
+				.addMapping("/mvc"))
+			.autowire();
+		this.mvc.perform(get("/mvc/path").servletPath("/mvc").with(user("user"))).andExpect(status().isOk());
+		this.mvc.perform(get("/mvc/path").servletPath("/mvc").with(user("user").roles("DENIED")))
+			.andExpect(status().isForbidden());
+		this.mvc.perform(get("/path").with(user("user"))).andExpect(status().isForbidden());
+	}
+
+	@Test
+	public void requestMatchersSpecWhenMultipleDispatcherServletsAndPathBeanThenAllows() throws Exception {
+		this.spring.register(RequestMatcherSpecConfig.class, BasicController.class)
 			.postProcessor((context) -> context.getServletContext()
 				.addServlet("otherDispatcherServlet", DispatcherServlet.class)
 				.addMapping("/mvc"))
@@ -1350,6 +1361,26 @@ public class AuthorizeHttpRequestsConfigurerTests {
 				.authorizeHttpRequests((authorize) -> authorize
 					.requestMatchers(mvc.matcher("/path/**")).hasRole("USER")
 				)
+				.httpBasic(withDefaults());
+			// @formatter:on
+
+			return http.build();
+		}
+
+	}
+
+	@Configuration
+	@EnableWebSecurity
+	@EnableWebMvc
+	static class RequestMatcherSpecConfig {
+
+		@Bean
+		SecurityFilterChain security(HttpSecurity http) throws Exception {
+			// @formatter:off
+			http
+				.authorizeHttpRequests((request) -> {
+					request.servletPath("/mvc").uris("/path/**").authorize().roles("USER");
+				})
 				.httpBasic(withDefaults());
 			// @formatter:on
 
