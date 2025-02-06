@@ -1,0 +1,102 @@
+= Authorization Changes
+
+== Simplified Authorization DSL
+
+New improvements to the `authorizeHttpRequests` DSL allow for clearer declaration of intent and increased readability.
+
+To take advantage of this, you can move from something like this:
+
+[method,java]
+----
+@Bean
+SecurityFilterChain security(HttpSecurity http) throws Exception {
+    RequestMatcherBuilder servlet = ServletRequestMatcherBuilders.servletPath("/servlet");
+    // @formatter:off
+    http
+        .authorizeHttpRequests((authorize) -> authorize
+            .requestMatchers(HttpMethod.GET, "/path/**").permitAll()
+            .requestMatchers("/path/**").authenticated()
+            .requestMatchers(servlet.matcher("/path/**").hasAuthority("servlet")
+            .anyRequest().authenticated()
+        })
+        .httpBasic(withDefaults());
+    // @formatter:on
+
+    return http.build();
+}
+----
+
+to something like this
+
+[method,java]
+----
+@Bean
+SecurityFilterChain security(HttpSecurity http) throws Exception {
+    // @formatter:off
+    http
+        .authorizeHttpRequests((request) -> {
+            request.methods(HttpMethod.GET).uris("/path/**").authorize().everyone();
+            request.uris("/path/**").authorize().authenticated();
+
+            AuthorizationRegistrySpec servlet = request.servletPath("/servlet");
+            servlet.uris("path/**").authorize().authorities("servlet");
+
+            request.authorize().authenticated();
+        })
+        .httpBasic(withDefaults());
+    // @formatter:on
+
+    return http.build();
+}
+----
+
+Here are some general guidelines for how to use this new DSL, available alongside the legacy one:
+
+1. Declare rules one line at a time
++
+The new fluent API returns void at the end of each authorization rule in order to encourage better formatting.
+2. Absolute URIs are required
++
+Past versions of the DSL allowed an application to not specify the full controller path; instead leaving out the servlet path.
+This leads to ambiguities that can be challenging for users to understand and anticipate,
+To alleviate this, each URI should be supplied fully.
+If your MVC servlet is deployed to root (the vast majority of cases), nothing changes.
+If your MVC servlet is deployed to `/mvc`, take a look at rule 6 for some help at reducing repetition.
+3. Use `request` or `requests` as the lambda variable name.
++
+This allows the DSL to read like a sentence "request uris GET /path authorize everyone".
+4. `.requestMatchers` -> `.uris`/`.methods`/`.dispatcherTypes`/`.matching`
++
+Instead of having one method overloaded for several matching scenarios, each component of the request that needs matching is exposed in its own method.
++
+This means that `.requestMatchers("/path-a/**", "/path-b/**")` becomes `.uri("/path-a/**", "/path-b/**")`, for example.
+5. Add `authorize` to indicate an access rule
++
+Instead of `.requestMatchers("/path/**").hasAuthority("authority")`, do `.uris("/path/**").authorize().authorities("authority")`
+6. Consider reuse of variables to reduce duplication
++
+This new DSL allows for configurations to be shared like so:
++
+[method,java]
+----
+AuthorizationRegistySpec mvc = request.servletPath("/mvc");
+mvc.uris("/user-controller/**").authorize().roles("USER");
+mvc.uris("/admin-controller/**").authorize().roles("ADMIN");
+----
++
+Once an access rule is supplied, it is registered to the authorization manager automatically.
+7. The root `authorize()` implies "any request"
++
+To get as close as possible both to fluency and to clear intent, you can now drop "any request".
+Leaving it out implies that the following rule is for anything that the other rules don't match:
++
+[method,java]
+----
+requests.authorize().authenticated();
+----
++
+The above registers an "any request" rule that authorizes only authenticated users.
+In other words "requests authorize authenticated (users)".
+8. `RequestMatcher` instances go to `matching`
++
+If you have a custom request matcher, you can call `request.matching` and provide the `RequestMatcher`.
