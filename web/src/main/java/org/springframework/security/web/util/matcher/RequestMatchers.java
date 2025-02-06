@@ -47,7 +47,13 @@ public final class RequestMatchers {
 	 * @see AndRequestMatcher
 	 */
 	public static RequestMatcher allOf(RequestMatcher... matchers) {
-		return (matchers.length > 0) ? new AndRequestMatcher(List.of(matchers)) : (request) -> true;
+		if (matchers.length == 0) {
+			return (request) -> true;
+		}
+		if (matchers.length == 1) {
+			return matchers[0];
+		}
+		return new AndRequestMatcher(matchers);
 	}
 
 	/**

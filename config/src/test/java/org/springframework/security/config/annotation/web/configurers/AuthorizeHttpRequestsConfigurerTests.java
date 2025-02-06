@@ -34,6 +34,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
 import org.springframework.security.authentication.RememberMeAuthenticationToken;
@@ -61,6 +62,7 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.expression.WebExpressionAuthorizationManager;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
+import org.springframework.security.web.access.intercept.AuthorizationRegistrySpec;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.access.intercept.RequestMatcherDelegatingAuthorizationManager;
 import org.springframework.security.web.servlet.util.matcher.MvcRequestMatcher;
@@ -683,15 +685,44 @@ public class AuthorizeHttpRequestsConfigurerTests {
 
 	@Test
 	public void requestMatchersSpecWhenMultipleDispatcherServletsAndPathBeanThenAllows() throws Exception {
-		this.spring.register(RequestMatcherSpecConfig.class, BasicController.class)
+		this.spring.register(RequestMatcherSpecConfig.class)
 			.postProcessor((context) -> context.getServletContext()
 				.addServlet("otherDispatcherServlet", DispatcherServlet.class)
-				.addMapping("/mvc"))
+				.addMapping("/servlet"))
 			.autowire();
-		this.mvc.perform(get("/mvc/path").servletPath("/mvc").with(user("user"))).andExpect(status().isOk());
-		this.mvc.perform(get("/mvc/path").servletPath("/mvc").with(user("user").roles("DENIED")))
+		this.mvc.perform(get("/a")).andExpect(status().isNotFound());
+		this.mvc.perform(post("/a")).andExpect(status().isForbidden());
+		this.mvc.perform(post("/servlet/b")).andExpect(status().isForbidden());
+		this.mvc.perform(post("/servlet/b").servletPath("/servlet").with(csrf())).andExpect(status().isNotFound());
+		this.mvc
+			.perform(get("/servlet/b").servletPath("/servlet")
+				.with(user("user").authorities(new SimpleGrantedAuthority("b"))))
+			.andExpect(status().isNotFound());
+		this.mvc.perform(get("/servlet/c").servletPath("/servlet").with(user("user")))
 			.andExpect(status().isForbidden());
-		this.mvc.perform(get("/path").with(user("user"))).andExpect(status().isForbidden());
+		this.mvc.perform(get("/d")).andExpect(status().isUnauthorized());
+		this.mvc.perform(get("/d").with(user("user"))).andExpect(status().isNotFound());
+	}
+
+	@Test
+	public void authorizationManagerBeanWhenMultipleDispatcherServletsAndPathBeanThenAllows() throws Exception {
+		this.spring.register(AuthorizationManagerBeanConfig.class)
+			.postProcessor((context) -> context.getServletContext()
+				.addServlet("otherDispatcherServlet", DispatcherServlet.class)
+				.addMapping("/servlet"))
+			.autowire();
+		this.mvc.perform(get("/a")).andExpect(status().isNotFound());
+		this.mvc.perform(post("/a")).andExpect(status().isForbidden());
+		this.mvc.perform(post("/servlet/b")).andExpect(status().isForbidden());
+		this.mvc.perform(post("/servlet/b").servletPath("/servlet").with(csrf())).andExpect(status().isNotFound());
+		this.mvc
+			.perform(get("/servlet/b").servletPath("/servlet")
+				.with(user("user").authorities(new SimpleGrantedAuthority("b"))))
+			.andExpect(status().isNotFound());
+		this.mvc.perform(get("/servlet/c").servletPath("/servlet").with(user("user")))
+			.andExpect(status().isForbidden());
+		this.mvc.perform(get("/d")).andExpect(status().isUnauthorized());
+		this.mvc.perform(get("/d").with(user("user"))).andExpect(status().isNotFound());
 	}
 
 	@Configuration
@@ -1379,12 +1410,52 @@ public class AuthorizeHttpRequestsConfigurerTests {
 			// @formatter:off
 			http
 				.authorizeHttpRequests((request) -> {
-					request.servletPath("/mvc").uris("/path/**").authorize().roles("USER");
+					request.methods(HttpMethod.GET).uris("/a/**").authorize().everyone();
+					request.uris("/a/**").authorize().authenticated();
+
+					AuthorizationRegistrySpec servlet = request.servletPath("/servlet");
+					servlet.methods(HttpMethod.POST).uris("/b/**", "/c/**").authorize().everyone();
+					servlet.uris("/b/**", "/c/**").authorize().authorities("b");
+
+					request.authorize().authenticated();
 				})
 				.httpBasic(withDefaults());
 			// @formatter:on
 
 			return http.build();
+		}
+
+	}
+
+	@Configuration
+	@EnableWebSecurity
+	@EnableWebMvc
+	static class AuthorizationManagerBeanConfig {
+
+		@Bean
+		SecurityFilterChain security(HttpSecurity http, AuthorizationManager<RequestAuthorizationContext> access)
+				throws Exception {
+			// @formatter:off
+			http
+				.authorizeHttpRequests((request) -> request.authorize(access))
+				.httpBasic(withDefaults());
+			// @formatter:on
+
+			return http.build();
+		}
+
+		@Bean
+		AuthorizationManager<RequestAuthorizationContext> authorizationManager() {
+			return RequestMatcherDelegatingAuthorizationManager.authorizeContexts((context) -> {
+				context.methods(HttpMethod.GET).uris("/a/**").authorize().everyone();
+				context.uris("/a/**").authorize().authenticated();
+
+				AuthorizationRegistrySpec servlet = context.servletPath("/servlet");
+				servlet.methods(HttpMethod.POST).uris("/b/**", "/c/**").authorize().everyone();
+				servlet.uris("/b/**", "/c/**").authorize().authorities("b");
+
+				context.authorize().authenticated();
+			});
 		}
 
 	}

@@ -47,8 +47,12 @@ public interface RequestMatcherBuilder {
 		return new OrRequestMatcher(requestMatchers);
 	}
 
-	default RequestMatcher matcher(HttpMethod method) {
-		return matcher(method, "/*");
+	default RequestMatcher matcher(HttpMethod... methods) {
+		List<RequestMatcher> requestMatchers = new ArrayList<>();
+		for (HttpMethod method : methods) {
+			requestMatchers.add(matcher(method, "/**"));
+		}
+		return new OrRequestMatcher(requestMatchers);
 	}
 
 	/**

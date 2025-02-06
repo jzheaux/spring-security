@@ -29,7 +29,6 @@ import org.springframework.security.authorization.AuthorityAuthorizationManager;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.servlet.util.matcher.MvcRequestMatcher;
-import org.springframework.security.web.servlet.util.matcher.RequestMatcherSpec;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.AnyRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestHeaderRequestMatcher;
@@ -409,19 +408,18 @@ public class RequestMatcherDelegatingAuthorizationManagerTests {
 
 	@Test
 	public void requestMatcherSpecWhenCompleteThenRegisters() {
-		RequestMatcherDelegatingAuthorizationManager.Builder request = RequestMatcherDelegatingAuthorizationManager
-			.builder();
-		request.methods(HttpMethod.GET, HttpMethod.POST).uris("/path/**").authorize().authenticated();
-		request.uris("/path/**").authorize().everyone();
+		RequestMatcherDelegatingAuthorizationManager manager = RequestMatcherDelegatingAuthorizationManager
+			.authorizeRequests((request) -> {
+				request.methods(HttpMethod.GET, HttpMethod.POST).uris("/path/**").authorize().authenticated();
+				request.uris("/path/**").authorize().everyone();
 
-		RequestMatcherSpec servlet = request.servletPath("/servlet");
-		servlet.uris("/path/**").authorize().none();
-		servlet.methods(HttpMethod.GET).uris("/path/**").authorize().authorities("path");
-		servlet.matching(new RequestHeaderRequestMatcher("X-Authorize")).authorize().authenticated();
+				AuthorizationRegistrySpec servlet = request.servletPath("/servlet");
+				servlet.uris("/path/**").authorize().none();
+				servlet.methods(HttpMethod.GET).uris("/path/**").authorize().authorities("path");
+				servlet.matching(new RequestHeaderRequestMatcher("X-Authorize")).authorize().authenticated();
 
-		request.authorize().authenticated();
-
-		RequestMatcherDelegatingAuthorizationManager manager = request.build();
+				request.authorize().authenticated();
+			});
 		assertThat(manager.mappings).hasSize(6);
 	}
 

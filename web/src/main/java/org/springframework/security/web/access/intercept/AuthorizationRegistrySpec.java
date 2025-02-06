@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-package org.springframework.security.web.servlet.util.matcher;
+package org.springframework.security.web.access.intercept;
 
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authorization.AuthorizationManager;
-import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
 /**
@@ -33,7 +32,7 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
  * @author Josh Cummings
  * @since 6.5
  */
-public interface RequestMatcherSpec {
+public interface AuthorizationRegistrySpec {
 
 	/**
 	 * Match any of these URIs. May be ant patterns that end in {@code **}
@@ -42,23 +41,23 @@ public interface RequestMatcherSpec {
 	 * The URI must start with a {@code /} and be relative to any context path
 	 * </p>
 	 * @param uris URIs to match on
-	 * @return the {@link RequestMatcherSpec} for more configuration
+	 * @return the {@link AuthorizationRegistrySpec} for more configuration
 	 */
-	RequestMatcherSpec uris(String... uris);
+	AuthorizationRegistrySpec uris(String... uris);
 
 	/**
 	 * Match any of these {@code HttpMethod}s.
 	 * @param methods the HTTP methods to match on
-	 * @return the {@link RequestMatcherSpec} for more configuration
+	 * @return the {@link AuthorizationRegistrySpec} for more configuration
 	 */
-	RequestMatcherSpec methods(HttpMethod... methods);
+	AuthorizationRegistrySpec methods(HttpMethod... methods);
 
 	/**
 	 * Match any of these {@link RequestMatcher}s.
 	 * @param matchers the {@link RequestMatcher}s to match on
-	 * @return the {@link RequestMatcherSpec} for more configuration
+	 * @return the {@link AuthorizationRegistrySpec} for more configuration
 	 */
-	RequestMatcherSpec matching(RequestMatcher... matchers);
+	AuthorizationRegistrySpec matching(RequestMatcher... matchers);
 
 	/**
 	 * Complete the request matcher and move on to the authorization condition

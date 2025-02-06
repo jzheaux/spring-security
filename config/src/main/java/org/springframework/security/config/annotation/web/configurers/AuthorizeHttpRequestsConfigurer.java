@@ -41,9 +41,9 @@ import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.core.GrantedAuthorityDefaults;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
+import org.springframework.security.web.access.intercept.AuthorizationRegistrySpec;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.access.intercept.RequestMatcherDelegatingAuthorizationManager;
-import org.springframework.security.web.servlet.util.matcher.RequestMatcherSpec;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcherEntry;
 import org.springframework.util.Assert;
@@ -139,7 +139,7 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 	 * @author Evgeniy Cheban
 	 */
 	public final class AuthorizationManagerRequestMatcherRegistry extends AbstractRequestMatcherRegistry<AuthorizedUrl>
-			implements RequestMatcherSpec {
+			implements AuthorizationRegistrySpec {
 
 		private final RequestMatcherDelegatingAuthorizationManager.Builder managerBuilder = RequestMatcherDelegatingAuthorizationManager
 			.builder();
@@ -240,25 +240,25 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 			return AuthorizeHttpRequestsConfigurer.this.and();
 		}
 
-		public RequestMatcherSpec servletPath(String path) {
+		public AuthorizationRegistrySpec servletPath(String path) {
 			Assert.state(!this.anyRequestConfigured, "Can't configure servlet paths after anyRequest");
 			return this.managerBuilder.servletPath(path);
 		}
 
 		@Override
-		public RequestMatcherSpec uris(String... uris) {
+		public AuthorizationRegistrySpec uris(String... uris) {
 			Assert.state(!this.anyRequestConfigured, "Can't configure uris after anyRequest");
 			return this.managerBuilder.uris(uris);
 		}
 
 		@Override
-		public RequestMatcherSpec methods(HttpMethod... methods) {
+		public AuthorizationRegistrySpec methods(HttpMethod... methods) {
 			Assert.state(!this.anyRequestConfigured, "Can't configure methodw after anyRequest");
 			return this.managerBuilder.methods(methods);
 		}
 
 		@Override
-		public RequestMatcherSpec matching(RequestMatcher... matchers) {
+		public AuthorizationRegistrySpec matching(RequestMatcher... matchers) {
 			Assert.state(!this.anyRequestConfigured, "Can't configure matchers after anyRequest");
 			return this.managerBuilder.matching(matchers);
 		}
@@ -266,15 +266,14 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 		@Override
 		public AuthorizationSpec authorize() {
 			Assert.state(!this.anyRequestConfigured, "Can't configure any request after anyRequest");
-			this.anyRequestConfigured = true;
 			return this.managerBuilder.authorize();
 		}
 
 		@Override
 		public void authorize(AuthorizationManager<RequestAuthorizationContext> manager) {
 			Assert.state(!this.anyRequestConfigured, "Can't configure any request after anyRequest");
-			this.anyRequestConfigured = true;
 			this.managerBuilder.authorize(manager);
+			this.anyRequestConfigured = true;
 		}
 
 	}
