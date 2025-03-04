@@ -849,6 +849,69 @@ fun jwtDecoder(): JwtDecoder {
 ----
 ======
 
+[[oauth2resourceserver-jwt-authenticatino]]
+== Configuration Authentication
+
+You can customize how your JWT is converted into an `Authentication` instance by publishing a `Converter<Jwt, AbstractAuthenticationToken>` bean like so:
+
+[tabs]
+======
+Java::
++
+[source,java,role="primary"]
+----
+@Bean
+Converter<Jwt, AbstractAuthenticationToken> jwtAuthenticationConverter() {
+	return new JwtAuthenticationConverter();
+}
+----
+
+Kotlin::
++
+[source,kotlin,role="secondary"]
+----
+@Bean
+fun jwtAuthenticationConverter(): Converter<Jwt, AbstractAuthenticationToken> {
+    return JwtAuthenticationConverter()
+}
+----
+======
+
+Spring Security uses `JwtAuthenticationConverter` by default.
+It is a good place to customize the principal claim name or <<oauth2resourceserver-jwt-authorization, Configure Authorization>>.
+
+[[oauth2resourceserver-jwt-authentication-userdetails]]
+== Tying to a User Domain Object
+
+If the JWT refers to a user that you want to include in the resulting `Authentication`, you can use `JwtUserDetailsAuthenticationConverter` instead of `JwtAuthenticationConverter` as follows:
+
+[tabs]
+======
+Java::
++
+[source,java,role="primary"]
+----
+@Bean
+Converter<Jwt, AbstractAuthenticationToken> jwtAuthenticationConverter(UserDetailsService userDetailsService) {
+	return new JwtUserDetailsAuthenticationConverter(userDetailsService);
+}
+----
+
+Kotlin::
++
+[source,kotlin,role="secondary"]
+----
+@Bean
+fun jwtAuthenticationConverter(userDetailsService: UserDetailsService?): Converter<Jwt, AbstractAuthenticationToken> {
+    return JwtUserDetailsAuthenticationConverter(userDetailsService)
+}
+----
+======
+
+This is specifically handy when you have a custom principal that you want to have in `Authentication#getPrincipal`.
+As with `JwtAuthenticationConverter`, you can also configure the principal claim name and how authorities are extracted from the JWT.
+Whatever authorities are found by `UserDetailsService` will be combined with the authorities implied by the JWT.
+
 [[oauth2resourceserver-jwt-authorization]]
 == Configuring Authorization
 

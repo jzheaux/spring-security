@@ -120,6 +120,7 @@ import org.springframework.security.oauth2.server.resource.authentication.Bearer
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.oauth2.server.resource.authentication.JwtIssuerAuthenticationManagerResolver;
+import org.springframework.security.oauth2.server.resource.authentication.JwtUserDetailsAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.introspection.NimbusOpaqueTokenIntrospector;
 import org.springframework.security.oauth2.server.resource.introspection.OpaqueTokenAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.introspection.OpaqueTokenIntrospector;
@@ -1396,6 +1397,17 @@ public class OAuth2ResourceServerConfigurerTests {
 		OAuth2ResourceServerConfigurer.JwtConfigurer jwtConfigurer = new OAuth2ResourceServerConfigurer(context).jwt();
 		assertThatExceptionOfType(NoUniqueBeanDefinitionException.class)
 			.isThrownBy(jwtConfigurer::getJwtAuthenticationConverter);
+	}
+
+	@Test
+	public void getJwtAuthenticationConverterWhenUserDetailsConverterSpecifiedThenUses() {
+		UserDetailsService users = mock(UserDetailsService.class);
+		JwtUserDetailsAuthenticationConverter converterBean = new JwtUserDetailsAuthenticationConverter(users);
+		GenericWebApplicationContext context = new GenericWebApplicationContext();
+		context.registerBean("converter", JwtUserDetailsAuthenticationConverter.class, () -> converterBean);
+		this.spring.context(context).autowire();
+		OAuth2ResourceServerConfigurer.JwtConfigurer jwtConfigurer = new OAuth2ResourceServerConfigurer(context).jwt();
+		assertThat(jwtConfigurer.getJwtAuthenticationConverter()).isEqualTo(converterBean);
 	}
 
 	@Test

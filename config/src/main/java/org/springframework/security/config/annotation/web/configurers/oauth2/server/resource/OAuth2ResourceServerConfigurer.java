@@ -24,7 +24,9 @@ import java.util.function.Supplier;
 
 import jakarta.servlet.http.HttpServletRequest;
 
+import org.springframework.beans.factory.NoUniqueBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
+import org.springframework.core.ResolvableType;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
@@ -424,8 +426,15 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 
 		Converter<Jwt, ? extends AbstractAuthenticationToken> getJwtAuthenticationConverter() {
 			if (this.jwtAuthenticationConverter == null) {
-				if (this.context.getBeanNamesForType(JwtAuthenticationConverter.class).length > 0) {
-					this.jwtAuthenticationConverter = this.context.getBean(JwtAuthenticationConverter.class);
+				ResolvableType type = ResolvableType.forClassWithGenerics(Converter.class, Jwt.class,
+						AbstractAuthenticationToken.class);
+				String[] names = this.context.getBeanNamesForType(type);
+				if (names.length > 1) {
+					throw new NoUniqueBeanDefinitionException(type, names);
+				}
+				if (names.length == 1) {
+					this.jwtAuthenticationConverter = (Converter<Jwt, ? extends AbstractAuthenticationToken>) this.context
+						.getBean(names[0]);
 				}
 				else {
 					this.jwtAuthenticationConverter = new JwtAuthenticationConverter();
