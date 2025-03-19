@@ -26,6 +26,7 @@ import org.springframework.security.core.SpringSecurityCoreVersion;
 import org.springframework.security.core.Transient;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2AuthenticatedPrincipal;
+import org.springframework.security.oauth2.core.OAuth2TokenClaims;
 import org.springframework.util.Assert;
 
 /**
@@ -54,6 +55,20 @@ public class BearerTokenAuthentication extends AbstractOAuth2TokenAuthentication
 		Assert.isTrue(credentials.getTokenType() == OAuth2AccessToken.TokenType.BEARER,
 				"credentials must be a bearer token");
 		this.attributes = Collections.unmodifiableMap(new LinkedHashMap<>(principal.getAttributes()));
+		setAuthenticated(true);
+	}
+
+	/**
+	 * Constructs a {@link BearerTokenAuthentication} with the provided arguments
+	 * @param principal the authenticated principal associated with the OAuth 2.0 token
+	 * @param token the OAuth 2.0 token
+	 * @param authorities any authorities granted by the OAuth 2.0 token
+	 */
+	public BearerTokenAuthentication(Object principal, OAuth2TokenClaims token,
+			Collection<? extends GrantedAuthority> authorities) {
+		super(new OAuth2AccessToken(OAuth2AccessToken.TokenType.BEARER, token.getTokenValue(),
+				token.getIssuedAt(), token.getExpiresAt()), principal, token, authorities);
+		this.attributes = Collections.unmodifiableMap(new LinkedHashMap<>(token.getClaims()));
 		setAuthenticated(true);
 	}
 

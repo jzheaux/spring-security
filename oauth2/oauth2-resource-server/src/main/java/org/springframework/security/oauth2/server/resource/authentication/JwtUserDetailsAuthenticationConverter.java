@@ -24,7 +24,6 @@ import java.util.stream.Stream;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -60,7 +59,7 @@ public class JwtUserDetailsAuthenticationConverter implements Converter<Jwt, Abs
 			Collection<GrantedAuthority> authorities = this.jwtGrantedAuthoritiesConverter.convert(jwt);
 			Set<GrantedAuthority> union = Stream.concat(authorities.stream(), details.getAuthorities().stream())
 				.collect(Collectors.toSet());
-			return new UsernamePasswordAuthenticationToken(details, jwt, union);
+			return new BearerTokenAuthentication(details, jwt, union);
 		}
 		catch (UsernameNotFoundException ex) {
 			throw new BadCredentialsException(

@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 import org.springframework.security.oauth2.core.AbstractOAuth2Token;
+import org.springframework.security.oauth2.core.OAuth2TokenClaims;
 import org.springframework.util.Assert;
 
 /**
@@ -48,7 +49,7 @@ import org.springframework.util.Assert;
  * @see <a target="_blank" href="https://tools.ietf.org/html/rfc7516">JSON Web Encryption
  * (JWE)</a>
  */
-public class Jwt extends AbstractOAuth2Token implements JwtClaimAccessor {
+public class Jwt extends AbstractOAuth2Token implements JwtClaimAccessor, OAuth2TokenClaims {
 
 	@Serial
 	private static final long serialVersionUID = 4872843562494199108L;
