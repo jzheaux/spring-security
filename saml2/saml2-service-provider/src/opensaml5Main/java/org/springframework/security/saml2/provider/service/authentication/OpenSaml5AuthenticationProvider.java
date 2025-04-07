@@ -57,11 +57,14 @@ import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.saml2.core.Saml2Error;
 import org.springframework.security.saml2.core.Saml2ErrorCodes;
 import org.springframework.security.saml2.core.Saml2ResponseValidatorResult;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 import org.springframework.util.Assert;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 /**
@@ -115,6 +118,7 @@ public final class OpenSaml5AuthenticationProvider implements AuthenticationProv
 	public OpenSaml5AuthenticationProvider() {
 		this.delegate = new BaseOpenSamlAuthenticationProvider(new OpenSaml5Template());
 		setAssertionValidator(AssertionValidator.withDefaults());
+		setResponseAuthenticationConverter(new ResponseAuthenticationConverter());
 	}
 
 	/**
@@ -373,10 +377,7 @@ public final class OpenSaml5AuthenticationProvider implements AuthenticationProv
 	 * @return the default response authentication converter strategy
 	 */
 	public static Converter<ResponseToken, Saml2Authentication> createDefaultResponseAuthenticationConverter() {
-		Converter<BaseOpenSamlAuthenticationProvider.ResponseToken, Saml2Authentication> delegate = BaseOpenSamlAuthenticationProvider
-			.createDefaultResponseAuthenticationConverter();
-		return (token) -> delegate
-			.convert(new BaseOpenSamlAuthenticationProvider.ResponseToken(token.getResponse(), token.getToken()));
+		return new ResponseAuthenticationConverter();
 	}
 
 	/**
@@ -717,6 +718,83 @@ public final class OpenSaml5AuthenticationProvider implements AuthenticationProv
 				return ValidationResult.VALID;
 			}
 
+		}
+
+	}
+
+	/**
+	 * A default implementation of {@link OpenSaml5AuthenticationProvider}'s response
+	 * authentication converter. It will take the principal name from the
+	 * {@link org.opensaml.saml.saml2.core.NameID} element. It will also extract the
+	 * assertion attributes and session indexes. You can either configure the principal
+	 * name converter and granted authorities converter in this class or you can
+	 * post-process this class's result through delegation.
+	 *
+	 * @author Josh Cummings
+	 * @since 6.5
+	 */
+	public static final class ResponseAuthenticationConverter implements Converter<ResponseToken, Saml2Authentication> {
+
+		private Converter<Assertion, String> principalNameConverter = ResponseAuthenticationConverter::authenticatedPrincipal;
+
+		private Converter<Assertion, Collection<GrantedAuthority>> grantedAuthoritiesConverter = ResponseAuthenticationConverter::grantedAuthorities;
+
+		@Override
+		public Saml2Authentication convert(ResponseToken responseToken) {
+			Response response = responseToken.response;
+			Saml2AuthenticationToken token = responseToken.token;
+			Assertion assertion = CollectionUtils.firstElement(response.getAssertions());
+			String username = this.principalNameConverter.convert(assertion);
+			Map<String, List<Object>> attributes = BaseOpenSamlAuthenticationProvider.getAssertionAttributes(assertion);
+			List<String> sessionIndexes = BaseOpenSamlAuthenticationProvider.getSessionIndexes(assertion);
+			DefaultSaml2AuthenticatedPrincipal principal = new DefaultSaml2AuthenticatedPrincipal(username, attributes,
+					sessionIndexes);
+			String registrationId = responseToken.token.getRelyingPartyRegistration().getRegistrationId();
+			principal.setRelyingPartyRegistrationId(registrationId);
+			return new Saml2Authentication(principal, token.getSaml2Response(),
+					this.grantedAuthoritiesConverter.convert(assertion));
+		}
+
+		/**
+		 * Use this strategy to extract the principal name from the {@link Assertion}. By
+		 * default, this will retrieve it from the
+		 * {@link org.opensaml.saml.saml2.core.Subject}'s
+		 * {@link org.opensaml.saml.saml2.core.NameID} value.
+		 *
+		 * <p>
+		 * Note that because of this, if there is no
+		 * {@link org.opensaml.saml.saml2.core.NameID} present, then the default throws an
+		 * exception.
+		 * </p>
+		 * @param principalNameConverter the conversion strategy to use
+		 */
+		public void setPrincipalNameConverter(Converter<Assertion, String> principalNameConverter) {
+			Assert.notNull(principalNameConverter, "principalNameConverter cannot be null");
+			this.principalNameConverter = principalNameConverter;
+		}
+
+		/**
+		 * Use this strategy to grant authorities to a principal given the first
+		 * {@link Assertion} in the response. By default, this will grant
+		 * {@code ROLE_USER}.
+		 * @param grantedAuthoritiesConverter the conversion strategy to use
+		 */
+		public void setGrantedAuthoritiesConverter(
+				Converter<Assertion, Collection<GrantedAuthority>> grantedAuthoritiesConverter) {
+			Assert.notNull(grantedAuthoritiesConverter, "grantedAuthoritiesConverter cannot be null");
+			this.grantedAuthoritiesConverter = grantedAuthoritiesConverter;
+		}
+
+		private static String authenticatedPrincipal(Assertion assertion) {
+			if (!BaseOpenSamlAuthenticationProvider.hasName(assertion)) {
+				throw new Saml2AuthenticationException(new Saml2Error(Saml2ErrorCodes.SUBJECT_NOT_FOUND,
+						"Assertion [" + assertion.getID() + "] is missing a subject"));
+			}
+			return assertion.getSubject().getNameID().getValue();
+		}
+
+		private static Collection<GrantedAuthority> grantedAuthorities(Assertion assertion) {
+			return AuthorityUtils.createAuthorityList("ROLE_USER");
 		}
 
 	}

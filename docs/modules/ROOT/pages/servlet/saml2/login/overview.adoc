@@ -203,7 +203,7 @@ If the signature is invalid, authentication fails.
 image:{icondir}/number_4.png[] Then the provider xref:servlet/saml2/login/authentication.adoc#servlet-saml2login-opensamlauthenticationprovider-decryption[decrypts any `EncryptedAssertion` elements].
 If any decryptions fail, authentication fails.
 
-image:{icondir}/number_5.png[] Next, the provider validates the response's `Issuer` and `Destination` values.
+image:{icondir}/number_5.png[] Next, the provider validates the response's `Issuer` and `DestinationValidator` values.
 If they do not match what's in the `RelyingPartyRegistration`, authentication fails.
 
 image:{icondir}/number_6.png[] After that, the provider verifies the signature of each `Assertion`.

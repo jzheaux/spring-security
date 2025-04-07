@@ -41,7 +41,7 @@ public class Saml2Authentication extends AbstractAuthenticationToken {
 	@Serial
 	private static final long serialVersionUID = 405897702378720477L;
 
-	private final AuthenticatedPrincipal principal;
+	private final Object principal;
 
 	private final String saml2Response;
 
