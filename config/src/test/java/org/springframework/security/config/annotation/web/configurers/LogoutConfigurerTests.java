@@ -16,6 +16,9 @@
 
 package org.springframework.security.config.annotation.web.configurers;
 
+import java.io.IOException;
+
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.http.HttpHeaders;
@@ -26,6 +29,7 @@ import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.config.Customizer;
@@ -35,12 +39,14 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.test.SpringTestContext;
 import org.springframework.security.config.test.SpringTestContextExtension;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.core.userdetails.PasswordEncodedUser;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.RememberMeServices;
+import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
@@ -649,4 +655,74 @@ public class LogoutConfigurerTests {
 
 	}
 
+	@Test
+	void logoutWhenConfigurerLogoutAndApplicationLogoutThenApplicationTakesPrecedence() throws Exception {
+		this.spring.register(LogoutWithConfigurerBeforeConfig.class).autowire();
+		this.mvc.perform(post("/logout").with(csrf()).with(user("user")))
+				.andExpect(status().is3xxRedirection());
+	}
+
+	@Test
+	void logoutWhenApplicationLogoutAndConfigurerLogoutThenConfigurerTakesPrecedence() throws Exception {
+		this.spring.register(LogoutWithConfigurerAfterConfig.class).autowire();
+		this.mvc.perform(post("/logout").with(csrf()).with(user("user")))
+				.andExpect(status().isNoContent());
+	}
+
+	@Configuration
+	@EnableWebSecurity
+	static class LogoutWithConfigurerBeforeConfig {
+		@Bean
+		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+			http
+				.with(new MyConfigurer(http), (my) -> my
+					.someCustomSetting(HttpStatus.NO_CONTENT)
+				)
+				.logout((logout) -> logout.logoutSuccessUrl("/")); // takes precedence since second
+			return http.build();
+		}
+	}
+
+	@Configuration
+	@EnableWebSecurity
+	static class LogoutWithConfigurerAfterConfig {
+		@Bean
+		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+			http
+				.logout((logout) -> logout.logoutSuccessUrl("/"))
+				.with(new MyConfigurer(http), (my) -> my
+					.someCustomSetting(HttpStatus.NO_CONTENT) // takes precedence since second
+				);
+			return http.build();
+		}
+	}
+
+	static class MyConfigurer extends AbstractHttpConfigurer<MyConfigurer, HttpSecurity> {
+		LogoutSuccessHandlerHolder holder = new LogoutSuccessHandlerHolder();
+		HttpStatus status = HttpStatus.I_AM_A_TEAPOT;
+
+		MyConfigurer(HttpSecurity http) throws Exception {
+			http.logout((logout) -> logout.logoutSuccessHandler(this.holder));
+		}
+
+		MyConfigurer someCustomSetting(HttpStatus status) {
+			this.status = status;
+			return this;
+		}
+
+		@Override
+		public void configure(HttpSecurity builder) throws Exception {
+			this.holder.delegate = new HttpStatusReturningLogoutSuccessHandler(this.status);
+		}
+
+		static final class LogoutSuccessHandlerHolder implements LogoutSuccessHandler {
+
+			private LogoutSuccessHandler delegate;
+
+			@Override
+			public void onLogoutSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
+				this.delegate.onLogoutSuccess(request, response, authentication);
+			}
+		}
+	}
 }
