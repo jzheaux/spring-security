@@ -19,6 +19,7 @@ package org.springframework.security.config.annotation.web.configurers;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Supplier;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -62,6 +63,7 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -93,6 +95,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -613,6 +616,21 @@ public class CsrfConfigurerTests {
 		assertThat(cookies).isEmpty();
 	}
 
+	@Test
+	void returns_xsrf_cookie() throws Exception {
+		this.spring.register(SpaConfig.class, BasicController.class).autowire();
+		this.mvc.perform(get("/logout").with(user("user")))
+				.andExpect(status().isOk())
+				.andExpect(cookie().httpOnly("XSRF-TOKEN", false));
+	}
+
+	@Test
+	void logout_post_redirectsToOauthLogout() throws Exception {
+		this.spring.register(SpaConfig.class, BasicController.class).autowire();
+		this.mvc.perform(post("/logout").with(user("user")).with(csrf()))
+				.andExpect(status().is3xxRedirection());
+	}
+
 	@Configuration
 	static class AllowHttpMethodsFirewallConfig {
 
@@ -1074,5 +1092,60 @@ public class CsrfConfigurerTests {
 		}
 
 	}
+
+	@Configuration
+	@EnableWebSecurity
+	public static class SpaConfig {
+
+		@Bean
+		public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+			http
+					.authorizeHttpRequests((authorize) -> authorize
+							.anyRequest().authenticated()
+					)
+					.formLogin(Customizer.withDefaults())
+					.csrf((csrf) -> csrf
+							.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+							.csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
+					);
+			return http.build();
+		}
+	}
+
+	static final class SpaCsrfTokenRequestHandler implements CsrfTokenRequestHandler {
+		private final CsrfTokenRequestHandler plain = new CsrfTokenRequestAttributeHandler();
+		private final CsrfTokenRequestHandler xor = new XorCsrfTokenRequestAttributeHandler();
+
+		@Override
+		public void handle(HttpServletRequest request, HttpServletResponse response, Supplier<CsrfToken> csrfToken) {
+			/*
+			 * Always use XorCsrfTokenRequestAttributeHandler to provide BREACH protection of
+			 * the CsrfToken when it is rendered in the response body.
+			 */
+			this.xor.handle(request, response, csrfToken);
+			/*
+			 * Render the token value to a cookie by causing the deferred token to be loaded.
+			 */
+			csrfToken.get();
+		}
+
+		@Override
+		public String resolveCsrfTokenValue(HttpServletRequest request, CsrfToken csrfToken) {
+			String headerValue = request.getHeader(csrfToken.getHeaderName());
+			/*
+			 * If the request contains a request header, use CsrfTokenRequestAttributeHandler
+			 * to resolve the CsrfToken. This applies when a single-page application includes
+			 * the header value automatically, which was obtained via a cookie containing the
+			 * raw CsrfToken.
+			 *
+			 * In all other cases (e.g. if the request contains a request parameter), use
+			 * XorCsrfTokenRequestAttributeHandler to resolve the CsrfToken. This applies
+			 * when a server-side rendered form includes the _csrf request parameter as a
+			 * hidden input.
+			 */
+			return (StringUtils.hasText(headerValue) ? this.plain : this.xor).resolveCsrfTokenValue(request, csrfToken);
+		}
+	}
+
 
 }
