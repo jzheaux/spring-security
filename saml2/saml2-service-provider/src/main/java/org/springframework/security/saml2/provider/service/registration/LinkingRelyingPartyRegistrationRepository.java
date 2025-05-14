@@ -71,8 +71,11 @@ public final class LinkingRelyingPartyRegistrationRepository implements RelyingP
 	@Override
 	public RelyingPartyRegistration findUniqueByAssertingPartyEntityId(String entityId) {
 		RelyingPartyMetadata relyingParty = this.rp.findUniqueByAssertingPartyEntityId(entityId);
+		if (relyingParty == null) {
+			return null;
+		}
 		AssertingPartyMetadata assertingParty = this.ap.findByEntityId(entityId);
-		if (relyingParty == null || assertingParty == null) {
+		if (assertingParty == null) {
 			return null;
 		}
 		RelyingPartyRegistrationLink link = new RelyingPartyRegistrationLink(relyingParty.getId(), assertingParty.getId());
