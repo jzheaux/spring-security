@@ -28,4 +28,12 @@ package org.springframework.security.saml2.provider.service.registration;
 public interface IterableRelyingPartyRegistrationRepository
 		extends RelyingPartyRegistrationRepository, Iterable<RelyingPartyRegistration> {
 
+	default RelyingPartyRegistration findByRegistrationId(String registrationId) {
+		for (RelyingPartyRegistration registration : this) {
+			if (registration.getRegistrationId().equals(registrationId)) {
+				return registration;
+			}
+		}
+		return null;
+	}
 }
