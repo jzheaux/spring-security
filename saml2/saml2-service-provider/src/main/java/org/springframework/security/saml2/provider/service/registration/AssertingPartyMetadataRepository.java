@@ -44,4 +44,9 @@ public interface AssertingPartyMetadataRepository extends Iterable<AssertingPart
 		return null;
 	}
 
+	@org.jspecify.annotations.Nullable
+	default AssertingPartyMetadata findById(String id) {
+		return findByEntityId(id);
+	}
+
 }

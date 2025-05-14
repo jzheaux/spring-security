@@ -31,6 +31,10 @@ import org.springframework.security.saml2.core.Saml2X509Credential;
  */
 public interface AssertingPartyMetadata extends Serializable {
 
+	default String getId() {
+		return getEntityId();
+	}
+
 	/**
 	 * Get the asserting party's <a href=
 	 * "https://www.oasis-open.org/committees/download.php/51890/SAML%20MD%20simplified%20overview.pdf#2.9%20EntityDescriptor">EntityID</a>.
