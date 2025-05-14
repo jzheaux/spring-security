@@ -49,17 +49,17 @@ public final class RsaKeyConverters {
 
 	private static final String DASHES = "-----";
 
-	private static final String PKCS8_PEM_HEADER = DASHES + "BEGIN PRIVATE KEY" + DASHES;
+	static final String PKCS8_PEM_HEADER = DASHES + "BEGIN PRIVATE KEY" + DASHES;
 
-	private static final String PKCS8_PEM_FOOTER = DASHES + "END PRIVATE KEY" + DASHES;
+	static final String PKCS8_PEM_FOOTER = DASHES + "END PRIVATE KEY" + DASHES;
 
-	private static final String X509_PEM_HEADER = DASHES + "BEGIN PUBLIC KEY" + DASHES;
+	static final String X509_PEM_HEADER = DASHES + "BEGIN PUBLIC KEY" + DASHES;
 
-	private static final String X509_PEM_FOOTER = DASHES + "END PUBLIC KEY" + DASHES;
+	static final String X509_PEM_FOOTER = DASHES + "END PUBLIC KEY" + DASHES;
 
-	private static final String X509_CERT_HEADER = DASHES + "BEGIN CERTIFICATE" + DASHES;
+	static final String X509_CERT_HEADER = DASHES + "BEGIN CERTIFICATE" + DASHES;
 
-	private static final String X509_CERT_FOOTER = DASHES + "END CERTIFICATE" + DASHES;
+	static final String X509_CERT_FOOTER = DASHES + "END CERTIFICATE" + DASHES;
 
 	private RsaKeyConverters() {
 	}
