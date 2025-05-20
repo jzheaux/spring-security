@@ -19,7 +19,10 @@ package org.springframework.security.oauth2.jwt;
 import java.net.URI;
 import java.net.URL;
 import java.security.KeyPair;
+import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
@@ -27,8 +30,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 import javax.crypto.SecretKey;
 
@@ -58,11 +61,13 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.security.oauth2.jose.jws.JwsAlgorithm;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
+import org.springframework.util.function.ThrowingConsumer;
 
 /**
  * An implementation of a {@link JwtEncoder} that encodes a JSON Web Token (JWT) using the
@@ -95,7 +100,7 @@ public final class NimbusJwtEncoder implements JwtEncoder {
 
 	private static final JWSSignerFactory JWS_SIGNER_FACTORY = new DefaultJWSSignerFactory();
 
-	private JwsHeader jwsHeader;
+	private final JwsHeader jwsHeader;
 
 	private final Map<JWK, JWSSigner> jwsSigners = new ConcurrentHashMap<>();
 
@@ -116,6 +121,21 @@ public final class NimbusJwtEncoder implements JwtEncoder {
 	public NimbusJwtEncoder(JWKSource<SecurityContext> jwkSource) {
 		Assert.notNull(jwkSource, "jwkSource cannot be null");
 		this.jwkSource = jwkSource;
+		this.jwsHeader = DEFAULT_JWS_HEADER;
+	}
+
+	private NimbusJwtEncoder(JWK jwk) {
+		Assert.notNull(jwk, "jwk cannot be null");
+		this.jwkSource = new ImmutableJWKSet<>(new JWKSet(jwk));
+		JwsAlgorithm algorithm = SignatureAlgorithm.from(jwk.getAlgorithm().getName());
+		if (algorithm == null) {
+			algorithm = MacAlgorithm.from(jwk.getAlgorithm().getName());
+		}
+		Assert.notNull(algorithm, "Failed to derive supported algorithm from " + jwk.getAlgorithm());
+		this.jwsHeader = JwsHeader.with(algorithm)
+				.type(jwk.getKeyType().getValue())
+				.keyId(jwk.getKeyID())
+				.build();
 	}
 
 	/**
@@ -133,16 +153,14 @@ public final class NimbusJwtEncoder implements JwtEncoder {
 		this.jwkSelector = jwkSelector;
 	}
 
-	public void setJwsHeader(JwsHeader jwsHeader) {
-		this.jwsHeader = jwsHeader;
-	}
-
 	@Override
 	public Jwt encode(JwtEncoderParameters parameters) throws JwtEncodingException {
 		Assert.notNull(parameters, "parameters cannot be null");
 
 		JwsHeader headers = parameters.getJwsHeader();
-		headers = (headers != null) ? headers : (this.jwsHeader != null) ? this.jwsHeader : DEFAULT_JWS_HEADER;
+		if (headers == null) {
+			headers = this.jwsHeader;
+		}
 		JwtClaimsSet claims = parameters.getClaims();
 
 		JWK jwk = selectJwk(headers);
@@ -388,33 +406,39 @@ public final class NimbusJwtEncoder implements JwtEncoder {
 	/**
 	 * Creates a builder for constructing a {@link NimbusJwtEncoder} using the provided
 	 * {@link SecretKey}.
+	 * By default, sets the {@code kid} header as the SHA-256 encoding of the public key thumbprint
 	 * @param secretKey the {@link SecretKey} to use for signing JWTs
 	 * @return a {@link SecretKeyJwtEncoderBuilder} for further configuration
 	 * @since 7.0
 	 */
 	public static SecretKeyJwtEncoderBuilder withSecretKey(SecretKey secretKey) {
-		Assert.notNull(secretKey, "secretKey cannot be null");
 		return new SecretKeyJwtEncoderBuilder(secretKey);
 	}
 
 	/**
 	 * Creates a builder for constructing a {@link NimbusJwtEncoder} using the provided
-	 * {@link KeyPair}. The key pair must contain either an {@link RSAKey} or an
-	 * {@link ECKey}.
-	 * @param keyPair the {@link KeyPair} to use for signing JWTs
-	 * @return a {@link KeyPairJwtEncoderBuilder} for further configuration
+	 * {@link KeyPair}. The key pair must contain an {@link RSAKey}.
+	 * By default, sets the {@code kid} header as the SHA-256 encoding of the public key thumbprint
+	 * @param publicKey the {@link RSAPublicKey} to use for computing the thumbprint
+	 * @param privateKey the {@link RSAPrivateKey} to use for signing JWTs
+	 * @return a {@link RsaKeyPairJwtEncoderBuilder} for further configuration
 	 * @since 7.0
 	 */
-	public static KeyPairJwtEncoderBuilder withKeyPair(KeyPair keyPair) {
-		Assert.isTrue(keyPair != null && keyPair.getPrivate() != null && keyPair.getPublic() != null,
-				"keyPair, its private key, and public key must not be null");
-		if (keyPair.getPrivate() instanceof java.security.interfaces.RSAKey) {
-			return new RsaKeyPairJwtEncoderBuilder(keyPair);
-		}
-		if (keyPair.getPrivate() instanceof java.security.interfaces.ECKey) {
-			return new EcKeyPairJwtEncoderBuilder(keyPair);
-		}
-		throw new IllegalArgumentException("keyPair must be an RSAKey or an ECKey");
+	public static RsaKeyPairJwtEncoderBuilder withKeyPair(RSAPublicKey publicKey, RSAPrivateKey privateKey) {
+		return new RsaKeyPairJwtEncoderBuilder(publicKey, privateKey);
+	}
+
+	/**
+	 * Creates a builder for constructing a {@link NimbusJwtEncoder} using the provided
+	 * {@link KeyPair}. The key pair must contain an {@link ECKey}.
+	 * By default, sets the {@code kid} header as the SHA-256 encoding of the public key thumbprint
+	 * @param publicKey the {@link RSAPublicKey} to use for computing the thumbprint
+	 * @param privateKey the {@link RSAPrivateKey} to use for signing JWTs
+	 * @return a {@link EcKeyPairJwtEncoderBuilder} for further configuration
+	 * @since 7.0
+	 */
+	public static EcKeyPairJwtEncoderBuilder withKeyPair(ECPublicKey publicKey, ECPrivateKey privateKey) {
+		return new EcKeyPairJwtEncoderBuilder(publicKey, privateKey);
 	}
 
 	/**
@@ -424,15 +448,17 @@ public final class NimbusJwtEncoder implements JwtEncoder {
 	 * @since 7.0
 	 */
 	public static final class SecretKeyJwtEncoderBuilder {
-
-		private final SecretKey secretKey;
-
-		private String keyId;
-
-		private JWSAlgorithm jwsAlgorithm = JWSAlgorithm.HS256;
+		private static final ThrowingConsumer<OctetSequenceKey.Builder> defaultKid =
+				OctetSequenceKey.Builder::keyIDFromThumbprint;
+		private final OctetSequenceKey.Builder builder;
 
 		private SecretKeyJwtEncoderBuilder(SecretKey secretKey) {
-			this.secretKey = secretKey;
+			Assert.notNull(secretKey, "secretKey cannot be null");
+			OctetSequenceKey.Builder builder = new OctetSequenceKey.Builder(secretKey)
+					.keyUse(KeyUse.SIGNATURE)
+					.algorithm(JWSAlgorithm.HS256);
+			defaultKid.accept(builder, IllegalArgumentException::new);
+			this.builder = builder;
 		}
 
 		/**
@@ -442,191 +468,152 @@ public final class NimbusJwtEncoder implements JwtEncoder {
 		 * @param macAlgorithm the {@link MacAlgorithm} to use
 		 * @return this builder instance for method chaining
 		 */
-		public SecretKeyJwtEncoderBuilder macAlgorithm(MacAlgorithm macAlgorithm) {
+		public SecretKeyJwtEncoderBuilder algorithm(MacAlgorithm macAlgorithm) {
 			Assert.notNull(macAlgorithm, "macAlgorithm cannot be null");
-			Assert.state(JWSAlgorithm.Family.HMAC_SHA.contains(this.jwsAlgorithm),
-					() -> "The algorithm '" + this.jwsAlgorithm + "' is not compatible with a SecretKey. "
-							+ "Please use one of the HS256, HS384, or HS512 algorithms.");
-
-			this.jwsAlgorithm = JWSAlgorithm.parse(macAlgorithm.getName());
+			this.builder.algorithm(JWSAlgorithm.parse(macAlgorithm.getName()));
 			return this;
 		}
 
 		/**
-		 * Sets the key ID ({@code kid}) to be included in the JWK and potentially the JWS
-		 * header.
-		 * @param keyId the key identifier
+		 * Post-process the {@link JWK} using the given {@link Consumer}.
+		 * For example, you may use this to override the default {@code kid}
+		 * @param jwkPostProcessor the post-processor to use
 		 * @return this builder instance for method chaining
 		 */
-		public SecretKeyJwtEncoderBuilder keyId(String keyId) {
-			this.keyId = keyId;
+		public SecretKeyJwtEncoderBuilder jwkPostProcessor(Consumer<OctetSequenceKey.Builder> jwkPostProcessor) {
+			Assert.notNull(jwkPostProcessor, "jwkPostProcessor cannot be null");
+			jwkPostProcessor.accept(this.builder);
 			return this;
 		}
 
 		/**
 		 * Builds the {@link NimbusJwtEncoder} instance.
 		 * @return the configured {@link NimbusJwtEncoder}
-		 * @throws IllegalStateException if the configured JWS algorithm is not compatible
-		 * with a {@link SecretKey}.
 		 */
 		public NimbusJwtEncoder build() {
-			this.jwsAlgorithm = (this.jwsAlgorithm != null) ? this.jwsAlgorithm : JWSAlgorithm.HS256;
-
-			OctetSequenceKey.Builder builder = new OctetSequenceKey.Builder(this.secretKey).keyUse(KeyUse.SIGNATURE)
-				.algorithm(this.jwsAlgorithm)
-				.keyID(this.keyId);
-
-			OctetSequenceKey jwk = builder.build();
-			JWKSource<SecurityContext> jwkSource = new ImmutableJWKSet<>(new JWKSet(jwk));
-			NimbusJwtEncoder encoder = new NimbusJwtEncoder(jwkSource);
-			encoder.setJwsHeader(JwsHeader.with(MacAlgorithm.from(this.jwsAlgorithm.getName())).build());
-			return encoder;
+			return new NimbusJwtEncoder(this.builder.build());
 		}
 
 	}
 
+
 	/**
-	 * A builder for creating {@link NimbusJwtEncoder} instances configured with a
+	 * A builder for creating {@link NimbusJwtEncoder} instances configured with an RSA
 	 * {@link KeyPair}.
 	 *
 	 * @since 7.0
 	 */
-	public abstract static class KeyPairJwtEncoderBuilder {
+	public static final class RsaKeyPairJwtEncoderBuilder {
+		private static final ThrowingConsumer<RSAKey.Builder> defaultKid =
+				RSAKey.Builder::keyIDFromThumbprint;
+		private final RSAKey.Builder builder;
 
-		private final KeyPair keyPair;
-
-		private String keyId;
-
-		private JWSAlgorithm jwsAlgorithm;
-
-		private KeyPairJwtEncoderBuilder(KeyPair keyPair) {
-			this.keyPair = keyPair;
+		private RsaKeyPairJwtEncoderBuilder(RSAPublicKey publicKey, RSAPrivateKey privateKey) {
+			Assert.notNull(publicKey, "publicKey cannot be null");
+			Assert.notNull(privateKey, "privateKey cannot be null");
+			RSAKey.Builder builder = new RSAKey.Builder(publicKey)
+					.privateKey(privateKey)
+					.keyUse(KeyUse.SIGNATURE)
+					.algorithm(JWSAlgorithm.RS256);
+			defaultKid.accept(builder, IllegalArgumentException::new);
+			this.builder = builder;
 		}
 
 		/**
-		 * Sets the JWS algorithm to use for signing. Must be compatible with the key type
-		 * (RSA or EC). If not set, a default algorithm will be chosen based on the key
-		 * type (e.g., RS256 for RSA, ES256 for EC).
+		 * Sets the JWS algorithm to use for signing. Defaults to
+		 * {@link SignatureAlgorithm#RS256}. Must be an RSA-based algorithm
+		 * (RS256, RS384, RS512, PS256, PS384, or PS512).
 		 * @param signatureAlgorithm the {@link SignatureAlgorithm} to use
 		 * @return this builder instance for method chaining
 		 */
-		public KeyPairJwtEncoderBuilder signatureAlgorithm(SignatureAlgorithm signatureAlgorithm) {
+		public RsaKeyPairJwtEncoderBuilder algorithm(SignatureAlgorithm signatureAlgorithm) {
 			Assert.notNull(signatureAlgorithm, "signatureAlgorithm cannot be null");
-			if (this.keyPair.getPrivate() instanceof java.security.interfaces.RSAKey) {
-				Assert.state(JWSAlgorithm.Family.RSA.contains(JWSAlgorithm.parse(signatureAlgorithm.getName())),
-						() -> "The algorithm '" + signatureAlgorithm + "' is not compatible with an RSAKey. "
-								+ "Please use one of the RS256, RS384, RS512, PS256, PS384, or PS512 algorithms.");
-
-			}
-			if (this.keyPair.getPrivate() instanceof java.security.interfaces.ECKey) {
-				Assert.state(JWSAlgorithm.Family.EC.contains(JWSAlgorithm.parse(signatureAlgorithm.getName())),
-						() -> "The algorithm '" + signatureAlgorithm + "' is not compatible with an ECKey. "
-								+ "Please use one of the ES256, ES384, or ES512 algorithms.");
-			}
-			this.jwsAlgorithm = JWSAlgorithm.parse(signatureAlgorithm.getName());
+			Assert.state(JWSAlgorithm.Family.RSA.contains(JWSAlgorithm.parse(signatureAlgorithm.getName())),
+					() -> "The algorithm '" + signatureAlgorithm + "' is not compatible with an RSAKey. "
+							+ "Please use one of the RS256, RS384, RS512, PS256, PS384, or PS512 algorithms.");
+			this.builder.algorithm(JWSAlgorithm.parse(signatureAlgorithm.getName()));
 			return this;
 		}
 
 		/**
-		 * Sets the key ID ({@code kid}) to be included in the JWK and potentially the JWS
-		 * header.
-		 * @param keyId the key identifier
+		 * Post-process the {@link JWK} using the given {@link Consumer}.
+		 * For example, you may use this to override the default {@code kid}
+		 * @param jwkPostProcessor the post-processor to use
 		 * @return this builder instance for method chaining
 		 */
-		public KeyPairJwtEncoderBuilder keyId(String keyId) {
-			this.keyId = keyId;
+		public RsaKeyPairJwtEncoderBuilder jwkPostProcessor(Consumer<RSAKey.Builder> jwkPostProcessor) {
+			Assert.notNull(jwkPostProcessor, "jwkPostProcessor cannot be null");
+			jwkPostProcessor.accept(this.builder);
 			return this;
 		}
 
 		/**
 		 * Builds the {@link NimbusJwtEncoder} instance.
 		 * @return the configured {@link NimbusJwtEncoder}
-		 * @throws IllegalStateException if the key type is unsupported or the configured
-		 * JWS algorithm is not compatible with the key type.
-		 * @throws JwtEncodingException if the key is invalid (e.g., EC key with unknown
-		 * curve)
 		 */
 		public NimbusJwtEncoder build() {
-			this.keyId = (this.keyId != null) ? this.keyId : UUID.randomUUID().toString();
-			JWK jwk = buildJwk();
-			JWKSource<SecurityContext> jwkSource = new ImmutableJWKSet<>(new JWKSet(jwk));
-			NimbusJwtEncoder encoder = new NimbusJwtEncoder(jwkSource);
-			JwsHeader jwsHeader = JwsHeader.with(SignatureAlgorithm.from(this.jwsAlgorithm.getName()))
-				.keyId(jwk.getKeyID())
-				.build();
-			encoder.setJwsHeader(jwsHeader);
-			return encoder;
-		}
-
-		protected abstract JWK buildJwk();
-
-	}
-
-	/**
-	 * A builder for creating {@link NimbusJwtEncoder} instances configured with a
-	 * {@link KeyPair}.
-	 *
-	 * @since 7.0
-	 */
-	public static final class RsaKeyPairJwtEncoderBuilder extends KeyPairJwtEncoderBuilder {
-
-		private RsaKeyPairJwtEncoderBuilder(KeyPair keyPair) {
-			super(keyPair);
-		}
-
-		@Override
-		protected JWK buildJwk() {
-			if (super.jwsAlgorithm == null) {
-				super.jwsAlgorithm = JWSAlgorithm.RS256;
-			}
-
-			RSAKey.Builder builder = new RSAKey.Builder(
-					(java.security.interfaces.RSAPublicKey) super.keyPair.getPublic())
-				.privateKey(super.keyPair.getPrivate())
-				.keyID(super.keyId)
-				.keyUse(KeyUse.SIGNATURE)
-				.algorithm(super.jwsAlgorithm);
-			return builder.build();
+			return new NimbusJwtEncoder(this.builder.build());
 		}
 
 	}
 
 	/**
-	 * A builder for creating {@link NimbusJwtEncoder} instances configured with a
+	 * A builder for creating {@link NimbusJwtEncoder} instances configured with an EC
 	 * {@link KeyPair}.
 	 *
 	 * @since 7.0
 	 */
-	public static final class EcKeyPairJwtEncoderBuilder extends KeyPairJwtEncoderBuilder {
+	public static final class EcKeyPairJwtEncoderBuilder {
+		private static final ThrowingConsumer<ECKey.Builder> defaultKid =
+				ECKey.Builder::keyIDFromThumbprint;
+		private final ECKey.Builder builder;
 
-		private EcKeyPairJwtEncoderBuilder(KeyPair keyPair) {
-			super(keyPair);
-		}
-
-		@Override
-		protected JWK buildJwk() {
-			if (super.jwsAlgorithm == null) {
-				super.jwsAlgorithm = JWSAlgorithm.ES256;
-			}
-
-			ECPublicKey publicKey = (ECPublicKey) super.keyPair.getPublic();
+		private EcKeyPairJwtEncoderBuilder(ECPublicKey publicKey, ECPrivateKey privateKey) {
+			Assert.notNull(publicKey, "publicKey cannot be null");
+			Assert.notNull(privateKey, "privateKey cannot be null");
 			Curve curve = Curve.forECParameterSpec(publicKey.getParams());
-			if (curve == null) {
-				throw new JwtEncodingException("Unable to determine Curve for EC public key.");
-			}
+			Assert.notNull(curve, "Unable to determine Curve for EC public key.");
+			ECKey.Builder builder = new ECKey.Builder(curve, publicKey)
+					.privateKey(privateKey)
+					.keyUse(KeyUse.SIGNATURE)
+					.algorithm(JWSAlgorithm.ES256);
+			defaultKid.accept(builder, IllegalArgumentException::new);
+			this.builder = builder;
+		}
 
-			com.nimbusds.jose.jwk.ECKey.Builder builder = new com.nimbusds.jose.jwk.ECKey.Builder(curve, publicKey)
-				.privateKey(super.keyPair.getPrivate())
-				.keyUse(KeyUse.SIGNATURE)
-				.keyID(super.keyId)
-				.algorithm(super.jwsAlgorithm);
+		/**
+		 * Sets the JWS algorithm to use for signing. Defaults to
+		 * {@link SignatureAlgorithm#ES256}. Must be an EC-based algorithm
+		 * (ES256, ES384, or ES512).
+		 * @param signatureAlgorithm the {@link SignatureAlgorithm} to use
+		 * @return this builder instance for method chaining
+		 */
+		public EcKeyPairJwtEncoderBuilder algorithm(SignatureAlgorithm signatureAlgorithm) {
+			Assert.state(JWSAlgorithm.Family.EC.contains(JWSAlgorithm.parse(signatureAlgorithm.getName())),
+					() -> "The algorithm '" + signatureAlgorithm + "' is not compatible with an ECKey. "
+							+ "Please use one of the ES256, ES384, or ES512 algorithms.");
+			this.builder.algorithm(JWSAlgorithm.parse(signatureAlgorithm.getName()));
+			return this;
+		}
 
-			try {
-				return builder.build();
-			}
-			catch (IllegalStateException ex) {
-				throw new IllegalArgumentException("Failed to build ECKey: " + ex.getMessage(), ex);
-			}
+		/**
+		 * Post-process the {@link JWK} using the given {@link Consumer}.
+		 * For example, you may use this to override the default {@code kid}
+		 * @param jwkPostProcessor the post-processor to use
+		 * @return this builder instance for method chaining
+		 */
+		public EcKeyPairJwtEncoderBuilder jwkPostProcessor(Consumer<ECKey.Builder> jwkPostProcessor) {
+			Assert.notNull(jwkPostProcessor, "jwkPostProcessor cannot be null");
+			jwkPostProcessor.accept(this.builder);
+			return this;
+		}
+
+		/**
+		 * Builds the {@link NimbusJwtEncoder} instance.
+		 * @return the configured {@link NimbusJwtEncoder}
+		 */
+		public NimbusJwtEncoder build() {
+			return new NimbusJwtEncoder(this.builder.build());
 		}
 
 	}

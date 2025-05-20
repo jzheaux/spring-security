@@ -16,8 +16,6 @@
 
 package org.springframework.security.oauth2.jwt;
 
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.time.Instant;
@@ -33,6 +31,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.KeySourceException;
+import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSelector;
@@ -40,6 +39,8 @@ import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.KeyUse;
 import com.nimbusds.jose.jwk.OctetSequenceKey;
 import com.nimbusds.jose.jwk.RSAKey;
+import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
+import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 import com.nimbusds.jose.util.Base64URL;
@@ -87,7 +88,7 @@ public class NimbusJwtEncoderTests {
 
 	@Test
 	public void constructorWhenJwkSourceNullThenThrowIllegalArgumentException() {
-		assertThatIllegalArgumentException().isThrownBy(() -> new NimbusJwtEncoder(null))
+		assertThatIllegalArgumentException().isThrownBy(() -> new NimbusJwtEncoder((JWKSource<SecurityContext>) null))
 			.withMessage("jwkSource cannot be null");
 	}
 
@@ -373,7 +374,8 @@ public class NimbusJwtEncoderTests {
 		String keyId = "test-key-id";
 		JwtClaimsSet claims = buildClaims();
 
-		NimbusJwtEncoder encoder = NimbusJwtEncoder.withSecretKey(secretKey).keyId(keyId).build();
+		NimbusJwtEncoder encoder = NimbusJwtEncoder.withSecretKey(secretKey)
+				.jwkPostProcessor((builder) -> builder.keyID(keyId)).build();
 		Jwt jwt = encoder.encode(JwtEncoderParameters.from(claims));
 
 		assertThat(jwt).isNotNull();
@@ -389,7 +391,8 @@ public class NimbusJwtEncoderTests {
 		String keyId = "test-key-id";
 		JwtClaimsSet claims = buildClaims();
 
-		NimbusJwtEncoder encoder = NimbusJwtEncoder.withSecretKey(secretKey).keyId(keyId).build();
+		NimbusJwtEncoder encoder = NimbusJwtEncoder.withSecretKey(secretKey)
+				.jwkPostProcessor((builder) -> builder.keyID(keyId)).build();
 		Jwt jwt = encoder.encode(JwtEncoderParameters.from(claims));
 
 		assertThat(jwt).isNotNull();
@@ -421,12 +424,10 @@ public class NimbusJwtEncoderTests {
 
 	@Test
 	void keyPairBuilderWithRsaDefaultAlgorithm() throws Exception {
-		KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-		keyPairGenerator.initialize(2048);
-		KeyPair keyPair = keyPairGenerator.generateKeyPair();
 		JwtClaimsSet claims = buildClaims();
-
-		NimbusJwtEncoder encoder = NimbusJwtEncoder.withKeyPair(keyPair).build();
+		RSAKeyGenerator generator = new RSAKeyGenerator(2048);
+		RSAKey key = generator.generate();
+		NimbusJwtEncoder encoder = NimbusJwtEncoder.withKeyPair(key.toRSAPublicKey(), key.toRSAPrivateKey()).build();
 		Jwt jwt = encoder.encode(JwtEncoderParameters.from(claims));
 
 		assertThat(jwt).isNotNull();
@@ -439,13 +440,12 @@ public class NimbusJwtEncoderTests {
 
 	@Test
 	void keyPairBuilderWithRsaCustomAlgorithm() throws Exception {
-		KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-		keyPairGenerator.initialize(2048);
-		KeyPair keyPair = keyPairGenerator.generateKeyPair();
+		RSAKeyGenerator generator = new RSAKeyGenerator(2048);
+		RSAKey key = generator.generate();
 		JwtClaimsSet claims = buildClaims();
 
-		NimbusJwtEncoder encoder = NimbusJwtEncoder.withKeyPair(keyPair)
-			.signatureAlgorithm(SignatureAlgorithm.RS512)
+		NimbusJwtEncoder encoder = NimbusJwtEncoder.withKeyPair(key.toRSAPublicKey(), key.toRSAPrivateKey())
+			.algorithm(SignatureAlgorithm.RS512)
 			.build();
 		Jwt jwt = encoder.encode(JwtEncoderParameters.from(claims));
 
@@ -458,12 +458,11 @@ public class NimbusJwtEncoderTests {
 
 	@Test
 	void keyPairBuilderWithEcDefaultAlgorithm() throws Exception {
-		KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC");
-		keyPairGenerator.initialize(256);
-		KeyPair keyPair = keyPairGenerator.generateKeyPair();
+		ECKeyGenerator generator = new ECKeyGenerator(Curve.P_256);
+		ECKey key = generator.generate();
 		JwtClaimsSet claims = buildClaims();
 
-		NimbusJwtEncoder encoder = NimbusJwtEncoder.withKeyPair(keyPair).build();
+		NimbusJwtEncoder encoder = NimbusJwtEncoder.withKeyPair(key.toECPublicKey(), key.toECPrivateKey()).build();
 		Jwt jwt = encoder.encode(JwtEncoderParameters.from(claims));
 
 		assertThat(jwt).isNotNull();
@@ -475,12 +474,11 @@ public class NimbusJwtEncoderTests {
 
 	@Test
 	void keyPairBuilderWithEcCustomAlgorithm() throws Exception {
-		KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC");
-		keyPairGenerator.initialize(256);
-		KeyPair keyPair = keyPairGenerator.generateKeyPair();
-		NimbusJwtEncoder encoder = NimbusJwtEncoder.withKeyPair(keyPair)
-			.keyId(UUID.randomUUID().toString())
-			.signatureAlgorithm(SignatureAlgorithm.ES256)
+		ECKeyGenerator generator = new ECKeyGenerator(Curve.P_256);
+		ECKey key = generator.generate();
+		NimbusJwtEncoder encoder = NimbusJwtEncoder.withKeyPair(key.toECPublicKey(), key.toECPrivateKey())
+			.jwkPostProcessor((builder) -> builder.keyID(UUID.randomUUID().toString()))
+			.algorithm(SignatureAlgorithm.ES256)
 			.build();
 
 		JwtClaimsSet claims = buildClaims();
@@ -494,13 +492,12 @@ public class NimbusJwtEncoderTests {
 
 	@Test
 	void keyPairBuilderWithKeyId() throws Exception { // d
-		KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-		keyPairGenerator.initialize(2048);
-		KeyPair keyPair = keyPairGenerator.generateKeyPair();
 		String keyId = "test-key-id";
 		JwtClaimsSet claims = buildClaims();
-
-		NimbusJwtEncoder encoder = NimbusJwtEncoder.withKeyPair(keyPair).keyId(keyId).build();
+		RSAKeyGenerator generator = new RSAKeyGenerator(2048);
+		RSAKey key = generator.generate();
+		NimbusJwtEncoder encoder = NimbusJwtEncoder.withKeyPair(key.toRSAPublicKey(), key.toRSAPrivateKey())
+				.jwkPostProcessor((builder) -> builder.keyID(keyId)).build();
 		Jwt jwt = encoder.encode(JwtEncoderParameters.from(claims));
 
 		assertThat(jwt).isNotNull();
