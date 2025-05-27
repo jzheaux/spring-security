@@ -264,11 +264,12 @@ public final class NimbusJwtDecoder implements JwtDecoder {
 	/**
 	 * Use the given <a href="https://tools.ietf.org/html/rfc7517#section-5">JWK Set</a>
 	 * uri.
-	 * @param jwkSetUri the JWK Set uri to use
+	 * @param jwkSource the JWK Set uri to use
 	 * @return a {@link JwkSetUriJwtDecoderBuilder} for further configurations
+	 * @since 7.0
 	 */
-	public static JwkSetUriJwtDecoderBuilder withJwkSource(JWKSource<SecurityContext> jwkSetUri) {
-		return new JwkSetUriJwtDecoderBuilder(jwkSetUri);
+	public static JwkSourceJwtDecoderBuilder withJwkSource(JWKSource<SecurityContext> jwkSource) {
+		return new JwkSourceJwtDecoderBuilder(jwkSource);
 	}
 
 	/**
@@ -804,6 +805,107 @@ public final class NimbusJwtDecoder implements JwtDecoder {
 			DefaultJWTProcessor<SecurityContext> jwtProcessor = new DefaultJWTProcessor<>();
 			jwtProcessor.setJWSKeySelector(jwsKeySelector);
 			jwtProcessor.setJWSTypeVerifier(this.typeVerifier);
+			// Spring Security validates the claim set independent from Nimbus
+			jwtProcessor.setJWTClaimsSetVerifier((claims, context) -> {
+			});
+			this.jwtProcessorCustomizer.accept(jwtProcessor);
+			return jwtProcessor;
+		}
+
+	}
+
+	/**
+	 * A builder for creating {@link NimbusJwtDecoder} instances based on a
+	 * <a target="_blank" href="https://tools.ietf.org/html/rfc7517#section-5">JWK Set</a>
+	 * uri.
+	 *
+	 * @since 7.0
+	 */
+	public static final class JwkSourceJwtDecoderBuilder {
+
+		private Set<JWSAlgorithm> defaultAlgorithms = Set.of(JWSAlgorithm.RS256);
+
+		private final Set<SignatureAlgorithm> signatureAlgorithms = new HashSet<>();
+
+		private final JWKSource<SecurityContext> jwkSource;
+
+		private Consumer<ConfigurableJWTProcessor<SecurityContext>> jwtProcessorCustomizer;
+
+		private JwkSourceJwtDecoderBuilder(JWKSource<SecurityContext> jwkSource) {
+			Assert.notNull(jwkSource, "jwkSource cannot be null");
+			this.jwkSource = jwkSource;
+			this.jwtProcessorCustomizer = (processor) -> {
+			};
+		}
+
+		/**
+		 * Append the given signing
+		 * <a href="https://tools.ietf.org/html/rfc7515#section-4.1.1" target=
+		 * "_blank">algorithm</a> to the set of algorithms to use.
+		 * @param signatureAlgorithm the algorithm to use
+		 * @return a {@link JwkSetUriJwtDecoderBuilder} for further configurations
+		 */
+		public JwkSourceJwtDecoderBuilder jwsAlgorithm(SignatureAlgorithm signatureAlgorithm) {
+			Assert.notNull(signatureAlgorithm, "signatureAlgorithm cannot be null");
+			this.signatureAlgorithms.add(signatureAlgorithm);
+			return this;
+		}
+
+		/**
+		 * Configure the list of
+		 * <a href="https://tools.ietf.org/html/rfc7515#section-4.1.1" target=
+		 * "_blank">algorithms</a> to use with the given {@link Consumer}.
+		 * @param signatureAlgorithmsConsumer a {@link Consumer} for further configuring
+		 * the algorithm list
+		 * @return a {@link JwkSetUriJwtDecoderBuilder} for further configurations
+		 */
+		public JwkSourceJwtDecoderBuilder jwsAlgorithms(Consumer<Set<SignatureAlgorithm>> signatureAlgorithmsConsumer) {
+			Assert.notNull(signatureAlgorithmsConsumer, "signatureAlgorithmsConsumer cannot be null");
+			signatureAlgorithmsConsumer.accept(this.signatureAlgorithms);
+			return this;
+		}
+
+		/**
+		 * Use the given {@link Consumer} to customize the {@link JWTProcessor
+		 * ConfigurableJWTProcessor} before passing it to the build
+		 * {@link NimbusJwtDecoder}.
+		 * @param jwtProcessorCustomizer the callback used to alter the processor
+		 * @return a {@link JwkSetUriJwtDecoderBuilder} for further configurations
+		 * @since 5.4
+		 */
+		public JwkSourceJwtDecoderBuilder jwtProcessorCustomizer(
+				Consumer<ConfigurableJWTProcessor<SecurityContext>> jwtProcessorCustomizer) {
+			Assert.notNull(jwtProcessorCustomizer, "jwtProcessorCustomizer cannot be null");
+			this.jwtProcessorCustomizer = jwtProcessorCustomizer;
+			return this;
+		}
+
+		JWSKeySelector<SecurityContext> jwsKeySelector() {
+			if (this.signatureAlgorithms.isEmpty()) {
+				return new JWSVerificationKeySelector<>(this.defaultAlgorithms, this.jwkSource);
+			}
+			Set<JWSAlgorithm> jwsAlgorithms = new HashSet<>();
+			for (SignatureAlgorithm signatureAlgorithm : this.signatureAlgorithms) {
+				JWSAlgorithm jwsAlgorithm = JWSAlgorithm.parse(signatureAlgorithm.getName());
+				jwsAlgorithms.add(jwsAlgorithm);
+			}
+			return new JWSVerificationKeySelector<>(jwsAlgorithms, this.jwkSource);
+		}
+
+		/**
+		 * Build the configured {@link NimbusJwtDecoder}.
+		 * @return the configured {@link NimbusJwtDecoder}
+		 */
+		public NimbusJwtDecoder build() {
+			return new NimbusJwtDecoder(processor());
+		}
+
+		JWTProcessor<SecurityContext> processor() {
+			ConfigurableJWTProcessor<SecurityContext> jwtProcessor = new DefaultJWTProcessor<>();
+			// Spring Security validates the claim set independent from Nimbus
+			jwtProcessor.setJWSTypeVerifier((header, context) -> {
+			});
+			jwtProcessor.setJWSKeySelector(jwsKeySelector());
 			// Spring Security validates the claim set independent from Nimbus
 			jwtProcessor.setJWTClaimsSetVerifier((claims, context) -> {
 			});
