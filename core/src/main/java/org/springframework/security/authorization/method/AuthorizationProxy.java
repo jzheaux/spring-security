@@ -51,6 +51,6 @@ public interface AuthorizationProxy extends RawTargetAccess {
 	 * Access underlying target object
 	 * @return the target object
 	 */
-	Object toAuthorizedTarget();
+	<T> T toAuthorizedTarget();
 
 }

@@ -77,6 +77,8 @@ public class AuthorizationAdvisorProxyFactoryTests {
 		assertThat(flight.getAltitude()).isEqualTo(35000d);
 		Flight secured = proxy(factory, flight);
 		assertThatExceptionOfType(AccessDeniedException.class).isThrownBy(secured::getAltitude);
+		Flight unsecured = ((AuthorizationProxy) secured).toAuthorizedTarget();
+		assertThat(unsecured.getAltitude()).isEqualTo(35000d);
 		SecurityContextHolder.clearContext();
 	}
 
@@ -116,6 +118,8 @@ public class AuthorizationAdvisorProxyFactoryTests {
 		secured.forEach(
 				(flight) -> assertThatExceptionOfType(AccessDeniedException.class).isThrownBy(flight::getAltitude));
 		assertThatExceptionOfType(UnsupportedOperationException.class).isThrownBy(secured::clear);
+		List<Flight> unsecured = ((AuthorizationProxy) secured).toAuthorizedTarget();
+		unsecured.forEach((flight) -> assertThat(flight.getAltitude()).isEqualTo(35000d));
 		SecurityContextHolder.clearContext();
 	}
 
@@ -128,6 +132,8 @@ public class AuthorizationAdvisorProxyFactoryTests {
 		secured.forEach(
 				(flight) -> assertThatExceptionOfType(AccessDeniedException.class).isThrownBy(flight::getAltitude));
 		assertThatExceptionOfType(UnsupportedOperationException.class).isThrownBy(secured::clear);
+		Set<Flight> unsecured = ((AuthorizationProxy) secured).toAuthorizedTarget();
+		unsecured.forEach((flight) -> assertThat(flight.getAltitude()).isEqualTo(35000d));
 		SecurityContextHolder.clearContext();
 	}
 
@@ -140,6 +146,8 @@ public class AuthorizationAdvisorProxyFactoryTests {
 		assertThat(flights.size()).isEqualTo(secured.size());
 		secured.forEach(
 				(flight) -> assertThatExceptionOfType(AccessDeniedException.class).isThrownBy(flight::getAltitude));
+		Queue<Flight> unsecured = ((AuthorizationProxy) secured).toAuthorizedTarget();
+		unsecured.forEach((flight) -> assertThat(flight.getAltitude()).isEqualTo(35000d));
 		SecurityContextHolder.clearContext();
 	}
 
@@ -152,6 +160,8 @@ public class AuthorizationAdvisorProxyFactoryTests {
 		secured
 			.forEach((user) -> assertThatExceptionOfType(AccessDeniedException.class).isThrownBy(user::getFirstName));
 		assertThatExceptionOfType(UnsupportedOperationException.class).isThrownBy(secured::clear);
+		SortedSet<User> unsecured = ((AuthorizationProxy) secured).toAuthorizedTarget();
+		unsecured.forEach((user) -> assertThat(user.getFirstName()).isEqualTo(this.alan.getFirstName()));
 		SecurityContextHolder.clearContext();
 	}
 
@@ -165,6 +175,8 @@ public class AuthorizationAdvisorProxyFactoryTests {
 		secured.forEach(
 				(id, user) -> assertThatExceptionOfType(AccessDeniedException.class).isThrownBy(user::getFirstName));
 		assertThatExceptionOfType(UnsupportedOperationException.class).isThrownBy(secured::clear);
+		SortedMap<String, User> unsecured = ((AuthorizationProxy) secured).toAuthorizedTarget();
+		unsecured.forEach((id, user) -> assertThat(user.getFirstName()).isEqualTo(this.alan.getFirstName()));
 		SecurityContextHolder.clearContext();
 	}
 
@@ -177,6 +189,8 @@ public class AuthorizationAdvisorProxyFactoryTests {
 		secured.forEach(
 				(id, user) -> assertThatExceptionOfType(AccessDeniedException.class).isThrownBy(user::getFirstName));
 		assertThatExceptionOfType(UnsupportedOperationException.class).isThrownBy(secured::clear);
+		Map<String, User> unsecured = ((AuthorizationProxy) secured).toAuthorizedTarget();
+		unsecured.forEach((id, user) -> assertThat(user.getFirstName()).isEqualTo(this.alan.getFirstName()));
 		SecurityContextHolder.clearContext();
 	}
 
@@ -188,7 +202,10 @@ public class AuthorizationAdvisorProxyFactoryTests {
 		List<Flight> secured = proxy(factory, flights);
 		secured.forEach(
 				(flight) -> assertThatExceptionOfType(AccessDeniedException.class).isThrownBy(flight::getAltitude));
+		List<Flight> unsecured = ((AuthorizationProxy) secured).toAuthorizedTarget();
+		unsecured.forEach((flight) -> assertThat(flight.getAltitude()).isEqualTo(35000d));
 		secured.clear();
+		unsecured.clear();
 		SecurityContextHolder.clearContext();
 	}
 
@@ -200,7 +217,10 @@ public class AuthorizationAdvisorProxyFactoryTests {
 		Set<Flight> secured = proxy(factory, flights);
 		secured.forEach(
 				(flight) -> assertThatExceptionOfType(AccessDeniedException.class).isThrownBy(flight::getAltitude));
+		Set<Flight> unsecured = ((AuthorizationProxy) secured).toAuthorizedTarget();
+		unsecured.forEach((flight) -> assertThat(flight.getAltitude()).isEqualTo(35000d));
 		secured.clear();
+		unsecured.clear();
 		SecurityContextHolder.clearContext();
 	}
 
@@ -211,7 +231,10 @@ public class AuthorizationAdvisorProxyFactoryTests {
 		SortedSet<User> users = new TreeSet<>(Set.of(this.alan));
 		SortedSet<User> secured = proxy(factory, users);
 		secured.forEach((u) -> assertThatExceptionOfType(AccessDeniedException.class).isThrownBy(u::getFirstName));
+		SortedSet<User> unsecured = ((AuthorizationProxy) secured).toAuthorizedTarget();
+		unsecured.forEach((user) -> assertThat(user.getFirstName()).isEqualTo(this.alan.getFirstName()));
 		secured.clear();
+		unsecured.clear();
 		SecurityContextHolder.clearContext();
 	}
 
@@ -222,7 +245,10 @@ public class AuthorizationAdvisorProxyFactoryTests {
 		SortedMap<String, User> users = new TreeMap<>(Map.of(this.alan.getId(), this.alan));
 		SortedMap<String, User> secured = proxy(factory, users);
 		secured.forEach((id, u) -> assertThatExceptionOfType(AccessDeniedException.class).isThrownBy(u::getFirstName));
+		SortedMap<String, User> unsecured = ((AuthorizationProxy) secured).toAuthorizedTarget();
+		unsecured.forEach((id, user) -> assertThat(user.getFirstName()).isEqualTo(this.alan.getFirstName()));
 		secured.clear();
+		unsecured.clear();
 		SecurityContextHolder.clearContext();
 	}
 
@@ -233,7 +259,10 @@ public class AuthorizationAdvisorProxyFactoryTests {
 		Map<String, User> users = new HashMap<>(Map.of(this.alan.getId(), this.alan));
 		Map<String, User> secured = proxy(factory, users);
 		secured.forEach((id, u) -> assertThatExceptionOfType(AccessDeniedException.class).isThrownBy(u::getFirstName));
+		Map<String, User> unsecured = ((AuthorizationProxy) secured).toAuthorizedTarget();
+		unsecured.forEach((id, user) -> assertThat(user.getFirstName()).isEqualTo(this.alan.getFirstName()));
 		secured.clear();
+		unsecured.clear();
 		SecurityContextHolder.clearContext();
 	}
 
@@ -256,6 +285,8 @@ public class AuthorizationAdvisorProxyFactoryTests {
 		assertThat(flights.get().getAltitude()).isEqualTo(35000d);
 		Supplier<Flight> secured = proxy(factory, flights);
 		assertThatExceptionOfType(AccessDeniedException.class).isThrownBy(() -> secured.get().getAltitude());
+		Supplier<Flight> unsecured = ((AuthorizationProxy) secured).toAuthorizedTarget();
+		assertThat(unsecured.get().getAltitude()).isEqualTo(35000d);
 		SecurityContextHolder.clearContext();
 	}
 
@@ -296,6 +327,8 @@ public class AuthorizationAdvisorProxyFactoryTests {
 		Iterable<User> users = new UserRepository();
 		Iterable<User> secured = proxy(factory, users);
 		assertThatExceptionOfType(AccessDeniedException.class).isThrownBy(() -> secured.forEach(User::getFirstName));
+		Iterable<User> unsecured = ((AuthorizationProxy) secured).toAuthorizedTarget();
+		unsecured.forEach((user) -> assertThat(user.getFirstName()).isEqualTo("first"));
 		SecurityContextHolder.clearContext();
 	}
 

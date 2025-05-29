@@ -92,8 +92,6 @@ public final class AuthorizationAdvisorProxyFactory implements AuthorizationProx
 	private static final TargetVisitor DEFAULT_VISITOR_SKIP_VALUE_TYPES = TargetVisitor.of(new ClassVisitor(),
 			new IgnoreValueTypeVisitor(), DEFAULT_VISITOR);
 
-	private final AuthorizationProxyMethodInterceptor authorizationProxy = new AuthorizationProxyMethodInterceptor();
-
 	private List<AuthorizationAdvisor> advisors;
 
 	private TargetVisitor visitor = DEFAULT_VISITOR;
@@ -184,7 +182,7 @@ public final class AuthorizationAdvisorProxyFactory implements AuthorizationProx
 			return (T) proxied;
 		}
 		ProxyFactory factory = new ProxyFactory(target);
-		factory.addAdvisors(this.authorizationProxy);
+		factory.addAdvisors(new AuthorizationProxyMethodInterceptor(this, (p, t) -> target));
 		List<Advisor> advisors = new ArrayList<>(this.advisors);
 		AnnotationAwareOrderComparator.sort(advisors);
 		factory.addAdvisors(advisors);
@@ -358,6 +356,48 @@ public final class AuthorizationAdvisorProxyFactory implements AuthorizationProx
 
 	}
 
+	/**
+	 * An interface to handle how the {@link AuthorizationAdvisorProxyFactory} should step
+	 * through the target's object hierarchy. Specifically, this implementation wraps a
+	 * proxy around both the target item and container objects surrounding it. The
+	 * container object is surrounded with a proxy that informs how to unwrap the
+	 * underlying authorized target.
+	 *
+	 * @author Josh Cummings
+	 * @since 7.0
+	 */
+	private interface ProxyContainerTargetVisitor extends TargetVisitor {
+
+		default Object visit(AuthorizationAdvisorProxyFactory proxyFactory, Object target) {
+			Object elementsProxied = visit(proxyFactory, target, AuthorizationProxyFactory::proxy);
+			if (elementsProxied == null) {
+				return null;
+			}
+			if (elementsProxied.getClass().isArray()) {
+				return elementsProxied;
+			}
+			Class<?>[] interfaces = ClassUtils.getAllInterfacesForClass(elementsProxied.getClass());
+			boolean isFinal = Modifier.isFinal(elementsProxied.getClass().getModifiers());
+			boolean isPublic = Modifier.isPublic(elementsProxied.getClass().getModifiers());
+			if (interfaces.length == 0 && (isFinal || !isPublic)) {
+				return elementsProxied;
+			}
+			ProxyFactory factory = new ProxyFactory(elementsProxied);
+			factory.addAdvisors(new AuthorizationProxyMethodInterceptor(proxyFactory,
+					(p, t) -> visit(p, t, AuthorizationProxyFactory::toAuthorizedTarget)));
+			factory.addInterface(AuthorizationProxy.class);
+			for (Class<?> clazz : interfaces) {
+				factory.addInterface(clazz);
+			}
+			factory.setOpaque(true);
+			factory.setProxyTargetClass(interfaces.length == 0);
+			return factory.getProxy();
+		}
+
+		<T> T visit(AuthorizationAdvisorProxyFactory proxyFactory, T target, TargetVisitor elementVisitor);
+
+	}
+
 	private static final class IgnoreValueTypeVisitor implements TargetVisitor {
 
 		@Override
@@ -372,8 +412,6 @@ public final class AuthorizationAdvisorProxyFactory implements AuthorizationProx
 
 	private static final class ClassVisitor implements TargetVisitor {
 
-		private final AuthorizationProxyMethodInterceptor authorizationProxy = new AuthorizationProxyMethodInterceptor();
-
 		@Override
 		public Object visit(AuthorizationAdvisorProxyFactory proxyFactory, Object object) {
 			if (object instanceof Class<?> targetClass) {
@@ -385,7 +423,7 @@ public final class AuthorizationAdvisorProxyFactory implements AuthorizationProx
 				factory.setInterfaces(ClassUtils.getAllInterfacesForClass(targetClass));
 				factory.setOpaque(true);
 				factory.setProxyTargetClass(!Modifier.isFinal(targetClass.getModifiers()));
-				factory.addAdvisor(this.authorizationProxy);
+				factory.addAdvisor(new AuthorizationProxyMethodInterceptor(proxyFactory, (p, t) -> targetClass));
 				for (Advisor advisor : proxyFactory) {
 					factory.addAdvisors(advisor);
 				}
@@ -397,59 +435,61 @@ public final class AuthorizationAdvisorProxyFactory implements AuthorizationProx
 
 	}
 
-	private static final class ContainerTypeVisitor implements TargetVisitor {
+	private static final class ContainerTypeVisitor implements ProxyContainerTargetVisitor {
 
 		@Override
-		public Object visit(AuthorizationAdvisorProxyFactory proxyFactory, Object target) {
+		public Object visit(AuthorizationAdvisorProxyFactory proxyFactory, Object target, TargetVisitor visitor) {
 			if (target instanceof Iterator<?> iterator) {
-				return proxyIterator(proxyFactory, iterator);
+				return visitIterator(proxyFactory, iterator, visitor);
 			}
 			if (target instanceof Queue<?> queue) {
-				return proxyQueue(proxyFactory, queue);
+				return visitQueue(proxyFactory, queue, visitor);
 			}
 			if (target instanceof List<?> list) {
-				return proxyList(proxyFactory, list);
+				return visitList(proxyFactory, list, visitor);
 			}
 			if (target instanceof SortedSet<?> set) {
-				return proxySortedSet(proxyFactory, set);
+				return visitSortedSet(proxyFactory, set, visitor);
 			}
 			if (target instanceof Set<?> set) {
-				return proxySet(proxyFactory, set);
+				return visitSet(proxyFactory, set, visitor);
 			}
 			if (target.getClass().isArray()) {
-				return proxyArray(proxyFactory, (Object[]) target);
+				return visitArray(proxyFactory, (Object[]) target, visitor);
 			}
 			if (target instanceof SortedMap<?, ?> map) {
-				return proxySortedMap(proxyFactory, map);
+				return visitSortedMap(proxyFactory, map, visitor);
 			}
 			if (target instanceof Iterable<?> iterable) {
-				return proxyIterable(proxyFactory, iterable);
+				return visitIterable(proxyFactory, iterable, visitor);
 			}
 			if (target instanceof Map<?, ?> map) {
-				return proxyMap(proxyFactory, map);
+				return visitMap(proxyFactory, map, visitor);
 			}
 			if (target instanceof Stream<?> stream) {
-				return proxyStream(proxyFactory, stream);
+				return visitStream(proxyFactory, stream, visitor);
 			}
 			if (target instanceof Optional<?> optional) {
-				return proxyOptional(proxyFactory, optional);
+				return visitOptional(proxyFactory, optional, visitor);
 			}
 			if (target instanceof Supplier<?> supplier) {
-				return proxySupplier(proxyFactory, supplier);
+				return visitSupplier(proxyFactory, supplier, visitor);
 			}
 			return null;
 		}
 
 		@SuppressWarnings("unchecked")
-		private <T> T proxyCast(AuthorizationProxyFactory proxyFactory, T target) {
-			return proxyFactory.proxy(target);
+		private <T> T castVisit(AuthorizationAdvisorProxyFactory proxyFactory, T target, TargetVisitor visitor) {
+			return (T) visitor.visit(proxyFactory, target);
 		}
 
-		private <T> Iterable<T> proxyIterable(AuthorizationProxyFactory proxyFactory, Iterable<T> iterable) {
-			return () -> proxyIterator(proxyFactory, iterable.iterator());
+		private <T> Iterable<T> visitIterable(AuthorizationAdvisorProxyFactory proxyFactory, Iterable<T> iterable,
+				TargetVisitor visitor) {
+			return () -> visitIterator(proxyFactory, iterable.iterator(), visitor);
 		}
 
-		private <T> Iterator<T> proxyIterator(AuthorizationProxyFactory proxyFactory, Iterator<T> iterator) {
+		private <T> Iterator<T> visitIterator(AuthorizationAdvisorProxyFactory proxyFactory, Iterator<T> iterator,
+				TargetVisitor visitor) {
 			return new Iterator<>() {
 				@Override
 				public boolean hasNext() {
@@ -458,15 +498,16 @@ public final class AuthorizationAdvisorProxyFactory implements AuthorizationProx
 
 				@Override
 				public T next() {
-					return proxyCast(proxyFactory, iterator.next());
+					return castVisit(proxyFactory, iterator.next(), visitor);
 				}
 			};
 		}
 
-		private <T> SortedSet<T> proxySortedSet(AuthorizationProxyFactory proxyFactory, SortedSet<T> set) {
+		private <T> SortedSet<T> visitSortedSet(AuthorizationAdvisorProxyFactory proxyFactory, SortedSet<T> set,
+				TargetVisitor visitor) {
 			SortedSet<T> proxies = new TreeSet<>(set.comparator());
 			for (T toProxy : set) {
-				proxies.add(proxyCast(proxyFactory, toProxy));
+				proxies.add(castVisit(proxyFactory, toProxy, visitor));
 			}
 			try {
 				set.clear();
@@ -478,10 +519,10 @@ public final class AuthorizationAdvisorProxyFactory implements AuthorizationProx
 			}
 		}
 
-		private <T> Set<T> proxySet(AuthorizationProxyFactory proxyFactory, Set<T> set) {
+		private <T> Set<T> visitSet(AuthorizationAdvisorProxyFactory proxyFactory, Set<T> set, TargetVisitor visitor) {
 			Set<T> proxies = new LinkedHashSet<>(set.size());
 			for (T toProxy : set) {
-				proxies.add(proxyCast(proxyFactory, toProxy));
+				proxies.add(castVisit(proxyFactory, toProxy, visitor));
 			}
 			try {
 				set.clear();
@@ -493,20 +534,22 @@ public final class AuthorizationAdvisorProxyFactory implements AuthorizationProx
 			}
 		}
 
-		private <T> Queue<T> proxyQueue(AuthorizationProxyFactory proxyFactory, Queue<T> queue) {
+		private <T> Queue<T> visitQueue(AuthorizationAdvisorProxyFactory proxyFactory, Queue<T> queue,
+				TargetVisitor visitor) {
 			Queue<T> proxies = new LinkedList<>();
 			for (T toProxy : queue) {
-				proxies.add(proxyCast(proxyFactory, toProxy));
+				proxies.add(castVisit(proxyFactory, toProxy, visitor));
 			}
 			queue.clear();
 			queue.addAll(proxies);
 			return proxies;
 		}
 
-		private <T> List<T> proxyList(AuthorizationProxyFactory proxyFactory, List<T> list) {
+		private <T> List<T> visitList(AuthorizationAdvisorProxyFactory proxyFactory, List<T> list,
+				TargetVisitor visitor) {
 			List<T> proxies = new ArrayList<>(list.size());
 			for (T toProxy : list) {
-				proxies.add(proxyCast(proxyFactory, toProxy));
+				proxies.add(castVisit(proxyFactory, toProxy, visitor));
 			}
 			try {
 				list.clear();
@@ -518,10 +561,11 @@ public final class AuthorizationAdvisorProxyFactory implements AuthorizationProx
 			}
 		}
 
-		private Object[] proxyArray(AuthorizationProxyFactory proxyFactory, Object[] objects) {
+		private Object[] visitArray(AuthorizationAdvisorProxyFactory proxyFactory, Object[] objects,
+				TargetVisitor visitor) {
 			List<Object> retain = new ArrayList<>(objects.length);
 			for (Object object : objects) {
-				retain.add(proxyFactory.proxy(object));
+				retain.add(visitor.visit(proxyFactory, object));
 			}
 			Object[] proxies = (Object[]) Array.newInstance(objects.getClass().getComponentType(), retain.size());
 			for (int i = 0; i < retain.size(); i++) {
@@ -530,10 +574,11 @@ public final class AuthorizationAdvisorProxyFactory implements AuthorizationProx
 			return proxies;
 		}
 
-		private <K, V> SortedMap<K, V> proxySortedMap(AuthorizationProxyFactory proxyFactory, SortedMap<K, V> entries) {
+		private <K, V> SortedMap<K, V> visitSortedMap(AuthorizationAdvisorProxyFactory proxyFactory,
+				SortedMap<K, V> entries, TargetVisitor visitor) {
 			SortedMap<K, V> proxies = new TreeMap<>(entries.comparator());
 			for (Map.Entry<K, V> entry : entries.entrySet()) {
-				proxies.put(entry.getKey(), proxyCast(proxyFactory, entry.getValue()));
+				proxies.put(entry.getKey(), castVisit(proxyFactory, entry.getValue(), visitor));
 			}
 			try {
 				entries.clear();
@@ -545,10 +590,11 @@ public final class AuthorizationAdvisorProxyFactory implements AuthorizationProx
 			}
 		}
 
-		private <K, V> Map<K, V> proxyMap(AuthorizationProxyFactory proxyFactory, Map<K, V> entries) {
+		private <K, V> Map<K, V> visitMap(AuthorizationAdvisorProxyFactory proxyFactory, Map<K, V> entries,
+				TargetVisitor visitor) {
 			Map<K, V> proxies = new LinkedHashMap<>(entries.size());
 			for (Map.Entry<K, V> entry : entries.entrySet()) {
-				proxies.put(entry.getKey(), proxyCast(proxyFactory, entry.getValue()));
+				proxies.put(entry.getKey(), castVisit(proxyFactory, entry.getValue(), visitor));
 			}
 			try {
 				entries.clear();
@@ -560,17 +606,20 @@ public final class AuthorizationAdvisorProxyFactory implements AuthorizationProx
 			}
 		}
 
-		private Stream<?> proxyStream(AuthorizationProxyFactory proxyFactory, Stream<?> stream) {
-			return stream.map(proxyFactory::proxy).onClose(stream::close);
+		private Stream<?> visitStream(AuthorizationAdvisorProxyFactory proxyFactory, Stream<?> stream,
+				TargetVisitor visitor) {
+			return stream.map((e) -> castVisit(proxyFactory, e, visitor)).onClose(stream::close);
 		}
 
 		@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-		private Optional<?> proxyOptional(AuthorizationProxyFactory proxyFactory, Optional<?> optional) {
-			return optional.map(proxyFactory::proxy);
+		private Optional<?> visitOptional(AuthorizationAdvisorProxyFactory proxyFactory, Optional<?> optional,
+				TargetVisitor visitor) {
+			return optional.map((v) -> visitor.visit(proxyFactory, v));
 		}
 
-		private Supplier<?> proxySupplier(AuthorizationProxyFactory proxyFactory, Supplier<?> supplier) {
-			return () -> proxyFactory.proxy(supplier.get());
+		private Supplier<?> visitSupplier(AuthorizationAdvisorProxyFactory proxyFactory, Supplier<?> supplier,
+				TargetVisitor visitor) {
+			return () -> castVisit(proxyFactory, supplier.get(), visitor);
 		}
 
 	}
@@ -604,10 +653,19 @@ public final class AuthorizationAdvisorProxyFactory implements AuthorizationProx
 		private static final Method GET_TARGET_METHOD = ClassUtils.getMethod(AuthorizationProxy.class,
 				"toAuthorizedTarget");
 
+		private final AuthorizationAdvisorProxyFactory proxyFactory;
+
+		private final TargetVisitor unwrapper;
+
+		AuthorizationProxyMethodInterceptor(AuthorizationAdvisorProxyFactory proxyFactory, TargetVisitor unwrapper) {
+			this.proxyFactory = proxyFactory;
+			this.unwrapper = unwrapper;
+		}
+
 		@Override
 		public Object invoke(MethodInvocation invocation) throws Throwable {
 			if (invocation.getMethod().equals(GET_TARGET_METHOD)) {
-				return invocation.getThis();
+				return this.unwrapper.visit(this.proxyFactory, invocation.getThis());
 			}
 			return invocation.proceed();
 		}

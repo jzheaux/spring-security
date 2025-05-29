@@ -16,6 +16,11 @@
 
 package org.springframework.security.authorization;
 
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import org.springframework.security.authorization.method.AuthorizationProxy;
+
 /**
  * A factory for wrapping arbitrary objects in authorization-related advice
  *
@@ -38,5 +43,21 @@ public interface AuthorizationProxyFactory {
 	 * created
 	 */
 	<T> T proxy(T object);
+
+	/**
+	 * Unwrap the target object from the {@link AuthorizationProxy}. Note that
+	 * types wrapped in non-interface-based container objects like {@link Mono} or
+	 * {@link Flux} cannot be unwrapped.
+	 *
+	 * @param object the proxied object
+	 * @return the unwrapped object
+	 * @param <T>
+	 */
+	default <T> T toAuthorizedTarget(T object) {
+		if (object instanceof AuthorizationProxy proxy) {
+			return proxy.toAuthorizedTarget();
+		}
+		return object;
+	}
 
 }
