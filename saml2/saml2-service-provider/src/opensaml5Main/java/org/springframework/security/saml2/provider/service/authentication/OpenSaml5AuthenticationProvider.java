@@ -893,14 +893,12 @@ public final class OpenSaml5AuthenticationProvider implements AuthenticationProv
 			Saml2AuthenticationToken token = responseToken.token;
 			Assertion assertion = CollectionUtils.firstElement(response.getAssertions());
 			String username = this.principalNameConverter.convert(assertion);
-			Map<String, List<Object>> attributes = BaseOpenSamlAuthenticationProvider.getAssertionAttributes(assertion);
-			List<String> sessionIndexes = BaseOpenSamlAuthenticationProvider.getSessionIndexes(assertion);
-			DefaultSaml2AuthenticatedPrincipal principal = new DefaultSaml2AuthenticatedPrincipal(username, attributes,
-					sessionIndexes);
 			String registrationId = responseToken.token.getRelyingPartyRegistration().getRegistrationId();
-			principal.setRelyingPartyRegistrationId(registrationId);
-			return new Saml2Authentication(principal, token.getSaml2Response(),
-					this.grantedAuthoritiesConverter.convert(assertion));
+			Saml2ResponseAssertionAccessor accessor = new OpenSamlResponseAssertionAccessor(token.getSaml2Response(),
+					assertion);
+			Saml2AuthenticatedPrincipal principal = new DefaultSaml2AuthenticatedPrincipal(username, accessor);
+			Collection<GrantedAuthority> authorities = this.grantedAuthoritiesConverter.convert(assertion);
+			return new Saml2AssertionAuthentication(principal, accessor, authorities, registrationId);
 		}
 
 		/**

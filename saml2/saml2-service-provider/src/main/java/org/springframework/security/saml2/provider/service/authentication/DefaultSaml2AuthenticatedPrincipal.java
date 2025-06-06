@@ -30,7 +30,9 @@ import org.springframework.util.Assert;
  *
  * @author Clement Stoquart
  * @since 5.4
+ * @deprecated Please use {@link Saml2ResponseAssertionAccessor}
  */
+@Deprecated
 public class DefaultSaml2AuthenticatedPrincipal implements Saml2AuthenticatedPrincipal, Serializable {
 
 	@Serial
@@ -38,9 +40,13 @@ public class DefaultSaml2AuthenticatedPrincipal implements Saml2AuthenticatedPri
 
 	private final String name;
 
+	private final String nameId;
+
 	private final Map<String, List<Object>> attributes;
 
 	private final List<String> sessionIndexes;
+
+	private final String responseValue;
 
 	private String registrationId;
 
@@ -54,8 +60,18 @@ public class DefaultSaml2AuthenticatedPrincipal implements Saml2AuthenticatedPri
 		Assert.notNull(attributes, "attributes cannot be null");
 		Assert.notNull(sessionIndexes, "sessionIndexes cannot be null");
 		this.name = name;
+		this.nameId = name;
 		this.attributes = attributes;
 		this.sessionIndexes = sessionIndexes;
+		this.responseValue = null;
+	}
+
+	public DefaultSaml2AuthenticatedPrincipal(String name, Saml2ResponseAssertionAccessor assertion) {
+		this.name = name;
+		this.nameId = assertion.getNameId();
+		this.attributes = assertion.getAttributes();
+		this.sessionIndexes = assertion.getSessionIndexes();
+		this.responseValue = assertion.getResponseValue();
 	}
 
 	@Override
@@ -64,8 +80,18 @@ public class DefaultSaml2AuthenticatedPrincipal implements Saml2AuthenticatedPri
 	}
 
 	@Override
+	public String getNameId() {
+		return this.nameId;
+	}
+
+	@Override
 	public Map<String, List<Object>> getAttributes() {
 		return this.attributes;
+	}
+
+	@Override
+	public String getResponseValue() {
+		return this.responseValue;
 	}
 
 	@Override
@@ -73,6 +99,11 @@ public class DefaultSaml2AuthenticatedPrincipal implements Saml2AuthenticatedPri
 		return this.sessionIndexes;
 	}
 
+	/**
+	 * @deprecated Please use
+	 * {@link Saml2AssertionAuthentication#getRelyingPartyRegistrationId} instead
+	 */
+	@Deprecated
 	@Override
 	public String getRelyingPartyRegistrationId() {
 		return this.registrationId;

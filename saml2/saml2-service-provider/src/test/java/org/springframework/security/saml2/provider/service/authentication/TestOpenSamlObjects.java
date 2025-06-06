@@ -153,7 +153,7 @@ public final class TestOpenSamlObjects {
 		return signed(response, TestSaml2X509Credentials.assertingPartySigningCredential(), RELYING_PARTY_ENTITY_ID);
 	}
 
-	static Assertion assertion() {
+	public static Assertion assertion() {
 		return assertion(USERNAME, ASSERTING_PARTY_ENTITY_ID, RELYING_PARTY_ENTITY_ID, DESTINATION);
 	}
 
