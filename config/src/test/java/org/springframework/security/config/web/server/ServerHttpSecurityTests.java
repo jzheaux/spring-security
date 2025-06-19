@@ -148,8 +148,7 @@ public class ServerHttpSecurityTests {
 			.willReturn(Mono.just(new TestingAuthenticationToken("rob", "rob", "ROLE_USER", "ROLE_ADMIN")));
 		this.http.httpBasic(withDefaults());
 		this.http.authenticationManager(this.authenticationManager);
-		ServerHttpSecurity.AuthorizeExchangeSpec authorize = this.http.authorizeExchange(withDefaults());
-		authorize.anyExchange().authenticated();
+		this.http.authorizeExchange((authorize) -> authorize.anyExchange().authenticated());
 		WebTestClient client = buildClient();
 		// @formatter:off
 		EntityExchangeResult<String> result = client.get()
@@ -173,8 +172,7 @@ public class ServerHttpSecurityTests {
 		this.http.securityContextRepository(new WebSessionServerSecurityContextRepository());
 		this.http.httpBasic(withDefaults());
 		this.http.authenticationManager(this.authenticationManager);
-		ServerHttpSecurity.AuthorizeExchangeSpec authorize = this.http.authorizeExchange(withDefaults());
-		authorize.anyExchange().authenticated();
+		this.http.authorizeExchange((authorize) -> authorize.anyExchange().authenticated());
 		WebTestClient client = buildClient();
 		// @formatter:off
 		EntityExchangeResult<String> result = client.get()
@@ -261,7 +259,7 @@ public class ServerHttpSecurityTests {
 
 	@Test
 	public void csrfServerLogoutHandlerNotAppliedIfCsrfIsntEnabled() {
-		SecurityWebFilterChain securityWebFilterChain = this.http.csrf((csrf) -> csrf.disable().build());
+		SecurityWebFilterChain securityWebFilterChain = this.http.csrf((csrf) -> csrf.disable()).build();
 		assertThat(getWebFilter(securityWebFilterChain, CsrfWebFilter.class)).isNotPresent();
 		Optional<ServerLogoutHandler> logoutHandler = getWebFilter(securityWebFilterChain, LogoutWebFilter.class)
 			.map((logoutWebFilter) -> (ServerLogoutHandler) ReflectionTestUtils.getField(logoutWebFilter,
@@ -361,8 +359,7 @@ public class ServerHttpSecurityTests {
 			.willReturn(Mono.just(new TestingAuthenticationToken("rob", "rob", "ROLE_USER", "ROLE_ADMIN")));
 		this.http.httpBasic(withDefaults()).anonymous(withDefaults());
 		this.http.authenticationManager(this.authenticationManager);
-		ServerHttpSecurity.AuthorizeExchangeSpec authorize = this.http.authorizeExchange(withDefaults());
-		authorize.anyExchange().hasAuthority("ROLE_ADMIN");
+		this.http.authorizeExchange((authorize) -> authorize.anyExchange().hasAuthority("ROLE_ADMIN"));
 		WebTestClient client = buildClient();
 		// @formatter:off
 		EntityExchangeResult<String> result = client.get()
@@ -385,8 +382,7 @@ public class ServerHttpSecurityTests {
 		authenticationEntryPoint.setRealm("myrealm");
 		this.http.httpBasic((basic) -> basic.authenticationEntryPoint(authenticationEntryPoint));
 		this.http.authenticationManager(this.authenticationManager);
-		ServerHttpSecurity.AuthorizeExchangeSpec authorize = this.http.authorizeExchange(withDefaults());
-		authorize.anyExchange().authenticated();
+		this.http.authorizeExchange((authorize) -> authorize.anyExchange().authenticated());
 		WebTestClient client = buildClient();
 		// @formatter:off
 		EntityExchangeResult<String> result = client.get()
@@ -407,8 +403,7 @@ public class ServerHttpSecurityTests {
 		authenticationEntryPoint.setRealm("myrealm");
 		this.http.httpBasic((httpBasic) -> httpBasic.authenticationEntryPoint(authenticationEntryPoint));
 		this.http.authenticationManager(this.authenticationManager);
-		ServerHttpSecurity.AuthorizeExchangeSpec authorize = this.http.authorizeExchange(withDefaults());
-		authorize.anyExchange().authenticated();
+		this.http.authorizeExchange((authorize) -> authorize.anyExchange().authenticated());
 		WebTestClient client = buildClient();
 		// @formatter:off
 		EntityExchangeResult<String> result = client.get()
@@ -484,7 +479,8 @@ public class ServerHttpSecurityTests {
 	public void addsX509FilterWhenX509AuthenticationIsConfigured() {
 		X509PrincipalExtractor mockExtractor = mock(X509PrincipalExtractor.class);
 		ReactiveAuthenticationManager mockAuthenticationManager = mock(ReactiveAuthenticationManager.class);
-		this.http.x509((x509) -> x509.principalExtractor(mockExtractor).authenticationManager(mockAuthenticationManager));
+		this.http
+			.x509((x509) -> x509.principalExtractor(mockExtractor).authenticationManager(mockAuthenticationManager));
 		SecurityWebFilterChain securityWebFilterChain = this.http.build();
 		WebFilter x509WebFilter = securityWebFilterChain.getWebFilters().filter(this::isX509Filter).blockFirst();
 		assertThat(x509WebFilter).isNotNull();
