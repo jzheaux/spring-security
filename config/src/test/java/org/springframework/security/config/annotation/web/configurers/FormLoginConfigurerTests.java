@@ -453,7 +453,7 @@ public class FormLoginConfigurerTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.auhorizeRequests((authorize) -> authorize
+				.authorizeRequests((authorize) -> authorize
 						.anyRequest().hasRole("USER")
 				)
 				.formLogin(withDefaults());
@@ -515,7 +515,7 @@ public class FormLoginConfigurerTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.auhorizeRequests((authorize) -> authorize
+				.authorizeRequests((authorize) -> authorize
 						.anyRequest().hasRole("USER")
 				)
 				.formLogin((formLogin) ->
@@ -570,7 +570,7 @@ public class FormLoginConfigurerTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.auhorizeRequests((authorize) -> authorize
+				.authorizeRequests((authorize) -> authorize
 						.anyRequest().authenticated()
 				)
 				.formLogin((formLogin) ->

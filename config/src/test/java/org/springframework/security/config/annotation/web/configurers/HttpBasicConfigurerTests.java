@@ -250,7 +250,7 @@ public class HttpBasicConfigurerTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.auhorizeRequests((authorize) -> authorize
+				.authorizeRequests((authorize) -> authorize
 						.anyRequest().authenticated()
 				)
 				.httpBasic(withDefaults());

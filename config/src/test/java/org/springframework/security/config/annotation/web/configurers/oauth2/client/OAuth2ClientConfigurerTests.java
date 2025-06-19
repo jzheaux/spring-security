@@ -399,7 +399,7 @@ public class OAuth2ClientConfigurerTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.auhorizeRequests((authorize) -> authorize
+				.authorizeRequests((authorize) -> authorize
 						.anyRequest().authenticated()
 				)
 				.oauth2Client(withDefaults());

@@ -1395,10 +1395,9 @@ public class OAuth2ResourceServerConfigurerTests {
 		context.registerBean("converterOne", JwtAuthenticationConverter.class, () -> converterBean);
 		context.registerBean("converterTwo", JwtAuthenticationConverter.class, () -> converterBean);
 		this.spring.context(context).autowire();
-		new OAuth2ResourceServerConfigurer<HttpSecurity>(context).jwt((jwt) -> {
-			assertThatExceptionOfType(NoUniqueBeanDefinitionException.class)
-				.isThrownBy(jwt::getJwtAuthenticationConverter);
-		});
+		new OAuth2ResourceServerConfigurer<HttpSecurity>(context)
+			.jwt((jwt) -> assertThatExceptionOfType(NoUniqueBeanDefinitionException.class)
+				.isThrownBy(jwt::getJwtAuthenticationConverter));
 	}
 
 	@Test
@@ -1577,7 +1576,7 @@ public class OAuth2ResourceServerConfigurerTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.auhorizeRequests((authorize) -> authorize
+				.authorizeRequests((authorize) -> authorize
 						.requestMatchers("/requires-read-scope").access("hasAuthority('SCOPE_message:read')")
 						.anyRequest().authenticated()
 				)
@@ -1629,7 +1628,7 @@ public class OAuth2ResourceServerConfigurerTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.auhorizeRequests((authorize) -> authorize
+				.authorizeRequests((authorize) -> authorize
 						.requestMatchers("/requires-read-scope").access("hasAuthority('SCOPE_message:read')")
 						.anyRequest().authenticated()
 				)
@@ -2120,7 +2119,7 @@ public class OAuth2ResourceServerConfigurerTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.auhorizeRequests((authorize) -> authorize
+				.authorizeRequests((authorize) -> authorize
 						.anyRequest().authenticated()
 				)
 				.oauth2ResourceServer((oauth2ResourceServer) ->
@@ -2383,7 +2382,7 @@ public class OAuth2ResourceServerConfigurerTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.auhorizeRequests((authorize) -> authorize
+				.authorizeRequests((authorize) -> authorize
 						.requestMatchers("/requires-read-scope").hasAuthority("SCOPE_message:read")
 						.anyRequest().authenticated()
 				)
@@ -2429,7 +2428,7 @@ public class OAuth2ResourceServerConfigurerTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.auhorizeRequests((authorize) -> authorize
+				.authorizeRequests((authorize) -> authorize
 						.anyRequest().authenticated()
 				)
 				.oauth2ResourceServer((oauth2ResourceServer) ->

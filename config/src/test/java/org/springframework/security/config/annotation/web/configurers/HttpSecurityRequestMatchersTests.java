@@ -341,7 +341,7 @@ public class HttpSecurityRequestMatchersTests {
 						.requestMatchers(new MvcRequestMatcher(introspector, "/path"))
 				)
 				.httpBasic(withDefaults())
-				.auhorizeRequests((authorize) -> authorize
+				.authorizeRequests((authorize) -> authorize
 						.anyRequest().denyAll()
 				);
 			return http.build();
@@ -415,7 +415,7 @@ public class HttpSecurityRequestMatchersTests {
 						.requestMatchers("/never-match")
 				)
 				.httpBasic(withDefaults())
-				.auhorizeRequests((authorize) -> authorize
+				.authorizeRequests((authorize) -> authorize
 						.anyRequest().denyAll()
 				);
 			return http.build();
