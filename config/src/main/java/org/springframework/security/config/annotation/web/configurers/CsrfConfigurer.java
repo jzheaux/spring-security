@@ -27,6 +27,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.AbstractRequestMatcherRegistry;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -103,7 +104,7 @@ public final class CsrfConfigurer<H extends HttpSecurityBuilder<H>>
 
 	/**
 	 * Creates a new instance
-	 * @see HttpSecurity#csrf(withDefaults())
+	 * @see HttpSecurity#csrf(Customizer)
 	 */
 	public CsrfConfigurer(ApplicationContext context) {
 		this.context = context;
@@ -163,9 +164,8 @@ public final class CsrfConfigurer<H extends HttpSecurityBuilder<H>>
 	 *
 	 * <pre>
 	 * http
-	 *     .csrf()
-	 *         .ignoringRequestMatchers((request) -&gt; "XMLHttpRequest".equals(request.getHeader("X-Requested-With")))
-	 *         .and()
+	 *     .csrf((csrf) -&gt; csrf
+	 *         .ignoringRequestMatchers((request) -&gt; "XMLHttpRequest".equals(request.getHeader("X-Requested-With"))))
 	 *     ...
 	 * </pre>
 	 *
@@ -192,9 +192,8 @@ public final class CsrfConfigurer<H extends HttpSecurityBuilder<H>>
 	 *
 	 * <pre>
 	 * http
-	 *     .csrf()
-	 *         .ignoringRequestMatchers("/sockjs/**")
-	 *         .and()
+	 *     .csrf((csrf) -&gt; csrf
+	 *         .ignoringRequestMatchers("/sockjs/**"))
 	 *     ...
 	 * </pre>
 	 *

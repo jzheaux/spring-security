@@ -152,7 +152,7 @@ public final class SessionManagementConfigurer<H extends HttpSecurityBuilder<H>>
 
 	/**
 	 * Creates a new instance
-	 * @see HttpSecurity#sessionManagement(withDefaults())
+	 * @see HttpSecurity#sessionManagement(Customizer)
 	 */
 	public SessionManagementConfigurer() {
 	}

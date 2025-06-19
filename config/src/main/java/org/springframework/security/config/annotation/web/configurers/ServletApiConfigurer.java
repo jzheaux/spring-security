@@ -23,6 +23,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationTrustResolver;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.core.GrantedAuthorityDefaults;
@@ -31,8 +32,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter;
-
-import static org.springframework.security.config.Customizer.withDefaults;
 
 /**
  * Implements select methods from the {@link HttpServletRequest} using the
@@ -68,7 +67,7 @@ public final class ServletApiConfigurer<H extends HttpSecurityBuilder<H>>
 
 	/**
 	 * Creates a new instance
-	 * @see HttpSecurity#servletApi(withDefaults())
+	 * @see HttpSecurity#servletApi(Customizer)
 	 */
 	public ServletApiConfigurer() {
 	}

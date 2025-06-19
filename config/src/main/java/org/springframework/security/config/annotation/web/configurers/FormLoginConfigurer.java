@@ -17,6 +17,7 @@
 package org.springframework.security.config.annotation.web.configurers;
 
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.RequestMatcherFactory;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -29,8 +30,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.security.web.authentication.ui.DefaultLoginPageGeneratingFilter;
 import org.springframework.security.web.util.matcher.RequestMatcher;
-
-import static org.springframework.security.config.Customizer.withDefaults;
 
 /**
  * Adds form based authentication. All attributes have reasonable defaults making all
@@ -76,7 +75,7 @@ public final class FormLoginConfigurer<H extends HttpSecurityBuilder<H>> extends
 
 	/**
 	 * Creates a new instance
-	 * @see HttpSecurity#formLogin(withDefaults())
+	 * @see HttpSecurity#formLogin(Customizer)
 	 */
 	public FormLoginConfigurer() {
 		super(new UsernamePasswordAuthenticationFilter(), null);

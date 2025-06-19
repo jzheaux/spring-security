@@ -135,7 +135,7 @@ public final class Saml2LogoutConfigurer<H extends HttpSecurityBuilder<H>>
 
 	/**
 	 * Creates a new instance
-	 * @see HttpSecurity#logout(withDefaults())
+	 * @see HttpSecurity#logout(Customizer)
 	 */
 	public Saml2LogoutConfigurer(ApplicationContext context) {
 		this.context = context;
@@ -158,7 +158,7 @@ public final class Saml2LogoutConfigurer<H extends HttpSecurityBuilder<H>>
 	 * @param logoutUrl the URL that will invoke logout
 	 * @return the {@link LogoutConfigurer} for further customizations
 	 * @see LogoutConfigurer#logoutUrl(String)
-	 * @see HttpSecurity#csrf(withDefaults())
+	 * @see HttpSecurity#csrf(Customizer)
 	 */
 	public Saml2LogoutConfigurer<H> logoutUrl(String logoutUrl) {
 		this.logoutUrl = logoutUrl;

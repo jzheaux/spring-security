@@ -16,6 +16,7 @@
 
 package org.springframework.security.config.annotation.web.configurers;
 
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -28,8 +29,6 @@ import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.context.SecurityContextPersistenceFilter;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.session.ForceEagerSessionCreationFilter;
-
-import static org.springframework.security.config.Customizer.withDefaults;
 
 /**
  * Allows persisting and restoring of the {@link SecurityContext} found on the
@@ -72,7 +71,7 @@ public final class SecurityContextConfigurer<H extends HttpSecurityBuilder<H>>
 
 	/**
 	 * Creates a new instance
-	 * @see HttpSecurity#securityContext(withDefaults())
+	 * @see HttpSecurity#securityContext(Customizer)
 	 */
 	public SecurityContextConfigurer() {
 	}

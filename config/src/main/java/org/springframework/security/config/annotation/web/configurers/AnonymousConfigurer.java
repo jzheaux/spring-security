@@ -21,6 +21,7 @@ import java.util.UUID;
 
 import org.springframework.security.authentication.AnonymousAuthenticationProvider;
 import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.SecurityConfigurer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -28,8 +29,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
-
-import static org.springframework.security.config.Customizer.withDefaults;
 
 /**
  * Configures Anonymous authentication (i.e. populate an {@link Authentication} that
@@ -59,7 +58,7 @@ public final class AnonymousConfigurer<H extends HttpSecurityBuilder<H>>
 
 	/**
 	 * Creates a new instance
-	 * @see HttpSecurity#anonymous(withDefaults())
+	 * @see HttpSecurity#anonymous(Customizer)
 	 */
 	public AnonymousConfigurer() {
 	}

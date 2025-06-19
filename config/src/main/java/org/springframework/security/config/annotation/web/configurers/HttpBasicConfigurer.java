@@ -26,6 +26,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -46,8 +47,6 @@ import org.springframework.security.web.util.matcher.RequestHeaderRequestMatcher
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.accept.ContentNegotiationStrategy;
 import org.springframework.web.accept.HeaderContentNegotiationStrategy;
-
-import static org.springframework.security.config.Customizer.withDefaults;
 
 /**
  * Adds HTTP basic based authentication. All attributes have reasonable defaults making
@@ -100,7 +99,7 @@ public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>>
 
 	/**
 	 * Creates a new instance
-	 * @see HttpSecurity#httpBasic(withDefaults())
+	 * @see HttpSecurity#httpBasic(Customizer)
 	 */
 	public HttpBasicConfigurer() {
 		realmName(DEFAULT_REALM);

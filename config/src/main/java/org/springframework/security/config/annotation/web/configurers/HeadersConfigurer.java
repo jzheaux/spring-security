@@ -111,7 +111,7 @@ public class HeadersConfigurer<H extends HttpSecurityBuilder<H>>
 	/**
 	 * Creates a new instance
 	 *
-	 * @see HttpSecurity#headers(withDefaults())
+	 * @see HttpSecurity#headers(Customizer)
 	 */
 	public HeadersConfigurer() {
 	}

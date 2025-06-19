@@ -155,7 +155,7 @@ import org.springframework.util.ReflectionUtils;
  * @author Kazuki Shimizu
  * @author Ngoc Nhan
  * @since 5.0
- * @see HttpSecurity#oauth2Login(withDefaults())
+ * @see HttpSecurity#oauth2Login(Customizer)
  * @see OAuth2AuthorizationRequestRedirectFilter
  * @see OAuth2LoginAuthenticationFilter
  * @see ClientRegistrationRepository

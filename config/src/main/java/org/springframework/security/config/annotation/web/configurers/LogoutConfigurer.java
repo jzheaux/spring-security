@@ -23,6 +23,7 @@ import java.util.List;
 import jakarta.servlet.http.HttpSession;
 
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.SecurityConfigurer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.RequestMatcherFactory;
@@ -42,8 +43,6 @@ import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
-
-import static org.springframework.security.config.Customizer.withDefaults;
 
 /**
  * Adds logout support. Other {@link SecurityConfigurer} instances may invoke
@@ -94,7 +93,7 @@ public final class LogoutConfigurer<H extends HttpSecurityBuilder<H>>
 
 	/**
 	 * Creates a new instance
-	 * @see HttpSecurity#logout(withDefaults())
+	 * @see HttpSecurity#logout(Customizer)
 	 */
 	public LogoutConfigurer() {
 	}
@@ -152,7 +151,7 @@ public final class LogoutConfigurer<H extends HttpSecurityBuilder<H>>
 	 * @param logoutUrl the URL that will invoke logout.
 	 * @return the {@link LogoutConfigurer} for further customization
 	 * @see #logoutRequestMatcher(RequestMatcher)
-	 * @see HttpSecurity#csrf(withDefaults())
+	 * @see HttpSecurity#csrf(Customizer)
 	 */
 	public LogoutConfigurer<H> logoutUrl(String logoutUrl) {
 		this.logoutRequestMatcher = null;

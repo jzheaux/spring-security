@@ -18,6 +18,7 @@ package org.springframework.security.config.annotation.web.configurers;
 
 import java.util.LinkedHashMap;
 
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -30,8 +31,6 @@ import org.springframework.security.web.authentication.Http403ForbiddenEntryPoin
 import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
 import org.springframework.security.web.savedrequest.RequestCache;
 import org.springframework.security.web.util.matcher.RequestMatcher;
-
-import static org.springframework.security.config.Customizer.withDefaults;
 
 /**
  * Adds exception handling for Spring Security related exceptions to an application. All
@@ -78,7 +77,7 @@ public final class ExceptionHandlingConfigurer<H extends HttpSecurityBuilder<H>>
 
 	/**
 	 * Creates a new instance
-	 * @see HttpSecurity#exceptionHandling(withDefaults())
+	 * @see HttpSecurity#exceptionHandling(Customizer)
 	 */
 	public ExceptionHandlingConfigurer() {
 	}

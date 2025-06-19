@@ -22,6 +22,7 @@ import java.util.Set;
 import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.authority.mapping.SimpleMappableAttributesRetriever;
@@ -34,8 +35,6 @@ import org.springframework.security.web.authentication.preauth.PreAuthenticatedA
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedGrantedAuthoritiesUserDetailsService;
 import org.springframework.security.web.authentication.preauth.j2ee.J2eeBasedPreAuthenticatedWebAuthenticationDetailsSource;
 import org.springframework.security.web.authentication.preauth.j2ee.J2eePreAuthenticatedProcessingFilter;
-
-import static org.springframework.security.config.Customizer.withDefaults;
 
 /**
  * Adds support for J2EE pre authentication.
@@ -79,7 +78,7 @@ public final class JeeConfigurer<H extends HttpSecurityBuilder<H>> extends Abstr
 
 	/**
 	 * Creates a new instance
-	 * @see HttpSecurity#jee(withDefaults())
+	 * @see HttpSecurity#jee(Customizer)
 	 */
 	public JeeConfigurer() {
 	}

@@ -18,6 +18,7 @@ package org.springframework.security.config.annotation.web.configurers;
 
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.util.Assert;
@@ -26,8 +27,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 import org.springframework.web.servlet.handler.HandlerMappingIntrospector;
-
-import static org.springframework.security.config.Customizer.withDefaults;
 
 /**
  * Adds {@link CorsFilter} to the Spring Security filter chain. If a bean by the name of
@@ -59,7 +58,7 @@ public class CorsConfigurer<H extends HttpSecurityBuilder<H>> extends AbstractHt
 	/**
 	 * Creates a new instance
 	 *
-	 * @see HttpSecurity#cors(withDefaults())
+	 * @see HttpSecurity#cors(Customizer)
 	 */
 	public CorsConfigurer() {
 	}

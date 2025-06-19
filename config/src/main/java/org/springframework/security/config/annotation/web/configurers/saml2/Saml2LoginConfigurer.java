@@ -27,6 +27,7 @@ import org.opensaml.core.Version;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.RequestMatcherFactory;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -66,8 +67,6 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatchers;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
-
-import static org.springframework.security.config.Customizer.withDefaults;
 
 /**
  * An {@link AbstractHttpConfigurer} for SAML 2.0 Login, which leverages the SAML 2.0 Web
@@ -113,7 +112,7 @@ import static org.springframework.security.config.Customizer.withDefaults;
  * </ul>
  *
  * @since 5.2
- * @see HttpSecurity#saml2Login(withDefaults())
+ * @see HttpSecurity#saml2Login(Customizer)
  * @see Saml2WebSsoAuthenticationFilter
  * @see Saml2WebSsoAuthenticationRequestFilter
  * @see RelyingPartyRegistrationRepository
