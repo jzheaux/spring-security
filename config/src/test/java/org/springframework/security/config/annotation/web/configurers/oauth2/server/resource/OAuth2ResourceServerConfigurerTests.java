@@ -1577,8 +1577,7 @@ public class OAuth2ResourceServerConfigurerTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.authorizeRequests((authorizeRequests) ->
-					authorizeRequests
+				.auhorizeRequests((authorize) -> authorize
 						.requestMatchers("/requires-read-scope").access("hasAuthority('SCOPE_message:read')")
 						.anyRequest().authenticated()
 				)
@@ -1630,8 +1629,7 @@ public class OAuth2ResourceServerConfigurerTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.authorizeRequests((authorizeRequests) ->
-					authorizeRequests
+				.auhorizeRequests((authorize) -> authorize
 						.requestMatchers("/requires-read-scope").access("hasAuthority('SCOPE_message:read')")
 						.anyRequest().authenticated()
 				)
@@ -2122,8 +2120,7 @@ public class OAuth2ResourceServerConfigurerTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.authorizeRequests((authorizeRequests) ->
-					authorizeRequests
+				.auhorizeRequests((authorize) -> authorize
 						.anyRequest().authenticated()
 				)
 				.oauth2ResourceServer((oauth2ResourceServer) ->
@@ -2386,8 +2383,7 @@ public class OAuth2ResourceServerConfigurerTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.authorizeRequests((authorizeRequests) ->
-					authorizeRequests
+				.auhorizeRequests((authorize) -> authorize
 						.requestMatchers("/requires-read-scope").hasAuthority("SCOPE_message:read")
 						.anyRequest().authenticated()
 				)
@@ -2433,8 +2429,7 @@ public class OAuth2ResourceServerConfigurerTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.authorizeRequests((authorizeRequests) ->
-					authorizeRequests
+				.auhorizeRequests((authorize) -> authorize
 						.anyRequest().authenticated()
 				)
 				.oauth2ResourceServer((oauth2ResourceServer) ->
