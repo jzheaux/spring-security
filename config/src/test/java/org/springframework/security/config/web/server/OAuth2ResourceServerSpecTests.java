@@ -495,7 +495,7 @@ public class OAuth2ResourceServerSpecTests {
 		context.registerBean("secondJwtDecoder", ReactiveJwtDecoder.class, () -> beanWiredJwtDecoder);
 		http.oauth2ResourceServer(
 				(server) -> server.jwt((jwt) -> assertThatExceptionOfType(NoUniqueBeanDefinitionException.class)
-					.isThrownBy(() -> jwt.getJwtDecoder())));
+					.isThrownBy(jwt::getJwtDecoder)));
 	}
 
 	@Test
@@ -505,7 +505,7 @@ public class OAuth2ResourceServerSpecTests {
 		http.setApplicationContext(context);
 		http.oauth2ResourceServer(
 				(server) -> server.jwt((jwt) -> assertThatExceptionOfType(NoSuchBeanDefinitionException.class)
-					.isThrownBy(() -> jwt.getJwtDecoder())));
+					.isThrownBy(jwt::getJwtDecoder)));
 	}
 
 	@Test

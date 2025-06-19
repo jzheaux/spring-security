@@ -154,8 +154,8 @@ public class LogoutSpecTests {
 			.authorizeExchange((exchange) -> exchange
 				.anyExchange().authenticated())
 			.formLogin(withDefaults())
-			.logout((logout) -> logout.disable()
-				.build());
+			.logout((logout) -> logout.disable())
+			.build();
 		WebTestClient webTestClient = WebTestClientBuilder
 				.bindToControllerAndWebFilters(HomeController.class, securityWebFilter)
 				.build();
