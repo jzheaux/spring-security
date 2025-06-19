@@ -47,6 +47,8 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.accept.ContentNegotiationStrategy;
 import org.springframework.web.accept.HeaderContentNegotiationStrategy;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 /**
  * Adds HTTP basic based authentication. All attributes have reasonable defaults making
  * all parameters are optional.
@@ -98,7 +100,7 @@ public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>>
 
 	/**
 	 * Creates a new instance
-	 * @see HttpSecurity#httpBasic()
+	 * @see HttpSecurity#httpBasic(withDefaults())
 	 */
 	public HttpBasicConfigurer() {
 		realmName(DEFAULT_REALM);

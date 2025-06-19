@@ -56,6 +56,8 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 /**
  * Adds
  * <a href="https://www.owasp.org/index.php/Cross-Site_Request_Forgery_(CSRF)" >CSRF</a>
@@ -103,7 +105,7 @@ public final class CsrfConfigurer<H extends HttpSecurityBuilder<H>>
 
 	/**
 	 * Creates a new instance
-	 * @see HttpSecurity#csrf()
+	 * @see HttpSecurity#csrf(withDefaults())
 	 */
 	public CsrfConfigurer(ApplicationContext context) {
 		this.context = context;

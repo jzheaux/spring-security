@@ -43,6 +43,8 @@ import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 /**
  * Adds logout support. Other {@link SecurityConfigurer} instances may invoke
  * {@link #addLogoutHandler(LogoutHandler)} in the {@link #init(HttpSecurityBuilder)}
@@ -92,7 +94,7 @@ public final class LogoutConfigurer<H extends HttpSecurityBuilder<H>>
 
 	/**
 	 * Creates a new instance
-	 * @see HttpSecurity#logout()
+	 * @see HttpSecurity#logout(withDefaults())
 	 */
 	public LogoutConfigurer() {
 	}
@@ -150,7 +152,7 @@ public final class LogoutConfigurer<H extends HttpSecurityBuilder<H>>
 	 * @param logoutUrl the URL that will invoke logout.
 	 * @return the {@link LogoutConfigurer} for further customization
 	 * @see #logoutRequestMatcher(RequestMatcher)
-	 * @see HttpSecurity#csrf()
+	 * @see HttpSecurity#csrf(withDefaults())
 	 */
 	public LogoutConfigurer<H> logoutUrl(String logoutUrl) {
 		this.logoutRequestMatcher = null;

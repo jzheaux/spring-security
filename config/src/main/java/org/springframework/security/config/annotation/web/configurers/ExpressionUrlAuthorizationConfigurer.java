@@ -41,6 +41,8 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 /**
  * Adds URL based authorization based upon SpEL expressions to an application. At least
  * one {@link org.springframework.web.bind.annotation.RequestMapping} needs to be mapped
@@ -77,7 +79,7 @@ import org.springframework.util.StringUtils;
  * @author Yanming Zhou
  * @author Ngoc Nhan
  * @since 3.2
- * @see org.springframework.security.config.annotation.web.builders.HttpSecurity#authorizeRequests()
+ * @see org.springframework.security.config.annotation.web.builders.HttpSecurity#authorizeRequests(withDefaults())
  * @deprecated Use {@link AuthorizeHttpRequestsConfigurer} instead
  */
 @Deprecated
@@ -104,7 +106,7 @@ public final class ExpressionUrlAuthorizationConfigurer<H extends HttpSecurityBu
 
 	/**
 	 * Creates a new instance
-	 * @see HttpSecurity#authorizeRequests()
+	 * @see HttpSecurity#authorizeRequests(withDefaults())
 	 */
 	public ExpressionUrlAuthorizationConfigurer(ApplicationContext context) {
 		GrantedAuthorityDefaults grantedAuthorityDefaults = context.getBeanProvider(GrantedAuthorityDefaults.class)

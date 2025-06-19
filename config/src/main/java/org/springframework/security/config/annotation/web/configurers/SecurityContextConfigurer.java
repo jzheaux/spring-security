@@ -29,6 +29,8 @@ import org.springframework.security.web.context.SecurityContextPersistenceFilter
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.session.ForceEagerSessionCreationFilter;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 /**
  * Allows persisting and restoring of the {@link SecurityContext} found on the
  * {@link SecurityContextHolder} for each request by configuring the
@@ -70,7 +72,7 @@ public final class SecurityContextConfigurer<H extends HttpSecurityBuilder<H>>
 
 	/**
 	 * Creates a new instance
-	 * @see HttpSecurity#securityContext()
+	 * @see HttpSecurity#securityContext(withDefaults())
 	 */
 	public SecurityContextConfigurer() {
 	}

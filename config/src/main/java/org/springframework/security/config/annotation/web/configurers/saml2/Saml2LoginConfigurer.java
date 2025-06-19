@@ -67,6 +67,8 @@ import org.springframework.security.web.util.matcher.RequestMatchers;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 /**
  * An {@link AbstractHttpConfigurer} for SAML 2.0 Login, which leverages the SAML 2.0 Web
  * Browser Single Sign On (WebSSO) Flow.
@@ -111,7 +113,7 @@ import org.springframework.util.StringUtils;
  * </ul>
  *
  * @since 5.2
- * @see HttpSecurity#saml2Login()
+ * @see HttpSecurity#saml2Login(withDefaults())
  * @see Saml2WebSsoAuthenticationFilter
  * @see Saml2WebSsoAuthenticationRequestFilter
  * @see RelyingPartyRegistrationRepository

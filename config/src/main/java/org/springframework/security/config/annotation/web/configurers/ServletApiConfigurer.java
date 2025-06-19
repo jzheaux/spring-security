@@ -32,6 +32,8 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 /**
  * Implements select methods from the {@link HttpServletRequest} using the
  * {@link SecurityContext} from the {@link SecurityContextHolder}.
@@ -66,7 +68,7 @@ public final class ServletApiConfigurer<H extends HttpSecurityBuilder<H>>
 
 	/**
 	 * Creates a new instance
-	 * @see HttpSecurity#servletApi()
+	 * @see HttpSecurity#servletApi(withDefaults())
 	 */
 	public ServletApiConfigurer() {
 	}

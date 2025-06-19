@@ -27,6 +27,8 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 import org.springframework.web.servlet.handler.HandlerMappingIntrospector;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 /**
  * Adds {@link CorsFilter} to the Spring Security filter chain. If a bean by the name of
  * corsFilter is provided, that {@link CorsFilter} is used. Else if
@@ -57,7 +59,7 @@ public class CorsConfigurer<H extends HttpSecurityBuilder<H>> extends AbstractHt
 	/**
 	 * Creates a new instance
 	 *
-	 * @see HttpSecurity#cors()
+	 * @see HttpSecurity#cors(withDefaults())
 	 */
 	public CorsConfigurer() {
 	}

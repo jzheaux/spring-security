@@ -29,6 +29,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 /**
  * Configures Anonymous authentication (i.e. populate an {@link Authentication} that
  * represents an anonymous user instead of having a null value) for an
@@ -57,7 +59,7 @@ public final class AnonymousConfigurer<H extends HttpSecurityBuilder<H>>
 
 	/**
 	 * Creates a new instance
-	 * @see HttpSecurity#anonymous()
+	 * @see HttpSecurity#anonymous(withDefaults())
 	 */
 	public AnonymousConfigurer() {
 	}

@@ -35,6 +35,8 @@ import org.springframework.security.web.authentication.preauth.PreAuthenticatedG
 import org.springframework.security.web.authentication.preauth.j2ee.J2eeBasedPreAuthenticatedWebAuthenticationDetailsSource;
 import org.springframework.security.web.authentication.preauth.j2ee.J2eePreAuthenticatedProcessingFilter;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 /**
  * Adds support for J2EE pre authentication.
  *
@@ -77,7 +79,7 @@ public final class JeeConfigurer<H extends HttpSecurityBuilder<H>> extends Abstr
 
 	/**
 	 * Creates a new instance
-	 * @see HttpSecurity#jee()
+	 * @see HttpSecurity#jee(withDefaults())
 	 */
 	public JeeConfigurer() {
 	}

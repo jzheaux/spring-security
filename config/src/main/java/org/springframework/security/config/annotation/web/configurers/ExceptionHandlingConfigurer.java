@@ -31,6 +31,8 @@ import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
 import org.springframework.security.web.savedrequest.RequestCache;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 /**
  * Adds exception handling for Spring Security related exceptions to an application. All
  * properties have reasonable defaults, so no additional configuration is required other
@@ -76,7 +78,7 @@ public final class ExceptionHandlingConfigurer<H extends HttpSecurityBuilder<H>>
 
 	/**
 	 * Creates a new instance
-	 * @see HttpSecurity#exceptionHandling()
+	 * @see HttpSecurity#exceptionHandling(withDefaults())
 	 */
 	public ExceptionHandlingConfigurer() {
 	}

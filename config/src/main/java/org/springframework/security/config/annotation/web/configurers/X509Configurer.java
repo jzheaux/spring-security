@@ -37,6 +37,8 @@ import org.springframework.security.web.authentication.preauth.x509.X509Authenti
 import org.springframework.security.web.authentication.preauth.x509.X509PrincipalExtractor;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 /**
  * Adds X509 based pre authentication to an application. Since validating the certificate
  * happens when the client connects, the requesting and validation of the client
@@ -90,7 +92,7 @@ public final class X509Configurer<H extends HttpSecurityBuilder<H>>
 	/**
 	 * Creates a new instance
 	 *
-	 * @see HttpSecurity#x509()
+	 * @see HttpSecurity#x509(withDefaults())
 	 */
 	public X509Configurer() {
 	}

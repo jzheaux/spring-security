@@ -30,6 +30,8 @@ import org.springframework.security.web.authentication.session.SessionAuthentica
 import org.springframework.security.web.authentication.ui.DefaultLoginPageGeneratingFilter;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 /**
  * Adds form based authentication. All attributes have reasonable defaults making all
  * parameters are optional. If no {@link #loginPage(String)} is specified, a default login
@@ -74,7 +76,7 @@ public final class FormLoginConfigurer<H extends HttpSecurityBuilder<H>> extends
 
 	/**
 	 * Creates a new instance
-	 * @see HttpSecurity#formLogin()
+	 * @see HttpSecurity#formLogin(withDefaults())
 	 */
 	public FormLoginConfigurer() {
 		super(new UsernamePasswordAuthenticationFilter(), null);
