@@ -363,7 +363,7 @@ This section addresses common Spring Security architecture questions:
 . <<appendix-faq-namespace-to-bean-mapping>>
 . <<appendix-faq-role-prefix>>
 . <<appendix-faq-what-dependencies>>
-. <<appendix-faq-apacheds-deps>>
+. <<appendix-faq-unboundid-deps>>
 . <<appendix-faq-what-is-userdetailservice>>
 
 
@@ -415,27 +415,35 @@ Any that are marked as "`optional`" in the Spring Security `pom.xml` files have 
 [[appendix-faq-apacheds-deps]]
 === What dependencies are needed to run an embedded ApacheDS LDAP server?
 
-If you use Maven, you need to add the following to your `pom.xml` file dependencies:
+Spring Security 7 removes support for Apache DS.
+Please use <<appendix-faq-unboundid-deps,UnboundID>> instead.
 
-[source]
+[[appendix-faq-unboundid-deps]]
+=== What dependences are needed to run an embedded UnboundID LDAP server?
+
+You need to add the following dependency to your project:
+
+[tabs]
+======
+Maven::
++
+[source,maven,role="primary"]
 ----
-
 <dependency>
-		<groupId>org.apache.directory.server</groupId>
-		<artifactId>apacheds-core</artifactId>
-		<version>1.5.5</version>
+		<groupId>com.unboundid</groupId>
+		<artifactId>unboundid-ldapsdk</artifactId>
+		<version>7.0.1</version>
 		<scope>runtime</scope>
 </dependency>
-<dependency>
-		<groupId>org.apache.directory.server</groupId>
-		<artifactId>apacheds-server-jndi</artifactId>
-		<version>1.5.5</version>
-		<scope>runtime</scope>
-</dependency>
-
 ----
 
-The other required jars should be pulled in transitively.
+Gradle::
++
+[source,gradle,role="secondary"]
+----
+implementation 'com.unboundid:unboundid-ldapsdk:7.0.1'
+----
+======
 
 [[appendix-faq-what-is-userdetailservice]]
 === What is a UserDetailsService and do I need one?
