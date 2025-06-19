@@ -265,8 +265,8 @@ public final class HttpSecurity extends AbstractConfiguredSecurityBuilder<Defaul
 	 *
 	 * You can enable only a few of the headers by first invoking
 	 * {@link HeadersConfigurer#defaultsDisabled()} and then invoking the appropriate
-	 * methods on the {@link #headers(Customizer)} result. For example, the following
-	 * will enable {@link HeadersConfigurer#cacheControl(Customizer)} and
+	 * methods on the {@link #headers(Customizer)} result. For example, the following will
+	 * enable {@link HeadersConfigurer#cacheControl(Customizer)} and
 	 * {@link HeadersConfigurer#frameOptions(Customizer)} only.
 	 *
 	 * <pre>
@@ -1063,8 +1063,8 @@ public final class HttpSecurity extends AbstractConfiguredSecurityBuilder<Defaul
 	 * Provides logout support. This is automatically applied when using
 	 * {@link EnableWebSecurity}. The default is that accessing the URL "/logout" will log
 	 * the user out by invalidating the HTTP Session, cleaning up any
-	 * {@link #rememberMe(Customizer)} authentication that was configured, clearing
-	 * the {@link SecurityContextHolder}, and then redirect to "/login?success".
+	 * {@link #rememberMe(Customizer)} authentication that was configured, clearing the
+	 * {@link SecurityContextHolder}, and then redirect to "/login?success".
 	 *
 	 * <h2>Example Custom Configuration</h2>
 	 *
