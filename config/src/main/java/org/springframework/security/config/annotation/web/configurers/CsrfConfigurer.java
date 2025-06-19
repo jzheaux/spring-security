@@ -56,8 +56,6 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
-import static org.springframework.security.config.Customizer.withDefaults;
-
 /**
  * Adds
  * <a href="https://www.owasp.org/index.php/Cross-Site_Request_Forgery_(CSRF)" >CSRF</a>
@@ -174,7 +172,8 @@ public final class CsrfConfigurer<H extends HttpSecurityBuilder<H>>
 	 * @since 5.1
 	 */
 	public CsrfConfigurer<H> ignoringRequestMatchers(RequestMatcher... requestMatchers) {
-		return new IgnoreCsrfProtectionRegistry(this.context).requestMatchers(requestMatchers).and();
+		new IgnoreCsrfProtectionRegistry(this.context).requestMatchers(requestMatchers);
+		return this;
 	}
 
 	/**
@@ -203,7 +202,8 @@ public final class CsrfConfigurer<H extends HttpSecurityBuilder<H>>
 	 * @see AbstractRequestMatcherRegistry#requestMatchers(String...)
 	 */
 	public CsrfConfigurer<H> ignoringRequestMatchers(String... patterns) {
-		return new IgnoreCsrfProtectionRegistry(this.context).requestMatchers(patterns).and();
+		new IgnoreCsrfProtectionRegistry(this.context).requestMatchers(patterns);
+		return this;
 	}
 
 	/**
@@ -385,10 +385,6 @@ public final class CsrfConfigurer<H extends HttpSecurityBuilder<H>>
 
 		IgnoreCsrfProtectionRegistry(ApplicationContext context) {
 			setApplicationContext(context);
-		}
-
-		CsrfConfigurer<H> and() {
-			return CsrfConfigurer.this;
 		}
 
 		@Override
