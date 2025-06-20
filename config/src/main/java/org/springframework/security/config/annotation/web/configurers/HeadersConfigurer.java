@@ -238,39 +238,6 @@ public class HeadersConfigurer<H extends HttpSecurityBuilder<H>>
 	 * <li>Content-Security-Policy</li>
 	 * <li>Content-Security-Policy-Report-Only</li>
 	 * </ul>
-	 * @return the {@link ContentSecurityPolicyConfig} for additional configuration
-	 * @throws IllegalArgumentException if policyDirectives is null or empty
-	 * @since 4.1
-	 * @deprecated For removal in 7.0. Use {@link #contentSecurityPolicy(Customizer)}
-	 * instead
-	 * @see ContentSecurityPolicyHeaderWriter
-	 */
-	@Deprecated(since = "6.1", forRemoval = true)
-	public ContentSecurityPolicyConfig contentSecurityPolicy(String policyDirectives) {
-		this.contentSecurityPolicy.writer = new ContentSecurityPolicyHeaderWriter(policyDirectives);
-		return this.contentSecurityPolicy;
-	}
-
-	/**
-	 * <p>
-	 * Allows configuration for <a href="https://www.w3.org/TR/CSP2/">Content Security
-	 * Policy (CSP) Level 2</a>.
-	 * </p>
-	 *
-	 * <p>
-	 * Calling this method automatically enables (includes) the Content-Security-Policy
-	 * header in the response using the supplied security policy directive(s).
-	 * </p>
-	 *
-	 * <p>
-	 * Configuration is provided to the {@link ContentSecurityPolicyHeaderWriter} which
-	 * supports the writing of the two headers as detailed in the W3C Candidate
-	 * Recommendation:
-	 * </p>
-	 * <ul>
-	 * <li>Content-Security-Policy</li>
-	 * <li>Content-Security-Policy-Report-Only</li>
-	 * </ul>
 	 * @param contentSecurityCustomizer the {@link Customizer} to provide more options for
 	 * the {@link ContentSecurityPolicyConfig}
 	 * @return the {@link HeadersConfigurer} for additional customizations
