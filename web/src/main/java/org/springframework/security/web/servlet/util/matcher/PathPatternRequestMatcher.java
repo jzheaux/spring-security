@@ -70,6 +70,14 @@ public final class PathPatternRequestMatcher implements RequestMatcher {
 		this.pattern = pattern;
 	}
 
+	public static PathPatternRequestMatcher pathPattern(String pattern) {
+		return pathPattern(null, pattern);
+	}
+
+	public static PathPatternRequestMatcher pathPattern(@Nullable HttpMethod method, String path) {
+		return withDefaults().matcher(method, path);
+	}
+
 	/**
 	 * Use {@link PathPatternParser#defaultInstance} to parse path patterns.
 	 * @return a {@link Builder} that treats URIs as relative to the context path, if any
