@@ -37,6 +37,8 @@ import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
 
+import static org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.pathPattern;
+
 /**
  * An {@link AuthenticationConverter} that generates a {@link Saml2AuthenticationToken}
  * appropriate for authenticated a SAML 2.0 Assertion against an
@@ -59,8 +61,8 @@ public final class OpenSamlAuthenticationTokenConverter implements Authenticatio
 	private final RelyingPartyRegistrationRepository registrations;
 
 	private RequestMatcher requestMatcher = new OrRequestMatcher(
-			PathPatternRequestMatcher.withDefaults().matcher("/login/saml2/sso/{registrationId}"),
-			PathPatternRequestMatcher.withDefaults().matcher("/login/saml2/sso"));
+			pathPattern("/login/saml2/sso/{registrationId}"),
+			pathPattern("/login/saml2/sso"));
 
 	private Function<HttpServletRequest, AbstractSaml2AuthenticationRequest> loader;
 

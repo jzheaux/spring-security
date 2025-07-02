@@ -39,6 +39,8 @@ import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
 
+import static org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.pathPattern;
+
 /**
  * An implementation of {@link Saml2MetadataResponseResolver} that identifies which
  * {@link RelyingPartyRegistration}s to use with a {@link RequestMatcher}
@@ -51,9 +53,9 @@ public class RequestMatcherMetadataResponseResolver implements Saml2MetadataResp
 	private static final String DEFAULT_METADATA_FILENAME = "saml-{registrationId}-metadata.xml";
 
 	private RequestMatcher matcher = new OrRequestMatcher(
-			PathPatternRequestMatcher.withDefaults().matcher("/saml2/service-provider-metadata/{registrationId}"),
-			PathPatternRequestMatcher.withDefaults().matcher("/saml2/metadata/{registrationId}"),
-			PathPatternRequestMatcher.withDefaults().matcher("/saml2/metadata"));
+			pathPattern("/saml2/service-provider-metadata/{registrationId}"),
+			pathPattern("/saml2/metadata/{registrationId}"),
+			pathPattern("/saml2/metadata"));
 
 	private String filename = DEFAULT_METADATA_FILENAME;
 

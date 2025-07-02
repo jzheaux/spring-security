@@ -46,6 +46,8 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import static org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.pathPattern;
+
 /**
  * A filter for handling a &lt;saml2:LogoutResponse&gt; sent from the asserting party. A
  * &lt;saml2:LogoutResponse&gt; is sent in response to a &lt;saml2:LogoutRequest&gt;
@@ -72,7 +74,7 @@ public final class Saml2LogoutResponseFilter extends OncePerRequestFilter {
 
 	private Saml2LogoutRequestRepository logoutRequestRepository = new HttpSessionLogoutRequestRepository();
 
-	private RequestMatcher logoutRequestMatcher = PathPatternRequestMatcher.withDefaults().matcher("/logout/saml2/slo");
+	private RequestMatcher logoutRequestMatcher = pathPattern("/logout/saml2/slo");
 
 	public Saml2LogoutResponseFilter(RelyingPartyRegistrationRepository registrations,
 			Saml2LogoutResponseValidator logoutResponseValidator, LogoutSuccessHandler logoutSuccessHandler) {
