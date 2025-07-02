@@ -46,6 +46,8 @@ import org.springframework.util.Assert;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import static org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.pathPattern;
+
 /**
  * An implementation of an {@link AbstractAuthenticationProcessingFilter} for OAuth 2.0
  * Login.
@@ -125,7 +127,7 @@ public class OAuth2LoginAuthenticationFilter extends AbstractAuthenticationProce
 	public OAuth2LoginAuthenticationFilter(ClientRegistrationRepository clientRegistrationRepository,
 			OAuth2AuthorizedClientService authorizedClientService) {
 		this(clientRegistrationRepository, authorizedClientService, DEFAULT_FILTER_PROCESSES_URI);
-		RequestMatcher processUri = PathPatternRequestMatcher.withDefaults().matcher(DEFAULT_FILTER_PROCESSES_URI);
+		RequestMatcher processUri = pathPattern(DEFAULT_FILTER_PROCESSES_URI);
 		setRequiresAuthenticationRequestMatcher(processUri);
 	}
 
