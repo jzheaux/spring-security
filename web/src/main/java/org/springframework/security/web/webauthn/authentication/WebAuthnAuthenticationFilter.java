@@ -45,6 +45,8 @@ import org.springframework.security.web.webauthn.jackson.WebauthnJackson2Module;
 import org.springframework.security.web.webauthn.management.RelyingPartyAuthenticationRequest;
 import org.springframework.util.Assert;
 
+import static org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.pathPattern;
+
 /**
  * Authenticates {@code PublicKeyCredential<AuthenticatorAssertionResponse>} that is
  * parsed from the body of the {@link HttpServletRequest} using the
@@ -77,7 +79,7 @@ public class WebAuthnAuthenticationFilter extends AbstractAuthenticationProcessi
 	private PublicKeyCredentialRequestOptionsRepository requestOptionsRepository = new HttpSessionPublicKeyCredentialRequestOptionsRepository();
 
 	public WebAuthnAuthenticationFilter() {
-		super(PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/login/webauthn"));
+		super(pathPattern(HttpMethod.POST, "/login/webauthn"));
 		setSecurityContextRepository(new HttpSessionSecurityContextRepository());
 		setAuthenticationFailureHandler(
 				new AuthenticationEntryPointFailureHandler(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)));
