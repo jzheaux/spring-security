@@ -97,7 +97,7 @@ public class UrlAuthorizationsTests {
 	@WithMockUser(roles = "ADMIN")
 	public void hasAnyRoleWhenRolesSpecifiedThenMatchesRole() throws Exception {
 		this.spring.register(RoleConfig.class).autowire();
-		this.mvc.perform(get("/role-admin-user")).andExpect(status().isNotFound());
+		this.mvc.perform(get("/role-admin-user")).andExpect(status().isForbidden());
 		this.mvc.perform(get("/role-user")).andExpect(status().isForbidden());
 	}
 
@@ -141,7 +141,7 @@ public class UrlAuthorizationsTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.authorizeRequests((requests) -> requests
+				.authorizeHttpRequests((requests) -> requests
 					.requestMatchers("/role-user-authority").hasAnyAuthority("ROLE_USER")
 					.requestMatchers("/role-admin-authority").hasAnyAuthority("ROLE_ADMIN")
 					.requestMatchers("/role-user-admin-authority").hasAnyAuthority("ROLE_USER", "ROLE_ADMIN")

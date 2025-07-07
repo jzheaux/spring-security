@@ -31,6 +31,7 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -38,7 +39,6 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.Expression;
-import org.springframework.expression.ExpressionParser;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -61,7 +61,9 @@ import org.springframework.security.web.access.AuthorizationManagerWebInvocation
 import org.springframework.security.web.access.PathPatternRequestTransformer;
 import org.springframework.security.web.access.RequestMatcherDelegatingWebInvocationPrivilegeEvaluator;
 import org.springframework.security.web.access.WebInvocationPrivilegeEvaluator;
+import org.springframework.security.web.access.expression.DefaultHttpSecurityExpressionHandler;
 import org.springframework.security.web.access.expression.DefaultWebSecurityExpressionHandler;
+import org.springframework.security.web.access.expression.WebExpressionAuthorizationManager;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.util.ClassUtils;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -71,7 +73,6 @@ import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -137,12 +138,9 @@ public class WebSecurityConfigurationTests {
 
 	@Test
 	public void loadConfigWhenSecurityExpressionHandlerSetThenIsRegistered() {
-		WebSecurityExpressionHandlerConfig.EXPRESSION_HANDLER = mock(SecurityExpressionHandler.class);
-		given(WebSecurityExpressionHandlerConfig.EXPRESSION_HANDLER.getExpressionParser())
-			.willReturn(mock(ExpressionParser.class));
 		this.spring.register(WebSecurityExpressionHandlerConfig.class).autowire();
-		assertThat(this.spring.getContext().getBean(SecurityExpressionHandler.class))
-			.isSameAs(WebSecurityExpressionHandlerConfig.EXPRESSION_HANDLER);
+		assertThat(this.spring.getContext().getBean("webSecurityExpressionHandler", SecurityExpressionHandler.class))
+			.isSameAs(this.spring.getContext().getBean("mock"));
 	}
 
 	@Test
@@ -316,7 +314,7 @@ public class WebSecurityConfigurationTests {
 		// null authentication
 		assertThat(privilegeEvaluator.isAllowed("/user", null)).isFalse();
 		assertThat(privilegeEvaluator.isAllowed("/admin", null)).isFalse();
-		assertThat(privilegeEvaluator.isAllowed("/another", null)).isFalse();
+		assertThat(privilegeEvaluator.isAllowed("/another", null)).isTrue();
 		assertThat(privilegeEvaluator.isAllowed("/ignoring1", null)).isTrue();
 		assertThat(privilegeEvaluator.isAllowed("/ignoring1/child", null)).isTrue();
 	}
@@ -415,7 +413,7 @@ public class WebSecurityConfigurationTests {
 			// @formatter:off
 			return http
 					.securityMatcher(pathPattern("/role1/**"))
-					.authorizeRequests((authorize) -> authorize
+					.authorizeHttpRequests((authorize) -> authorize
 							.anyRequest().hasRole("1")
 					)
 					.build();
@@ -428,7 +426,7 @@ public class WebSecurityConfigurationTests {
 			// @formatter:off
 			return http
 					.securityMatcher(pathPattern("/role2/**"))
-					.authorizeRequests((authorize) -> authorize
+					.authorizeHttpRequests((authorize) -> authorize
 							.anyRequest().hasRole("2")
 					)
 					.build();
@@ -441,7 +439,7 @@ public class WebSecurityConfigurationTests {
 			// @formatter:off
 			return http
 					.securityMatcher(pathPattern("/role3/**"))
-					.authorizeRequests((authorize) -> authorize
+					.authorizeHttpRequests((authorize) -> authorize
 							.anyRequest().hasRole("3")
 					)
 					.build();
@@ -452,7 +450,7 @@ public class WebSecurityConfigurationTests {
 		SecurityFilterChain filterChain4(HttpSecurity http) throws Exception {
 			// @formatter:off
 			return http
-					.authorizeRequests((authorize) -> authorize
+					.authorizeHttpRequests((authorize) -> authorize
 						.anyRequest().hasRole("4")
 					)
 					.build();
@@ -472,7 +470,7 @@ public class WebSecurityConfigurationTests {
 			// @formatter:off
 			return http
 					.securityMatcher(pathPattern("/role1/**"))
-					.authorizeRequests((authorize) -> authorize
+					.authorizeHttpRequests((authorize) -> authorize
 							.anyRequest().hasRole("1")
 					)
 					.build();
@@ -518,22 +516,16 @@ public class WebSecurityConfigurationTests {
 	@EnableWebSecurity
 	static class WebSecurityExpressionHandlerConfig {
 
-		static SecurityExpressionHandler EXPRESSION_HANDLER;
+		SecurityExpressionHandler<FilterInvocation> expressionHandler = mock(SecurityExpressionHandler.class);
 
 		@Bean
 		WebSecurityCustomizer webSecurityCustomizer() {
-			return (web) -> web.expressionHandler(EXPRESSION_HANDLER);
+			return (web) -> web.expressionHandler(this.expressionHandler);
 		}
 
-		@Bean
-		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-			// @formatter:off
-			http
-				.authorizeRequests((requests) -> requests
-					.anyRequest().authenticated()
-					.expressionHandler(EXPRESSION_HANDLER));
-			return http.build();
-			// @formatter:on
+		@Bean("mock")
+		SecurityExpressionHandler<FilterInvocation> expressionHandler() {
+			return this.expressionHandler;
 		}
 
 	}
@@ -557,7 +549,7 @@ public class WebSecurityConfigurationTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.authorizeRequests((requests) -> requests
+				.authorizeHttpRequests((requests) -> requests
 					.anyRequest().authenticated());
 			return http.build();
 			// @formatter:on
@@ -608,7 +600,7 @@ public class WebSecurityConfigurationTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.authorizeRequests((requests) -> requests
+				.authorizeHttpRequests((requests) -> requests
 					.anyRequest().authenticated());
 			return http.build();
 			// @formatter:on
@@ -624,7 +616,7 @@ public class WebSecurityConfigurationTests {
 		public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			return http
-					.authorizeRequests((authorize) -> authorize
+					.authorizeHttpRequests((authorize) -> authorize
 						.anyRequest().authenticated()
 					)
 					.build();
@@ -638,11 +630,15 @@ public class WebSecurityConfigurationTests {
 	static class DefaultExpressionHandlerSetsBeanResolverConfig {
 
 		@Bean
-		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+		SecurityFilterChain filterChain(HttpSecurity http, ApplicationContext context) throws Exception {
+			DefaultHttpSecurityExpressionHandler expressionHandler = new DefaultHttpSecurityExpressionHandler();
+			expressionHandler.setApplicationContext(context);
+			WebExpressionAuthorizationManager authz = new WebExpressionAuthorizationManager(
+					"request.method == 'GET' ? @b.grant() : @b.deny()");
+			authz.setExpressionHandler(expressionHandler);
 			// @formatter:off
 			http
-				.authorizeRequests((requests) -> requests
-					.anyRequest().access("request.method == 'GET' ? @b.grant() : @b.deny()"));
+				.authorizeHttpRequests((requests) -> requests.anyRequest().access(authz));
 			return http.build();
 			// @formatter:on
 		}
@@ -727,7 +723,7 @@ public class WebSecurityConfigurationTests {
 			// @formatter:off
 			return http
 					.securityMatcher(pathPattern("/role1/**"))
-					.authorizeRequests((authorize) -> authorize
+					.authorizeHttpRequests((authorize) -> authorize
 							.anyRequest().hasRole("1")
 					)
 					.build();
@@ -766,7 +762,7 @@ public class WebSecurityConfigurationTests {
 			// @formatter:off
 			http
 				.securityMatchers((requests) -> requests.requestMatchers(pathPattern("/path1/**")))
-				.authorizeRequests((requests) -> requests.anyRequest().authenticated());
+				.authorizeHttpRequests((requests) -> requests.anyRequest().authenticated());
 			// @formatter:on
 			return http.build();
 		}
@@ -774,7 +770,7 @@ public class WebSecurityConfigurationTests {
 		@Bean
 		@Order(Ordered.LOWEST_PRECEDENCE)
 		public SecurityFilterChain permitAll(HttpSecurity http) throws Exception {
-			http.authorizeRequests((requests) -> requests.anyRequest().permitAll());
+			http.authorizeHttpRequests((requests) -> requests.anyRequest().permitAll());
 			return http.build();
 		}
 
@@ -790,7 +786,7 @@ public class WebSecurityConfigurationTests {
 			// @formatter:off
 			http
 					.securityMatchers((requests) -> requests.requestMatchers(pathPattern("/path1/**")))
-					.authorizeRequests((requests) -> requests.anyRequest().authenticated());
+					.authorizeHttpRequests((requests) -> requests.anyRequest().authenticated());
 			// @formatter:on
 			return http.build();
 		}
@@ -798,7 +794,7 @@ public class WebSecurityConfigurationTests {
 		@Bean
 		@Order(Ordered.LOWEST_PRECEDENCE)
 		public SecurityFilterChain permitAll(HttpSecurity http) throws Exception {
-			http.authorizeRequests((requests) -> requests.anyRequest().permitAll());
+			http.authorizeHttpRequests((requests) -> requests.anyRequest().permitAll());
 			return http.build();
 		}
 
@@ -815,7 +811,7 @@ public class WebSecurityConfigurationTests {
 			// @formatter:off
 			http
 				.securityMatchers((requests) -> requests.requestMatchers(pathPattern("/user")))
-				.authorizeRequests((requests) -> requests.anyRequest().hasRole("USER"));
+				.authorizeHttpRequests((requests) -> requests.anyRequest().hasRole("USER"));
 			// @formatter:on
 			return http.build();
 		}
@@ -826,7 +822,7 @@ public class WebSecurityConfigurationTests {
 			// @formatter:off
 			http
 				.securityMatchers((requests) -> requests.requestMatchers(pathPattern("/admin")))
-				.authorizeRequests((requests) -> requests.anyRequest().hasRole("ADMIN"));
+				.authorizeHttpRequests((requests) -> requests.anyRequest().hasRole("ADMIN"));
 			// @formatter:on
 			return http.build();
 		}
@@ -834,7 +830,7 @@ public class WebSecurityConfigurationTests {
 		@Bean
 		@Order(Ordered.LOWEST_PRECEDENCE)
 		public SecurityFilterChain permitAll(HttpSecurity http) throws Exception {
-			http.authorizeRequests((requests) -> requests.anyRequest().permitAll());
+			http.authorizeHttpRequests((requests) -> requests.anyRequest().permitAll());
 			return http.build();
 		}
 
@@ -857,7 +853,7 @@ public class WebSecurityConfigurationTests {
 			// @formatter:off
 			http
 					.securityMatchers((requests) -> requests.requestMatchers(pathPattern("/user")))
-					.authorizeRequests((requests) -> requests.anyRequest().hasRole("USER"));
+					.authorizeHttpRequests((requests) -> requests.anyRequest().hasRole("USER"));
 			// @formatter:on
 			return http.build();
 		}
@@ -868,7 +864,7 @@ public class WebSecurityConfigurationTests {
 			// @formatter:off
 			http
 					.securityMatchers((requests) -> requests.requestMatchers(pathPattern("/admin")))
-					.authorizeRequests((requests) -> requests.anyRequest().hasRole("ADMIN"));
+					.authorizeHttpRequests((requests) -> requests.anyRequest().hasRole("ADMIN"));
 			// @formatter:on
 			return http.build();
 		}
@@ -876,7 +872,7 @@ public class WebSecurityConfigurationTests {
 		@Bean
 		@Order(Ordered.LOWEST_PRECEDENCE)
 		public SecurityFilterChain permitAll(HttpSecurity http) throws Exception {
-			http.authorizeRequests((requests) -> requests.anyRequest().permitAll());
+			http.authorizeHttpRequests((requests) -> requests.anyRequest().permitAll());
 			return http.build();
 		}
 

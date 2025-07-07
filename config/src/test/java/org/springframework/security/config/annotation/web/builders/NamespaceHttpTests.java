@@ -16,6 +16,9 @@
 
 package org.springframework.security.config.annotation.web.builders;
 
+import java.util.List;
+import java.util.function.Supplier;
+
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 
@@ -30,9 +33,13 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.security.access.AccessDecisionManager;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.ConfigAttribute;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.jaas.JaasAuthenticationToken;
+import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.authorization.AuthorizationManager;
+import org.springframework.security.authorization.AuthorizationResult;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.annotation.web.configurers.UrlAuthorizationConfigurer;
@@ -47,10 +54,10 @@ import org.springframework.security.web.DefaultSecurityFilterChain;
 import org.springframework.security.web.FilterChainProxy;
 import org.springframework.security.web.FilterInvocation;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.access.expression.ExpressionBasedFilterInvocationSecurityMetadataSource;
 import org.springframework.security.web.access.intercept.DefaultFilterInvocationSecurityMetadataSource;
 import org.springframework.security.web.access.intercept.FilterInvocationSecurityMetadataSource;
 import org.springframework.security.web.access.intercept.FilterSecurityInterceptor;
+import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.context.NullSecurityContextRepository;
 import org.springframework.security.web.jaasapi.JaasApiIntegrationFilter;
@@ -99,14 +106,12 @@ public class NamespaceHttpTests {
 
 	@Test // http@access-decision-manager-ref
 	public void configureWhenAccessDecisionManagerSetThenVerifyUse() throws Exception {
-		AccessDecisionManagerRefConfig.ACCESS_DECISION_MANAGER = mock(AccessDecisionManager.class);
-		given(AccessDecisionManagerRefConfig.ACCESS_DECISION_MANAGER.supports(FilterInvocation.class)).willReturn(true);
-		given(AccessDecisionManagerRefConfig.ACCESS_DECISION_MANAGER.supports(any(ConfigAttribute.class)))
-			.willReturn(true);
 		this.spring.register(AccessDecisionManagerRefConfig.class).autowire();
+		AccessDecisionManager accessDecisionManager = this.spring.getContext().getBean(AccessDecisionManager.class);
+		given(accessDecisionManager.supports(FilterInvocation.class)).willReturn(true);
+		given(accessDecisionManager.supports(any(ConfigAttribute.class))).willReturn(true);
 		this.mockMvc.perform(get("/"));
-		verify(AccessDecisionManagerRefConfig.ACCESS_DECISION_MANAGER, times(1)).decide(any(Authentication.class),
-				any(), anyCollection());
+		verify(accessDecisionManager, times(1)).decide(any(Authentication.class), any(), anyCollection());
 	}
 
 	@Test // http@access-denied-page
@@ -267,14 +272,6 @@ public class NamespaceHttpTests {
 			.isAssignableFrom(MainController.HTTP_SERVLET_REQUEST_TYPE);
 	}
 
-	@Test // http@use-expressions=true
-	public void configureWhenUseExpressionsEnabledThenExpressionBasedSecurityMetadataSource() {
-		this.spring.register(UseExpressionsConfig.class).autowire();
-		UseExpressionsConfig config = this.spring.getContext().getBean(UseExpressionsConfig.class);
-		assertThat(ExpressionBasedFilterInvocationSecurityMetadataSource.class)
-			.isAssignableFrom(config.filterInvocationSecurityMetadataSourceType);
-	}
-
 	@Test // http@use-expressions=false
 	public void configureWhenUseExpressionsDisabledThenDefaultSecurityMetadataSource() {
 		this.spring.register(DisableUseExpressionsConfig.class).autowire();
@@ -287,17 +284,48 @@ public class NamespaceHttpTests {
 	@EnableWebSecurity
 	static class AccessDecisionManagerRefConfig {
 
-		static AccessDecisionManager ACCESS_DECISION_MANAGER;
+		AccessDecisionManager accessDecisionManager = mock(AccessDecisionManager.class);
 
 		@Bean
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.authorizeRequests((requests) -> requests
-					.anyRequest().permitAll()
-					.accessDecisionManager(ACCESS_DECISION_MANAGER));
+				.authorizeHttpRequests((requests) -> requests
+					.anyRequest().access(new AccessAuthorizationManagerAdapter(this.accessDecisionManager))
+				);
 			return http.build();
 			// @formatter:on
+		}
+
+		@Bean
+		AccessDecisionManager accessDecisionManager() {
+			return this.accessDecisionManager;
+		}
+
+		private static final class AccessAuthorizationManagerAdapter
+				implements AuthorizationManager<RequestAuthorizationContext> {
+
+			private final AccessDecisionManager delegate;
+
+			private AccessAuthorizationManagerAdapter(AccessDecisionManager delegate) {
+				this.delegate = delegate;
+			}
+
+			@Override
+			public AuthorizationResult authorize(Supplier<Authentication> authentication,
+					RequestAuthorizationContext object) {
+				HttpServletRequest request = object.getRequest();
+				FilterInvocation invocation = new FilterInvocation(request.getContextPath(), request.getServletPath(),
+						request.getPathInfo(), request.getQueryString(), request.getMethod());
+				try {
+					this.delegate.decide(authentication.get(), invocation, List.of());
+					return new AuthorizationDecision(true);
+				}
+				catch (AccessDeniedException ex) {
+					return new AuthorizationDecision(false);
+				}
+			}
+
 		}
 
 	}
@@ -311,7 +339,7 @@ public class NamespaceHttpTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.authorizeRequests((requests) -> requests
+				.authorizeHttpRequests((requests) -> requests
 					.requestMatchers("/admin").hasRole("ADMIN")
 					.anyRequest().authenticated())
 				.exceptionHandling((handling) -> handling
@@ -337,7 +365,7 @@ public class NamespaceHttpTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.authorizeRequests((requests) -> requests
+				.authorizeHttpRequests((requests) -> requests
 					.anyRequest().authenticated())
 				.formLogin(withDefaults());
 			return http.build();
@@ -354,7 +382,7 @@ public class NamespaceHttpTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.authorizeRequests((requests) -> requests
+				.authorizeHttpRequests((requests) -> requests
 					.anyRequest().permitAll())
 				.sessionManagement((management) -> management
 					.sessionCreationPolicy(SessionCreationPolicy.ALWAYS));
@@ -372,7 +400,7 @@ public class NamespaceHttpTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.authorizeRequests((requests) -> requests
+				.authorizeHttpRequests((requests) -> requests
 					.anyRequest().permitAll())
 				.sessionManagement((management) -> management
 					.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
@@ -391,7 +419,7 @@ public class NamespaceHttpTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.authorizeRequests((requests) -> requests
+				.authorizeHttpRequests((requests) -> requests
 					.requestMatchers("/unsecure").permitAll()
 					.anyRequest().authenticated())
 				.sessionManagement((management) -> management
@@ -411,7 +439,7 @@ public class NamespaceHttpTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.authorizeRequests((requests) -> requests
+				.authorizeHttpRequests((requests) -> requests
 					.anyRequest().anonymous())
 				.sessionManagement((management) -> management
 					.sessionCreationPolicy(SessionCreationPolicy.NEVER));
@@ -429,7 +457,7 @@ public class NamespaceHttpTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.authorizeRequests((requests) -> requests
+				.authorizeHttpRequests((requests) -> requests
 					.anyRequest().authenticated())
 				.exceptionHandling((handling) -> handling
 					.authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/entry-point")))
@@ -463,7 +491,7 @@ public class NamespaceHttpTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.authorizeRequests((requests) -> requests
+				.authorizeHttpRequests((requests) -> requests
 					.anyRequest().authenticated())
 				.httpBasic((basic) -> basic
 					.realmName("RealmConfig"));
@@ -553,7 +581,7 @@ public class NamespaceHttpTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.authorizeRequests((requests) -> requests
+				.authorizeHttpRequests((requests) -> requests
 					.anyRequest().authenticated())
 				.securityContext((context) -> context
 					.securityContextRepository(new NullSecurityContextRepository()))
@@ -577,7 +605,7 @@ public class NamespaceHttpTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.authorizeRequests((requests) -> requests
+				.authorizeHttpRequests((requests) -> requests
 					.anyRequest().permitAll())
 				.servletApi((api) -> api
 					.disable());
@@ -595,7 +623,7 @@ public class NamespaceHttpTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.authorizeRequests((requests) -> requests
+				.authorizeHttpRequests((requests) -> requests
 					.anyRequest().permitAll());
 			return http.build();
 			// @formatter:on
@@ -612,42 +640,6 @@ public class NamespaceHttpTests {
 		String index(HttpServletRequest request) {
 			HTTP_SERVLET_REQUEST_TYPE = request.getClass();
 			return "index";
-		}
-
-	}
-
-	@Configuration
-	@EnableWebSecurity
-	@EnableWebMvc
-	static class UseExpressionsConfig {
-
-		private Class<? extends FilterInvocationSecurityMetadataSource> filterInvocationSecurityMetadataSourceType;
-
-		private HttpSecurity httpSecurity;
-
-		@Bean
-		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-			// @formatter:off
-			http
-				.authorizeRequests((requests) -> requests
-					.requestMatchers("/users**", "/sessions/**").hasRole("USER")
-					.requestMatchers("/signup").permitAll()
-					.anyRequest().hasRole("USER"));
-			this.httpSecurity = http;
-			return http.build();
-			// @formatter:on
-		}
-
-		@Bean
-		@DependsOn("filterChain")
-		WebSecurityCustomizer webSecurityCustomizer() {
-			return (web) -> web.postBuildAction(() -> {
-				FilterSecurityInterceptor securityInterceptor = this.httpSecurity
-					.getSharedObject(FilterSecurityInterceptor.class);
-				UseExpressionsConfig.this.filterInvocationSecurityMetadataSourceType = securityInterceptor
-					.getSecurityMetadataSource()
-					.getClass();
-			});
 		}
 
 	}
