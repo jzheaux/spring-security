@@ -17,10 +17,14 @@
 package org.springframework.security.authentication;
 
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.function.Consumer;
 
 import org.jspecify.annotations.Nullable;
 
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.AuthoritiesContainer;
 import org.springframework.util.Assert;
 
 /**
@@ -35,7 +39,8 @@ import org.springframework.util.Assert;
  * @author Ben Alex
  * @author Norbert Nowak
  */
-public class UsernamePasswordAuthenticationToken extends AbstractAuthenticationToken {
+public class UsernamePasswordAuthenticationToken extends AbstractAuthenticationToken
+	implements AuthoritiesContainer {
 
 	private static final long serialVersionUID = 620L;
 
@@ -123,4 +128,10 @@ public class UsernamePasswordAuthenticationToken extends AbstractAuthenticationT
 		this.credentials = null;
 	}
 
+	@Override
+	public Authentication authorities(Consumer<Collection<GrantedAuthority>> authorities) {
+		Collection<GrantedAuthority> existing = new HashSet<>(getAuthorities());
+		authorities.accept(existing);
+		return new UsernamePasswordAuthenticationToken(getPrincipal(), getCredentials(), existing);
+	}
 }

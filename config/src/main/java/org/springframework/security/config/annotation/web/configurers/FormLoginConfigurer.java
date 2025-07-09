@@ -17,6 +17,8 @@
 package org.springframework.security.config.annotation.web.configurers;
 
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authorization.AuthoritiesGranter;
+import org.springframework.security.authorization.SimpleAuthoritiesGranter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -71,6 +73,8 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
  */
 public final class FormLoginConfigurer<H extends HttpSecurityBuilder<H>> extends
 		AbstractAuthenticationFilterConfigurer<H, FormLoginConfigurer<H>, UsernamePasswordAuthenticationFilter> {
+
+	private final AuthoritiesGranter granter = new SimpleAuthoritiesGranter("AUTHN_DAO");
 
 	/**
 	 * Creates a new instance
@@ -231,6 +235,15 @@ public final class FormLoginConfigurer<H extends HttpSecurityBuilder<H>> extends
 	public void init(H http) throws Exception {
 		super.init(http);
 		initDefaultLoginFilter(http);
+	}
+
+	@Override
+	public void configure(H http) throws Exception {
+		super.configure(http);
+		ExceptionHandlingConfigurer<H> configurer = http.getConfigurer(ExceptionHandlingConfigurer.class);
+		if (configurer != null) {
+			configurer.defaultAuthenticationEntryPointFor(getAuthenticationEntryPoint(), this.granter);
+		}
 	}
 
 	@Override

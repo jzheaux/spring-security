@@ -39,6 +39,7 @@ import org.springframework.security.authentication.event.InteractiveAuthenticati
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.SpringSecurityMessageSource;
+import org.springframework.security.core.authority.AuthoritiesContainer;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
@@ -250,6 +251,10 @@ public abstract class AbstractAuthenticationProcessingFilter extends GenericFilt
 			// Authentication success
 			if (this.continueChainBeforeSuccessfulAuthentication) {
 				chain.doFilter(request, response);
+			}
+			Authentication current = this.securityContextHolderStrategy.getContext().getAuthentication();
+			if (current != null && current.isAuthenticated() && authenticationResult instanceof AuthoritiesContainer container) {
+				authenticationResult = container.authorities((a) -> a.addAll(current.getAuthorities()));
 			}
 			successfulAuthentication(request, response, chain, authenticationResult);
 		}

@@ -34,9 +34,13 @@ import org.springframework.security.config.users.AuthenticationTestConfiguration
 import org.springframework.security.core.context.SecurityContextChangedListener;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.core.userdetails.PasswordEncodedUser;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.password.NoOpPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.security.web.PortMapper;
 import org.springframework.security.web.PortResolver;
 import org.springframework.security.web.SecurityFilterChain;
@@ -751,4 +755,45 @@ public class FormLoginConfigurerTests {
 
 	}
 
+	@Test
+	void requestWhenAuthenticatedNotByDaoThenRedirects() throws Exception {
+		this.spring.register(MfaConfig.class).autowire();
+		UserDetails user = PasswordEncodedUser.user();
+		this.mockMvc.perform(get("/").with(SecurityMockMvcRequestPostProcessors.user(user)))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl("http://localhost/login"));
+		this.mockMvc.perform(post("/login")
+				.with(SecurityMockMvcRequestPostProcessors.user(user))
+				.with(SecurityMockMvcRequestPostProcessors.csrf())
+				.param("username", user.getUsername())
+				.param("password", user.getPassword()))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl("/"));
+	}
+
+	@Configuration
+	@EnableWebSecurity
+	static class MfaConfig {
+		@Bean
+		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+			// @formatter:off
+			http
+				.authorizeHttpRequests((authorize) -> authorize
+					.anyRequest().authenticatedBy("DAO")
+				)
+				.formLogin(withDefaults());
+			return http.build();
+			// @formatter:on
+		}
+
+		@Bean
+		UserDetailsService users() {
+			return new InMemoryUserDetailsManager(PasswordEncodedUser.user());
+		}
+
+		@Bean
+		PasswordEncoder encoder() {
+			return NoOpPasswordEncoder.getInstance();
+		}
+	}
 }

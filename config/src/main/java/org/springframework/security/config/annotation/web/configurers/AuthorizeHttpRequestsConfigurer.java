@@ -352,6 +352,10 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 			return new AuthorizedUrlVariable(variable);
 		}
 
+		public AuthorizationManagerRequestMatcherRegistry authenticatedBy(String provider) {
+			return access(AuthenticatedAuthorizationManager.authenticatedBy(provider));
+		}
+
 		/**
 		 * Allows specifying a custom {@link AuthorizationManager}.
 		 * @param manager the {@link AuthorizationManager} to use

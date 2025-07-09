@@ -16,6 +16,9 @@
 
 package org.springframework.security.authorization;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.function.Supplier;
 
@@ -36,6 +39,12 @@ import org.springframework.util.Assert;
 public final class AuthoritiesAuthorizationManager implements AuthorizationManager<Collection<String>> {
 
 	private RoleHierarchy roleHierarchy = new NullRoleHierarchy();
+
+	private Duration within;
+
+	public void setWithin(Duration within) {
+		this.within = within;
+	}
 
 	/**
 	 * Sets the {@link RoleHierarchy} to be used. Default is {@link NullRoleHierarchy}.
@@ -74,7 +83,16 @@ public final class AuthoritiesAuthorizationManager implements AuthorizationManag
 	}
 
 	private Collection<? extends GrantedAuthority> getGrantedAuthorities(Authentication authentication) {
-		return this.roleHierarchy.getReachableGrantedAuthorities(authentication.getAuthorities());
+		Collection<? extends GrantedAuthority> reachable = this.roleHierarchy.getReachableGrantedAuthorities(authentication.getAuthorities());
+		Collection<GrantedAuthority> within = new ArrayList<>();
+		if (this.within != null) {
+			for (GrantedAuthority grantedAuthority : reachable) {
+				if (grantedAuthority.getIssuedAt().isBefore(Instant.now().plus(this.within))) {
+					within.add(grantedAuthority);
+				}
+			}
+		}
+		return within;
 	}
 
 }

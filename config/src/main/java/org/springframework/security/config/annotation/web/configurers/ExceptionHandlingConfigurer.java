@@ -16,12 +16,17 @@
 
 package org.springframework.security.config.annotation.web.configurers;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 
+import org.springframework.security.authorization.AuthoritiesGranter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.AuthorizationRequestingAccessDeniedHandler;
+import org.springframework.security.web.AuthorizationRequestingAccessDeniedHandler.AuthorizationRequestEntry;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.access.AccessDeniedHandlerImpl;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
@@ -74,6 +79,8 @@ public final class ExceptionHandlingConfigurer<H extends HttpSecurityBuilder<H>>
 	private LinkedHashMap<RequestMatcher, AuthenticationEntryPoint> defaultEntryPointMappings = new LinkedHashMap<>();
 
 	private LinkedHashMap<RequestMatcher, AccessDeniedHandler> defaultDeniedHandlerMappings = new LinkedHashMap<>();
+
+	private List<AuthorizationRequestEntry> authorityRequestEntries = new ArrayList<>();
 
 	/**
 	 * Creates a new instance
@@ -165,6 +172,11 @@ public final class ExceptionHandlingConfigurer<H extends HttpSecurityBuilder<H>>
 		return this;
 	}
 
+	public ExceptionHandlingConfigurer<H> defaultAuthenticationEntryPointFor(AuthenticationEntryPoint entryPoint, AuthoritiesGranter granter) {
+		this.authorityRequestEntries.add(new AuthorizationRequestEntry(granter, entryPoint));
+		return this;
+	}
+
 	/**
 	 * Gets any explicitly configured {@link AuthenticationEntryPoint}
 	 * @return
@@ -224,6 +236,13 @@ public final class ExceptionHandlingConfigurer<H extends HttpSecurityBuilder<H>>
 	}
 
 	private AccessDeniedHandler createDefaultDeniedHandler(H http) {
+		AuthorizationRequestingAccessDeniedHandler handler =
+				new AuthorizationRequestingAccessDeniedHandler(this.authorityRequestEntries);
+		handler.setDefaultAccessDeniedHandler(createDefaultRequestMatcherDeniedHandler(http));
+		return handler;
+	}
+
+	private AccessDeniedHandler createDefaultRequestMatcherDeniedHandler(H http) {
 		if (this.defaultDeniedHandlerMappings.isEmpty()) {
 			return new AccessDeniedHandlerImpl();
 		}

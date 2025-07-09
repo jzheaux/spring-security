@@ -26,8 +26,11 @@ import org.springframework.security.authentication.InternalAuthenticationService
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.authentication.password.CompromisedPasswordChecker;
 import org.springframework.security.authentication.password.CompromisedPasswordException;
+import org.springframework.security.authorization.AuthoritiesGranter;
+import org.springframework.security.authorization.SimpleAuthoritiesGranter;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.authority.AuthoritiesContainer;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsPasswordService;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -69,6 +72,8 @@ public class DaoAuthenticationProvider extends AbstractUserDetailsAuthentication
 	private UserDetailsPasswordService userDetailsPasswordService = UserDetailsPasswordService.NOOP;
 
 	private @Nullable CompromisedPasswordChecker compromisedPasswordChecker;
+
+	private final AuthoritiesGranter granter = new SimpleAuthoritiesGranter("AUTHN_DAO");
 
 	public DaoAuthenticationProvider(UserDetailsService userDetailsService) {
 		Assert.notNull(userDetailsService, "userDetailsService cannot be null");
@@ -137,7 +142,8 @@ public class DaoAuthenticationProvider extends AbstractUserDetailsAuthentication
 			String newPassword = this.passwordEncoder.get().encode(presentedPassword);
 			user = this.userDetailsPasswordService.updatePassword(user, newPassword);
 		}
-		return super.createSuccessAuthentication(principal, authentication, user);
+		Authentication result = super.createSuccessAuthentication(principal, authentication, user);
+		return (result instanceof AuthoritiesContainer) ? this.granter.grant(result) : result;
 	}
 
 	private void prepareTimingAttackProtection() {

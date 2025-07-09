@@ -16,7 +16,9 @@
 
 package org.springframework.security.authorization;
 
+import java.time.Duration;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import org.springframework.security.authentication.AuthenticationTrustResolver;
 import org.springframework.security.authentication.AuthenticationTrustResolverImpl;
@@ -102,6 +104,28 @@ public final class AuthenticatedAuthorizationManager<T> implements Authorization
 	 */
 	public static <T> AuthenticatedAuthorizationManager<T> anonymous() {
 		return new AuthenticatedAuthorizationManager<>(new AnonymousAuthorizationStrategy());
+	}
+
+	public static <T> AuthorityAuthorizationManager<T> authenticatedBy(String provider) {
+		return authenticatedBy(null, provider);
+	}
+
+	public static <T> AuthorityAuthorizationManager<T> authenticatedBy(Duration within, String provider) {
+		return authenticatedByAny(within, provider);
+	}
+
+	public static <T> AuthorityAuthorizationManager<T> authenticatedByAny(String... providers) {
+		Assert.notEmpty(providers, "authentications cannot be empty");
+		Assert.noNullElements(providers, "authorities cannot contain null values");
+		String[] authorities = Stream.of(providers).map((a) -> "AUTHN_" + a).toArray(String[]::new);
+		return AuthorityAuthorizationManager.hasAnyAuthority(authorities);
+	}
+
+	public static <T> AuthorityAuthorizationManager<T> authenticatedByAny(Duration within, String... providers) {
+		Assert.notEmpty(providers, "authentications cannot be empty");
+		Assert.noNullElements(providers, "authorities cannot contain null values");
+		String[] authorities = Stream.of(providers).map((a) -> "AUTHN_" + a).toArray(String[]::new);
+		return AuthorityAuthorizationManager.hasAnyAuthority(within, authorities);
 	}
 
 	/**

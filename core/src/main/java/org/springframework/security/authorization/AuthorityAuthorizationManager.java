@@ -16,6 +16,7 @@
 
 package org.springframework.security.authorization;
 
+import java.time.Duration;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -42,6 +43,11 @@ public final class AuthorityAuthorizationManager<T> implements AuthorizationMana
 
 	private AuthorityAuthorizationManager(String... authorities) {
 		this.authorities = Set.of(authorities);
+	}
+
+	private AuthorityAuthorizationManager(Duration within, String... authorities) {
+		this.authorities = Set.of(authorities);
+		this.delegate.setWithin(within);
 	}
 
 	/**
@@ -79,6 +85,11 @@ public final class AuthorityAuthorizationManager<T> implements AuthorizationMana
 	public static <T> AuthorityAuthorizationManager<T> hasAuthority(String authority) {
 		Assert.notNull(authority, "authority cannot be null");
 		return new AuthorityAuthorizationManager<>(authority);
+	}
+
+	public static <T> AuthorityAuthorizationManager<T> hasAuthority(Duration within, String authority) {
+		Assert.notNull(authority, "authority cannot be null");
+		return new AuthorityAuthorizationManager<>(within, authority);
 	}
 
 	/**
@@ -119,6 +130,12 @@ public final class AuthorityAuthorizationManager<T> implements AuthorizationMana
 		Assert.notEmpty(authorities, "authorities cannot be empty");
 		Assert.noNullElements(authorities, "authorities cannot contain null values");
 		return new AuthorityAuthorizationManager<>(authorities);
+	}
+
+	public static <T>  AuthorityAuthorizationManager<T> hasAnyAuthority(Duration within, String... authorities) {
+		Assert.notEmpty(authorities, "authorities cannot be empty");
+		Assert.noNullElements(authorities, "authorities cannot contain null values");
+		return new AuthorityAuthorizationManager<>(within, authorities);
 	}
 
 	private static String[] toNamedRolesArray(String rolePrefix, String[] roles) {
