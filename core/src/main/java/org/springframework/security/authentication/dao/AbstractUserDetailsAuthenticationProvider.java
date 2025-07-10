@@ -31,6 +31,7 @@ import org.springframework.security.authentication.CredentialsExpiredException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.authorization.AuthoritiesGranter;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.SpringSecurityMessageSource;
@@ -124,6 +125,10 @@ public abstract class AbstractUserDetailsAuthenticationProvider
 
 	@Override
 	public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+		AuthoritiesGranter granter;
+		if (granter.isGranted(authentication)) {
+			return authentication;
+		}
 		Assert.isInstanceOf(UsernamePasswordAuthenticationToken.class, authentication,
 				() -> this.messages.getMessage("AbstractUserDetailsAuthenticationProvider.onlySupports",
 						"Only UsernamePasswordAuthenticationToken is supported"));
@@ -197,8 +202,9 @@ public abstract class AbstractUserDetailsAuthenticationProvider
 		// so subsequent attempts are successful even with encoded passwords.
 		// Also ensure we return the original getDetails(), so that future
 		// authentication events after cache expiry contain the details
+		Authentication granted = granter.grant(UsernamePasswordAuthenticationToken.authenticated(user, authentication.getCredentials()));
 		UsernamePasswordAuthenticationToken result = UsernamePasswordAuthenticationToken.authenticated(principal,
-				authentication.getCredentials(), this.authoritiesMapper.mapAuthorities(user.getAuthorities()));
+				authentication.getCredentials(), granted.getAuthorities());
 		result.setDetails(authentication.getDetails());
 		this.logger.debug("Authenticated user");
 		return result;

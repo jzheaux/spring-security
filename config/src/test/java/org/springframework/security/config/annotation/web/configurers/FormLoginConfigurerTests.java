@@ -16,6 +16,8 @@
 
 package org.springframework.security.config.annotation.web.configurers;
 
+import java.time.Duration;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -23,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.SecurityContextChangedListenerConfig;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -779,9 +782,11 @@ public class FormLoginConfigurerTests {
 			// @formatter:off
 			http
 				.authorizeHttpRequests((authorize) -> authorize
-					.anyRequest().authenticatedBy("DAO")
+					.requestMatchers("/profile").authenticated((by) -> by.formLogin(Duration.ofSeconds(3600)))
+					.anyRequest().authenticated((by) -> by.formLogin().oauth2Login())
 				)
-				.formLogin(withDefaults());
+				.formLogin((form) -> form.authenticated((by) -> by.oauth2Login()))
+				.oauth2Login(Customizer.withDefaults());
 			return http.build();
 			// @formatter:on
 		}

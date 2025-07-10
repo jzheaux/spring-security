@@ -16,14 +16,21 @@
 
 package org.springframework.security.config.annotation.web.configurers;
 
+import java.util.function.Supplier;
+
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authorization.AuthoritiesGranter;
+import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.authorization.AuthorizationManager;
+import org.springframework.security.authorization.AuthorizationResult;
 import org.springframework.security.authorization.SimpleAuthoritiesGranter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.authentication.ForwardAuthenticationFailureHandler;
 import org.springframework.security.web.authentication.ForwardAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.RememberMeServices;
@@ -72,7 +79,8 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
  * @since 3.2
  */
 public final class FormLoginConfigurer<H extends HttpSecurityBuilder<H>> extends
-		AbstractAuthenticationFilterConfigurer<H, FormLoginConfigurer<H>, UsernamePasswordAuthenticationFilter> {
+		AbstractAuthenticationFilterConfigurer<H, FormLoginConfigurer<H>, UsernamePasswordAuthenticationFilter>
+		implements AuthorizationManager<RequestAuthorizationContext> {
 
 	private final AuthoritiesGranter granter = new SimpleAuthoritiesGranter("AUTHN_DAO");
 
@@ -285,4 +293,14 @@ public final class FormLoginConfigurer<H extends HttpSecurityBuilder<H>> extends
 		}
 	}
 
+	@Override
+	public AuthorizationResult authorize(Supplier<Authentication> authentication, RequestAuthorizationContext object) {
+		Authentication unauthorized = authentication.get();
+		Authentication authorized = this.granter.grant(unauthorized);
+		if (unauthorized.getAuthorities().containsAll(authorized.getAuthorities()) &&
+			authorized.getAuthorities().containsAll(unauthorized.getAuthorities())) {
+			return new AuthorizationDecision(true);
+		}
+		return new AuthorizationDecision(false);
+	}
 }
