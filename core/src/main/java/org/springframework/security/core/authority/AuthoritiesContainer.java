@@ -12,4 +12,10 @@ public interface AuthoritiesContainer {
 
 	Authentication authorities(Consumer<Collection<GrantedAuthority>> authorities);
 
+	default Authentication authorities(Collection<GrantedAuthority> authorities) {
+		return authorities((a) -> {
+			a.clear();
+			a.addAll(authorities);
+		});
+	}
 }

@@ -36,17 +36,17 @@ public final class SimpleGrantedAuthority implements GrantedAuthority {
 
 	private final String role;
 
-	private final Instant issuedAt;
+	private final Instant expiresAt;
 
 	public SimpleGrantedAuthority(String role) {
-		this(role, Instant.now());
+		this(role, Instant.MAX);
 	}
 
-	public SimpleGrantedAuthority(String role, Instant issuedAt) {
+	public SimpleGrantedAuthority(String role, Instant expiresAt) {
 		Assert.hasText(role, "A granted authority textual representation is required");
-		Assert.notNull(issuedAt, "issuedAt must not be null");
+		Assert.notNull(expiresAt, "expiresAt must not be null");
 		this.role = role;
-		this.issuedAt = issuedAt;
+		this.expiresAt = expiresAt;
 	}
 
 	@Override
@@ -55,8 +55,8 @@ public final class SimpleGrantedAuthority implements GrantedAuthority {
 	}
 
 	@Override
-	public Instant getIssuedAt() {
-		return this.issuedAt;
+	public Instant getExpiresAt() {
+		return this.expiresAt;
 	}
 
 	@Override

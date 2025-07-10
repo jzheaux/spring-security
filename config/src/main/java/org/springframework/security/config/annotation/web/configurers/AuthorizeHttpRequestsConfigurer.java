@@ -36,12 +36,10 @@ import org.springframework.security.authorization.AuthorizationManagers;
 import org.springframework.security.authorization.SingleResultAuthorizationManager;
 import org.springframework.security.authorization.SpringAuthorizationEventPublisher;
 import org.springframework.security.config.ObjectPostProcessor;
-import org.springframework.security.config.annotation.SecurityConfigurerAdapter;
 import org.springframework.security.config.annotation.web.AbstractRequestMatcherRegistry;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.core.GrantedAuthorityDefaults;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.web.DefaultSecurityFilterChain;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.access.intercept.RequestMatcherDelegatingAuthorizationManager;
@@ -306,6 +304,16 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 			return access(AuthenticatedAuthorizationManager.authenticated());
 		}
 
+		public AuthorizationManagerRequestMatcherRegistry authenticated(String provider) {
+			return access(AuthenticatedAuthorizationManager.authenticatedBy(provider));
+		}
+
+		public AuthorizationManagerRequestMatcherRegistry authenticated(Consumer<AuthorizerConfigurer<H>> by) {
+			AuthorizerConfigurer<H> configurer = new AuthorizerConfigurer<H>(AuthorizeHttpRequestsConfigurer.this);
+			by.accept(configurer);
+			return AuthorizeHttpRequestsConfigurer.this.registry;
+		}
+
 		/**
 		 * Specify that URLs are allowed by users who have authenticated and were not
 		 * "remembered".
@@ -352,15 +360,6 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 		 */
 		public AuthorizedUrlVariable hasVariable(String variable) {
 			return new AuthorizedUrlVariable(variable);
-		}
-
-		public AuthorizationManagerRequestMatcherRegistry authenticatedBy(String provider) {
-			return access(AuthenticatedAuthorizationManager.authenticatedBy(provider));
-		}
-
-		public AuthorizationManagerRequestMatcherRegistry authenticatedBy(Supplier<SecurityConfigurerAdapter<DefaultSecurityFilterChain, H>> provider) {
-			provider.get().
-			return access(AuthenticatedAuthorizationManager.authenticatedBy(provider));
 		}
 
 		/**

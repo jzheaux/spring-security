@@ -49,7 +49,7 @@ public interface GrantedAuthority extends Serializable {
 	 */
 	String getAuthority();
 
-	default Instant getIssuedAt() {
-		return Instant.now();
+	default Instant getExpiresAt() {
+		return Instant.MAX;
 	}
 }

@@ -16,6 +16,9 @@
 
 package org.springframework.security.authentication.dao;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -34,7 +37,9 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.authorization.AuthoritiesGranter;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.SpringSecurityMessageSource;
+import org.springframework.security.core.authority.AuthoritiesContainer;
 import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
 import org.springframework.security.core.authority.mapping.NullAuthoritiesMapper;
 import org.springframework.security.core.userdetails.UserCache;
@@ -95,6 +100,19 @@ public abstract class AbstractUserDetailsAuthenticationProvider
 
 	private GrantedAuthoritiesMapper authoritiesMapper = new NullAuthoritiesMapper();
 
+	private AuthoritiesGranter authoritiesGranter = (authentication) -> {
+		Object principal = authentication.getPrincipal();
+		Object credentials = authentication.getCredentials();
+		Set<GrantedAuthority> existingAuthorities = new HashSet<>(authentication.getAuthorities());
+		if (principal instanceof UserDetails user) {
+			existingAuthorities.addAll(new HashSet<>(this.authoritiesMapper.mapAuthorities(user.getAuthorities())));
+		}
+		if (authentication instanceof AuthoritiesContainer authoritiesContainer) {
+			return authoritiesContainer.authorities(existingAuthorities);
+		}
+		return UsernamePasswordAuthenticationToken.authenticated(principal, credentials, existingAuthorities);
+	};
+
 	/**
 	 * Allows subclasses to perform any additional checks of a returned (or cached)
 	 * <code>UserDetails</code> for a given authentication request. Generally a subclass
@@ -125,8 +143,7 @@ public abstract class AbstractUserDetailsAuthenticationProvider
 
 	@Override
 	public Authentication authenticate(Authentication authentication) throws AuthenticationException {
-		AuthoritiesGranter granter;
-		if (granter.isGranted(authentication)) {
+		if (this.authoritiesGranter.isGranted(authentication)) {
 			return authentication;
 		}
 		Assert.isInstanceOf(UsernamePasswordAuthenticationToken.class, authentication,
@@ -202,7 +219,7 @@ public abstract class AbstractUserDetailsAuthenticationProvider
 		// so subsequent attempts are successful even with encoded passwords.
 		// Also ensure we return the original getDetails(), so that future
 		// authentication events after cache expiry contain the details
-		Authentication granted = granter.grant(UsernamePasswordAuthenticationToken.authenticated(user, authentication.getCredentials()));
+		Authentication granted = granter.grant(UsernamePasswordAuthenticationToken.authenticated(user, authentication.getCredentials(), authentication.getAuthorities()));
 		UsernamePasswordAuthenticationToken result = UsernamePasswordAuthenticationToken.authenticated(principal,
 				authentication.getCredentials(), granted.getAuthorities());
 		result.setDetails(authentication.getDetails());
