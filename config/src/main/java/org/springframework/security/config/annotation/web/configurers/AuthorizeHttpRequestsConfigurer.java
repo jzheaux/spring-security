@@ -308,12 +308,6 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 			return access(AuthenticatedAuthorizationManager.authenticatedBy(provider));
 		}
 
-		public AuthorizationManagerRequestMatcherRegistry authenticated(Consumer<AuthorizerConfigurer<H>> by) {
-			AuthorizerConfigurer<H> configurer = new AuthorizerConfigurer<H>(AuthorizeHttpRequestsConfigurer.this);
-			by.accept(configurer);
-			return AuthorizeHttpRequestsConfigurer.this.registry;
-		}
-
 		/**
 		 * Specify that URLs are allowed by users who have authenticated and were not
 		 * "remembered".

@@ -87,7 +87,7 @@ public final class AuthoritiesAuthorizationManager implements AuthorizationManag
 		Collection<GrantedAuthority> within = new ArrayList<>();
 		if (this.within != null) {
 			for (GrantedAuthority grantedAuthority : reachable) {
-				if (grantedAuthority.getIssuedAt().isBefore(Instant.now().plus(this.within))) {
+				if (grantedAuthority.getExpiresAt().isAfter(Instant.now())) {
 					within.add(grantedAuthority);
 				}
 			}

@@ -26,6 +26,8 @@ import org.springframework.security.authentication.AuthenticationServiceExceptio
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
@@ -62,6 +64,8 @@ public class UsernamePasswordAuthenticationFilter extends AbstractAuthentication
 
 	private boolean postOnly = true;
 
+	private final SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder.getContextHolderStrategy();
+
 	public UsernamePasswordAuthenticationFilter() {
 		super(DEFAULT_ANT_PATH_REQUEST_MATCHER);
 	}
@@ -80,8 +84,14 @@ public class UsernamePasswordAuthenticationFilter extends AbstractAuthentication
 		username = (username != null) ? username.trim() : "";
 		String password = obtainPassword(request);
 		password = (password != null) ? password : "";
-		UsernamePasswordAuthenticationToken authRequest = UsernamePasswordAuthenticationToken.unauthenticated(username,
-				password);
+		UsernamePasswordAuthenticationToken authRequest;
+		Authentication existing = this.securityContextHolderStrategy.getContext().getAuthentication();
+		if (existing != null && existing.isAuthenticated()) {
+			authRequest = new UsernamePasswordAuthenticationToken(username, password, existing.getAuthorities());
+			authRequest.setAuthenticated(true);
+		} else {
+			authRequest = UsernamePasswordAuthenticationToken.unauthenticated(username, password);
+		}
 		// Allow subclasses to set the "details" property
 		setDetails(request, authRequest);
 		return this.getAuthenticationManager().authenticate(authRequest);

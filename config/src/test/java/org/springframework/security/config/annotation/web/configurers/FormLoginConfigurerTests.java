@@ -24,8 +24,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.config.Customizer;
+import org.springframework.security.authorization.AuthoritiesGranterAuthenticationManager;
+import org.springframework.security.authorization.SimpleAuthoritiesGranter;
 import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.SecurityContextChangedListenerConfig;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -41,13 +43,19 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.TestClientRegistrations;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.security.web.PortMapper;
 import org.springframework.security.web.PortResolver;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AuthoritiesGranterAuthorizationManager;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
+import org.springframework.security.web.access.intercept.RequestMatcherDelegatingAuthorizationManager;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -66,6 +74,7 @@ import static org.springframework.security.config.annotation.SecurityContextChan
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.logout;
 import static org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.authenticated;
+import static org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.pathPattern;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl;
@@ -393,6 +402,26 @@ public class FormLoginConfigurerTests {
 		verify(this.spring.getContext().getBean(PortResolver.class)).getServerPort(any());
 	}
 
+	@Test
+	void requestWhenAuthenticatedNotByDaoThenRedirects() throws Exception {
+		this.spring.register(MfaConfig.class).autowire();
+		UserDetails user = PasswordEncodedUser.user();
+		this.mockMvc.perform(get("/").with(SecurityMockMvcRequestPostProcessors.user(user)))
+			.andExpect(status().is3xxRedirection())
+			.andExpect(redirectedUrl("http://localhost/login"));
+		this.mockMvc.perform(get("/login").with(SecurityMockMvcRequestPostProcessors.user(user)))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl("http://localhost/oauth2/authorization/id"));
+		this.mockMvc
+			.perform(post("/login").with(SecurityMockMvcRequestPostProcessors.oauth2Login()
+					.clientRegistration(TestClientRegistrations.clientRegistration().build()))
+				.with(SecurityMockMvcRequestPostProcessors.csrf())
+				.param("username", user.getUsername())
+				.param("password", user.getPassword()))
+			.andExpect(status().is3xxRedirection())
+			.andExpect(redirectedUrl("/"));
+	}
+
 	@Configuration
 	@EnableWebSecurity
 	static class RequestCacheConfig {
@@ -713,11 +742,6 @@ public class FormLoginConfigurerTests {
 			// @formatter:on
 		}
 
-		@Bean
-		static ObjectPostProcessor<Object> objectPostProcessor() {
-			return objectPostProcessor;
-		}
-
 	}
 
 	@Configuration
@@ -758,35 +782,42 @@ public class FormLoginConfigurerTests {
 
 	}
 
-	@Test
-	void requestWhenAuthenticatedNotByDaoThenRedirects() throws Exception {
-		this.spring.register(MfaConfig.class).autowire();
-		UserDetails user = PasswordEncodedUser.user();
-		this.mockMvc.perform(get("/").with(SecurityMockMvcRequestPostProcessors.user(user)))
-				.andExpect(status().is3xxRedirection())
-				.andExpect(redirectedUrl("http://localhost/login"));
-		this.mockMvc.perform(post("/login")
-				.with(SecurityMockMvcRequestPostProcessors.user(user))
-				.with(SecurityMockMvcRequestPostProcessors.csrf())
-				.param("username", user.getUsername())
-				.param("password", user.getPassword()))
-				.andExpect(status().is3xxRedirection())
-				.andExpect(redirectedUrl("/"));
-	}
-
 	@Configuration
 	@EnableWebSecurity
 	static class MfaConfig {
+
 		@Bean
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+			SimpleAuthoritiesGranter formLogin = new SimpleAuthoritiesGranter("AUTHN_DAO");
+			SimpleAuthoritiesGranter oauth2Login = new SimpleAuthoritiesGranter("AUTHN_OAUTH2");
+			SimpleAuthoritiesGranter formLoginTime = new SimpleAuthoritiesGranter(Duration.ofSeconds(3600),
+					"AUTHN_DAO");
+
 			// @formatter:off
 			http
 				.authorizeHttpRequests((authorize) -> authorize
-					.requestMatchers("/profile").authenticated((by) -> by.formLogin(Duration.ofSeconds(3600)))
-					.anyRequest().authenticated((by) -> by.formLogin().oauth2Login())
+					.requestMatchers("/profile").access(new AuthoritiesGranterAuthorizationManager(formLoginTime))
+					.anyRequest().access(new AuthoritiesGranterAuthorizationManager(formLogin))
 				)
-				.formLogin((form) -> form.authenticated((by) -> by.oauth2Login()))
-				.oauth2Login(Customizer.withDefaults());
+				.formLogin((form) -> form.withObjectPostProcessor(new ObjectPostProcessor<AuthenticationProvider>() {
+					@Override
+					public <O extends AuthenticationProvider> O postProcess(O object) {
+						return (O) new AuthoritiesGranterAuthenticationManager(object::supports, object::authenticate, formLogin);
+    				}
+				}))
+				.oauth2Login((oauth2) -> oauth2.withObjectPostProcessor(new ObjectPostProcessor<AuthenticationProvider>() {
+					@Override
+					public <O extends AuthenticationProvider> O postProcess(O object) {
+						return (O) new AuthoritiesGranterAuthenticationManager(object::supports, object::authenticate, oauth2Login);
+					}
+				}))
+				.exceptionHandling((exceptions) -> exceptions
+					.defaultAuthenticationEntryPointFor(new LoginUrlAuthenticationEntryPoint("/login"), formLogin)
+					.defaultAuthenticationEntryPointFor(new LoginUrlAuthenticationEntryPoint("/oauth2/authorization/id"), oauth2Login)
+				)
+				.addFilterBefore(new AuthorizationFilter(RequestMatcherDelegatingAuthorizationManager.builder()
+					.add(pathPattern("/login"), new AuthoritiesGranterAuthorizationManager(oauth2Login))
+					.build()), UsernamePasswordAuthenticationFilter.class);
 			return http.build();
 			// @formatter:on
 		}
@@ -800,5 +831,12 @@ public class FormLoginConfigurerTests {
 		PasswordEncoder encoder() {
 			return NoOpPasswordEncoder.getInstance();
 		}
+
+		@Bean
+		ClientRegistrationRepository clients() {
+			return new InMemoryClientRegistrationRepository(TestClientRegistrations.clientRegistration().build());
+		}
+
 	}
+
 }
