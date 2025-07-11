@@ -17,6 +17,8 @@
 package org.springframework.security.config.annotation.web.configurers;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,6 +51,8 @@ import org.springframework.security.oauth2.client.registration.TestClientRegistr
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
+import org.springframework.security.web.AuthorizationRequestingAccessDeniedHandler;
+import org.springframework.security.web.AuthorizationRequestingAccessDeniedHandler.AuthorizationRequestEntry;
 import org.springframework.security.web.PortMapper;
 import org.springframework.security.web.PortResolver;
 import org.springframework.security.web.SecurityFilterChain;
@@ -410,10 +414,11 @@ public class FormLoginConfigurerTests {
 			.andExpect(status().is3xxRedirection())
 			.andExpect(redirectedUrl("http://localhost/login"));
 		this.mockMvc.perform(get("/login").with(SecurityMockMvcRequestPostProcessors.user(user)))
-				.andExpect(status().is3xxRedirection())
-				.andExpect(redirectedUrl("http://localhost/oauth2/authorization/id"));
+			.andExpect(status().is3xxRedirection())
+			.andExpect(redirectedUrl("http://localhost/oauth2/authorization/id"));
 		this.mockMvc
-			.perform(post("/login").with(SecurityMockMvcRequestPostProcessors.oauth2Login()
+			.perform(post("/login")
+				.with(SecurityMockMvcRequestPostProcessors.oauth2Login()
 					.clientRegistration(TestClientRegistrations.clientRegistration().build()))
 				.with(SecurityMockMvcRequestPostProcessors.csrf())
 				.param("username", user.getUsername())
@@ -742,6 +747,11 @@ public class FormLoginConfigurerTests {
 			// @formatter:on
 		}
 
+		@Bean
+		static ObjectPostProcessor<Object> objectPostProcessor() {
+			return objectPostProcessor;
+		}
+
 	}
 
 	@Configuration
@@ -792,7 +802,19 @@ public class FormLoginConfigurerTests {
 			SimpleAuthoritiesGranter oauth2Login = new SimpleAuthoritiesGranter("AUTHN_OAUTH2");
 			SimpleAuthoritiesGranter formLoginTime = new SimpleAuthoritiesGranter(Duration.ofSeconds(3600),
 					"AUTHN_DAO");
-
+			List<AuthorizationRequestEntry> mapping = new ArrayList<>();
+			mapping.add(new AuthorizationRequestEntry(formLogin, new LoginUrlAuthenticationEntryPoint("/login")));
+			mapping.add(new AuthorizationRequestEntry(oauth2Login,
+					new LoginUrlAuthenticationEntryPoint("/oauth2/authorization/id")));
+			mapping.add(new AuthorizationRequestEntry(formLoginTime, new LoginUrlAuthenticationEntryPoint("/login")));
+			AuthorizationRequestingAccessDeniedHandler accessDeniedHandler = new AuthorizationRequestingAccessDeniedHandler(
+					mapping);
+			AuthorizationFilter filter = new AuthorizationFilter(RequestMatcherDelegatingAuthorizationManager.builder()
+				.add(pathPattern("/login"), new AuthoritiesGranterAuthorizationManager(oauth2Login))
+				.anyRequest()
+				.permitAll()
+				.build());
+			filter.setAccessDeniedHandler(accessDeniedHandler);
 			// @formatter:off
 			http
 				.authorizeHttpRequests((authorize) -> authorize
@@ -803,7 +825,7 @@ public class FormLoginConfigurerTests {
 					@Override
 					public <O extends AuthenticationProvider> O postProcess(O object) {
 						return (O) new AuthoritiesGranterAuthenticationManager(object::supports, object::authenticate, formLogin);
-    				}
+					}
 				}))
 				.oauth2Login((oauth2) -> oauth2.withObjectPostProcessor(new ObjectPostProcessor<AuthenticationProvider>() {
 					@Override
@@ -811,13 +833,8 @@ public class FormLoginConfigurerTests {
 						return (O) new AuthoritiesGranterAuthenticationManager(object::supports, object::authenticate, oauth2Login);
 					}
 				}))
-				.exceptionHandling((exceptions) -> exceptions
-					.defaultAuthenticationEntryPointFor(new LoginUrlAuthenticationEntryPoint("/login"), formLogin)
-					.defaultAuthenticationEntryPointFor(new LoginUrlAuthenticationEntryPoint("/oauth2/authorization/id"), oauth2Login)
-				)
-				.addFilterBefore(new AuthorizationFilter(RequestMatcherDelegatingAuthorizationManager.builder()
-					.add(pathPattern("/login"), new AuthoritiesGranterAuthorizationManager(oauth2Login))
-					.build()), UsernamePasswordAuthenticationFilter.class);
+				.exceptionHandling((exceptions) -> exceptions.accessDeniedHandler(accessDeniedHandler))
+				.addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class);
 			return http.build();
 			// @formatter:on
 		}

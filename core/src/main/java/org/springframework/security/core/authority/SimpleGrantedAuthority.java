@@ -16,8 +16,6 @@
 
 package org.springframework.security.core.authority;
 
-import java.time.Instant;
-
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.util.Assert;
 
@@ -36,27 +34,14 @@ public final class SimpleGrantedAuthority implements GrantedAuthority {
 
 	private final String role;
 
-	private final Instant expiresAt;
-
 	public SimpleGrantedAuthority(String role) {
-		this(role, Instant.MAX);
-	}
-
-	public SimpleGrantedAuthority(String role, Instant expiresAt) {
 		Assert.hasText(role, "A granted authority textual representation is required");
-		Assert.notNull(expiresAt, "expiresAt must not be null");
 		this.role = role;
-		this.expiresAt = expiresAt;
 	}
 
 	@Override
 	public String getAuthority() {
 		return this.role;
-	}
-
-	@Override
-	public Instant getExpiresAt() {
-		return this.expiresAt;
 	}
 
 	@Override

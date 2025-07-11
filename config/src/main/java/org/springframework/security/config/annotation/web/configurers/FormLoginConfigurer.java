@@ -234,11 +234,6 @@ public final class FormLoginConfigurer<H extends HttpSecurityBuilder<H>> extends
 	}
 
 	@Override
-	public void configure(H http) throws Exception {
-		super.configure(http);
-	}
-
-	@Override
 	protected RequestMatcher createLoginProcessingUrlMatcher(String loginProcessingUrl) {
 		return getRequestMatcherBuilder().matcher(HttpMethod.POST, loginProcessingUrl);
 	}

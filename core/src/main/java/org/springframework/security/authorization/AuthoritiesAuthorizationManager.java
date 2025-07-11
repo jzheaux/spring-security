@@ -16,16 +16,15 @@
 
 package org.springframework.security.authorization;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.function.Supplier;
 
 import org.springframework.security.access.hierarchicalroles.NullRoleHierarchy;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.AuthoritiesContainer;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.util.Assert;
 
@@ -39,12 +38,6 @@ import org.springframework.util.Assert;
 public final class AuthoritiesAuthorizationManager implements AuthorizationManager<Collection<String>> {
 
 	private RoleHierarchy roleHierarchy = new NullRoleHierarchy();
-
-	private Duration within;
-
-	public void setWithin(Duration within) {
-		this.within = within;
-	}
 
 	/**
 	 * Sets the {@link RoleHierarchy} to be used. Default is {@link NullRoleHierarchy}.
@@ -83,16 +76,10 @@ public final class AuthoritiesAuthorizationManager implements AuthorizationManag
 	}
 
 	private Collection<? extends GrantedAuthority> getGrantedAuthorities(Authentication authentication) {
-		Collection<? extends GrantedAuthority> reachable = this.roleHierarchy.getReachableGrantedAuthorities(authentication.getAuthorities());
-		Collection<GrantedAuthority> within = new ArrayList<>();
-		if (this.within != null) {
-			for (GrantedAuthority grantedAuthority : reachable) {
-				if (grantedAuthority.getExpiresAt().isAfter(Instant.now())) {
-					within.add(grantedAuthority);
-				}
-			}
-		}
-		return within;
+		Collection<GrantedAuthority> authorities = new HashSet<>(
+				(authentication instanceof AuthoritiesContainer container) ? container.getGrantedAuthorities()
+						: authentication.getAuthorities());
+		return this.roleHierarchy.getReachableGrantedAuthorities(authorities);
 	}
 
 }

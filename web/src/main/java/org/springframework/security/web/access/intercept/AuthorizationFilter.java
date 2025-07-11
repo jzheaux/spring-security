@@ -38,6 +38,7 @@ import org.springframework.security.authorization.event.AuthorizationGrantedEven
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.util.Assert;
 import org.springframework.web.filter.GenericFilterBean;
 
@@ -62,6 +63,10 @@ public class AuthorizationFilter extends GenericFilterBean {
 	private boolean filterErrorDispatch = true;
 
 	private boolean filterAsyncDispatch = true;
+
+	private AccessDeniedHandler accessDeniedHandler = (request, response, exception) -> {
+		throw exception;
+	};
 
 	/**
 	 * Creates an instance.
@@ -95,7 +100,9 @@ public class AuthorizationFilter extends GenericFilterBean {
 			AuthorizationResult result = this.authorizationManager.authorize(this::getAuthentication, request);
 			this.eventPublisher.publishAuthorizationEvent(this::getAuthentication, request, result);
 			if (result != null && !result.isGranted()) {
-				throw new AuthorizationDeniedException("Access Denied", result);
+				this.accessDeniedHandler.handle(request, response,
+						new AuthorizationDeniedException("Access Denied", result));
+				return;
 			}
 			chain.doFilter(request, response);
 		}
@@ -133,6 +140,11 @@ public class AuthorizationFilter extends GenericFilterBean {
 	public void setSecurityContextHolderStrategy(SecurityContextHolderStrategy securityContextHolderStrategy) {
 		Assert.notNull(securityContextHolderStrategy, "securityContextHolderStrategy cannot be null");
 		this.securityContextHolderStrategy = securityContextHolderStrategy;
+	}
+
+	public void setAccessDeniedHandler(AccessDeniedHandler accessDeniedHandler) {
+		Assert.notNull(accessDeniedHandler, "accessDeniedHandler cannot be null");
+		this.accessDeniedHandler = accessDeniedHandler;
 	}
 
 	private Authentication getAuthentication() {

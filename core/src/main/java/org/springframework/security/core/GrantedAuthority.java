@@ -17,7 +17,6 @@
 package org.springframework.security.core;
 
 import java.io.Serializable;
-import java.time.Instant;
 
 import org.springframework.security.authorization.AuthorizationManager;
 
@@ -49,7 +48,8 @@ public interface GrantedAuthority extends Serializable {
 	 */
 	String getAuthority();
 
-	default Instant getExpiresAt() {
-		return Instant.MAX;
+	default boolean isGranted() {
+		return true;
 	}
+
 }
