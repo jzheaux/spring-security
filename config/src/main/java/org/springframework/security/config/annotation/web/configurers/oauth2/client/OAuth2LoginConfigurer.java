@@ -512,7 +512,7 @@ public final class OAuth2LoginConfigurer<B extends HttpSecurityBuilder<B>>
 	private void initDefaultLoginFilter(B http) {
 		DefaultLoginPageGeneratingFilter loginPageGeneratingFilter = http
 			.getSharedObject(DefaultLoginPageGeneratingFilter.class);
-		if (loginPageGeneratingFilter == null || this.isCustomLoginPage()) {
+		if (loginPageGeneratingFilter == null || this.isCustomLoginPage() || hasNeeds()) {
 			return;
 		}
 		loginPageGeneratingFilter.setOauth2LoginEnabled(true);

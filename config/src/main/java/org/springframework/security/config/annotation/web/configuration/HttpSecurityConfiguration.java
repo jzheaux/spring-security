@@ -37,6 +37,7 @@ import org.springframework.security.config.annotation.authentication.configurers
 import org.springframework.security.config.annotation.authentication.configurers.userdetails.DaoAuthenticationConfigurer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.AuthorizeStepsConfigurer;
 import org.springframework.security.config.annotation.web.configurers.DefaultLoginPageConfigurer;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
@@ -123,6 +124,7 @@ class HttpSecurityConfiguration {
 			.requestCache(withDefaults())
 			.anonymous(withDefaults())
 			.servletApi(withDefaults())
+			.with(new AuthorizeStepsConfigurer<>(this.context))
 			.with(new DefaultLoginPageConfigurer<>());
 		http.logout(withDefaults());
 		// @formatter:on

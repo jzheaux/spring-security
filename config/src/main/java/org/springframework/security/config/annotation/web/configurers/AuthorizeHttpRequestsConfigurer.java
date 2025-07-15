@@ -16,6 +16,7 @@
 
 package org.springframework.security.config.annotation.web.configurers;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -107,7 +108,7 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 
 	@Override
 	public void configure(H http) {
-		AuthorizationManager<HttpServletRequest> authorizationManager = this.registry.createAuthorizationManager();
+		AuthorizationManager<HttpServletRequest> authorizationManager = this.registry.createAuthorizationManager(http);
 		AuthorizationFilter authorizationFilter = new AuthorizationFilter(authorizationManager);
 		authorizationFilter.setAuthorizationEventPublisher(this.publisher);
 		authorizationFilter.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
@@ -136,8 +137,7 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 	public final class AuthorizationManagerRequestMatcherRegistry
 			extends AbstractRequestMatcherRegistry<AuthorizedUrl> {
 
-		private final RequestMatcherDelegatingAuthorizationManager.Builder managerBuilder = RequestMatcherDelegatingAuthorizationManager
-			.builder();
+		private final List<RequestMatcherEntry<AuthorizationManager<RequestAuthorizationContext>>> entries = new ArrayList<>();
 
 		private List<RequestMatcher> unmappedMatchers;
 
@@ -149,24 +149,34 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 
 		private void addMapping(RequestMatcher matcher, AuthorizationManager<RequestAuthorizationContext> manager) {
 			this.unmappedMatchers = null;
-			this.managerBuilder.add(matcher, manager);
+			this.entries.add(new RequestMatcherEntry<>(matcher, manager));
 			this.mappingCount++;
 		}
 
 		private void addFirst(RequestMatcher matcher, AuthorizationManager<RequestAuthorizationContext> manager) {
 			this.unmappedMatchers = null;
-			this.managerBuilder.mappings((m) -> m.add(0, new RequestMatcherEntry<>(matcher, manager)));
+			this.entries.add(0, new RequestMatcherEntry<>(matcher, manager));
 			this.mappingCount++;
 		}
 
-		private AuthorizationManager<HttpServletRequest> createAuthorizationManager() {
+		private AuthorizationManager<HttpServletRequest> createAuthorizationManager(H http) {
 			Assert.state(this.unmappedMatchers == null,
 					() -> "An incomplete mapping was found for " + this.unmappedMatchers
 							+ ". Try completing it with something like requestUrls().<something>.hasRole('USER')");
 			Assert.state(this.mappingCount > 0,
 					"At least one mapping is required (for example, authorizeHttpRequests().anyRequest().authenticated())");
-			AuthorizationManager<HttpServletRequest> manager = postProcess(
-					(AuthorizationManager<HttpServletRequest>) this.managerBuilder.build());
+			RequestMatcherDelegatingAuthorizationManager.Builder builder = RequestMatcherDelegatingAuthorizationManager.builder();
+			AuthorizeStepsConfigurer<H> steps = http.getConfigurer(AuthorizeStepsConfigurer.class);
+			for (RequestMatcherEntry<AuthorizationManager<RequestAuthorizationContext>> entry : this.entries) {
+				RequestMatcher requestMatcher = entry.getRequestMatcher();
+				AuthorizationManager<RequestAuthorizationContext> authorizationManager = entry.getEntry();
+				if (steps == null || !steps.hasSteps()) {
+					builder.add(requestMatcher, authorizationManager);
+					continue;
+				}
+				builder.add(requestMatcher, AuthorizationManagers.allOf(steps.isAuthenticated(), authorizationManager));
+			}
+			AuthorizationManager<HttpServletRequest> manager = postProcess(builder.build());
 			return AuthorizeHttpRequestsConfigurer.this.postProcessor.postProcess(manager);
 		}
 

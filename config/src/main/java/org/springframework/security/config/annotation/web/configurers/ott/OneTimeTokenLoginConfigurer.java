@@ -17,6 +17,7 @@
 package org.springframework.security.config.annotation.web.configurers.ott;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,9 +38,11 @@ import org.springframework.security.config.annotation.web.configurers.AbstractAu
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.authentication.AuthenticationConverter;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.PostAuthenticationEntryPoint;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.security.web.authentication.ott.DefaultGenerateOneTimeTokenRequestResolver;
@@ -114,6 +117,8 @@ public final class OneTimeTokenLoginConfigurer<H extends HttpSecurityBuilder<H>>
 
 	private String tokenGeneratingUrl = GenerateOneTimeTokenFilter.DEFAULT_GENERATE_URL;
 
+	private boolean customTokenGeneratingUrl;
+
 	private OneTimeTokenGenerationSuccessHandler oneTimeTokenGenerationSuccessHandler;
 
 	private AuthenticationProvider authenticationProvider;
@@ -139,7 +144,7 @@ public final class OneTimeTokenLoginConfigurer<H extends HttpSecurityBuilder<H>>
 	private void intiDefaultLoginFilter(H http) {
 		DefaultLoginPageGeneratingFilter loginPageGeneratingFilter = http
 			.getSharedObject(DefaultLoginPageGeneratingFilter.class);
-		if (loginPageGeneratingFilter == null || isCustomLoginPage()) {
+		if (loginPageGeneratingFilter == null || isCustomLoginPage() || hasNeeds()) {
 			return;
 		}
 		loginPageGeneratingFilter.setOneTimeTokenEnabled(true);
@@ -159,6 +164,35 @@ public final class OneTimeTokenLoginConfigurer<H extends HttpSecurityBuilder<H>>
 		super.configure(http);
 		configureSubmitPage(http);
 		configureOttGenerateFilter(http);
+	}
+
+	@Override
+	protected List<String> getAuthenticationViewEndpoints() {
+		if (this.submitPageEnabled) {
+			return List.of(getLoginPage(), this.defaultSubmitPageUrl);
+		}
+		return List.of(getLoginPage());
+	}
+
+	@Override
+	protected List<String> getAuthenticationProcessingEndpoints() {
+		return List.of(getLoginProcessingUrl(), this.tokenGeneratingUrl);
+	}
+
+	@Override
+	protected AuthenticationEntryPoint getAuthenticationEntryPoint() {
+		AuthenticationEntryPoint pre = super.getAuthenticationEntryPoint();
+		if (isCustomLoginPage()) {
+			return pre;
+		}
+		if (this.customTokenGeneratingUrl) {
+			return pre;
+		}
+		if (!hasNeeds()) {
+			return pre;
+		}
+		String postUrl = this.tokenGeneratingUrl + "?username={u}";
+		return new PostAuthenticationEntryPoint(postUrl, Map.of("u", Authentication::getName));
 	}
 
 	private void configureOttGenerateFilter(H http) {
@@ -229,6 +263,7 @@ public final class OneTimeTokenLoginConfigurer<H extends HttpSecurityBuilder<H>>
 	public OneTimeTokenLoginConfigurer<H> tokenGeneratingUrl(String tokenGeneratingUrl) {
 		Assert.hasText(tokenGeneratingUrl, "tokenGeneratingUrl cannot be null or empty");
 		this.tokenGeneratingUrl = tokenGeneratingUrl;
+		this.customTokenGeneratingUrl = true;
 		return this;
 	}
 

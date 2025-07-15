@@ -18,6 +18,8 @@ package org.springframework.security.config.annotation.web.configurers;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+import java.util.stream.Stream;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -25,11 +27,17 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authorization.AuthoritiesGranter;
+import org.springframework.security.authorization.AuthorityAuthorizationManager;
+import org.springframework.security.authorization.AuthorizationManager;
+import org.springframework.security.authorization.SimpleAuthoritiesGranter;
+import org.springframework.security.authorization.SingleResultAuthorizationManager;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.PortMapper;
 import org.springframework.security.web.PortResolver;
+import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -44,6 +52,7 @@ import org.springframework.security.web.savedrequest.RequestCache;
 import org.springframework.security.web.util.matcher.AndRequestMatcher;
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
 import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestHeaderRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.accept.ContentNegotiationStrategy;
@@ -64,6 +73,10 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		extends AbstractHttpConfigurer<T, B> {
 
 	private F authFilter;
+
+	private AuthoritiesGranter grants;
+
+	private AuthorizationManager<RequestAuthorizationContext> needs = SingleResultAuthorizationManager.permitAll();
 
 	private AuthenticationDetailsSource<HttpServletRequest, ?> authenticationDetailsSource;
 
@@ -105,6 +118,31 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		if (defaultLoginProcessingUrl != null) {
 			loginProcessingUrl(defaultLoginProcessingUrl);
 		}
+	}
+
+	public T grants(String grant) {
+		this.grants = new SimpleAuthoritiesGranter(grant);
+		return getSelf();
+
+		/*
+		ott.grants("authenticated").needs("ott:read");
+		form.grants("ott:read").needs(captchaNotNeeded);
+		captcha.grants("form:read");*/
+	}
+
+	public T grants(AuthoritiesGranter granter) {
+		this.grants = granter;
+		return getSelf();
+	}
+
+	public T needs(String need) {
+		this.needs = AuthorityAuthorizationManager.hasAuthority(need);
+		return getSelf();
+	}
+
+	public T needs(AuthorizationManager<RequestAuthorizationContext> needs) {
+		this.needs = needs;
+		return getSelf();
 	}
 
 	/**
@@ -237,6 +275,19 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		updateAuthenticationDefaults();
 		updateAccessDefaults(http);
 		registerDefaultAuthenticationEntryPoint(http);
+		if (this.grants != null || hasNeeds()) {
+			AuthorizeStepsConfigurer<B> steps = http.getConfigurer(AuthorizeStepsConfigurer.class);
+			List<RequestMatcher> endpoints = Stream.concat(getAuthenticationViewEndpoints().stream(),
+							getAuthenticationProcessingEndpoints().stream())
+					.map(getRequestMatcherBuilder()::matcher)
+					.map(RequestMatcher.class::cast).toList();
+			steps.step((authn) -> authn
+				.endpoint(new OrRequestMatcher(endpoints)).needs(this.needs)
+			);
+			steps.step((authn) -> authn
+				.entryPoint(getAuthenticationEntryPoint(), this.authFilter::setAuthenticationManager).grants(this.grants)
+			);
+		}
 	}
 
 	@SuppressWarnings("unchecked")
@@ -308,6 +359,14 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		http.addFilter(filter);
 	}
 
+	protected List<String> getAuthenticationViewEndpoints() {
+		return List.of(this.loginPage);
+	}
+
+	protected List<String> getAuthenticationProcessingEndpoints() {
+		return List.of(this.loginProcessingUrl);
+	}
+
 	/**
 	 * <p>
 	 * Specifies the URL to send users to if login is required. If used with
@@ -333,6 +392,10 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 	 */
 	public final boolean isCustomLoginPage() {
 		return this.customLoginPage;
+	}
+
+	public final boolean hasNeeds() {
+		return !SingleResultAuthorizationManager.permitAll().equals(this.needs);
 	}
 
 	/**
@@ -363,7 +426,7 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 	 * Gets the Authentication Entry Point
 	 * @return the Authentication Entry Point
 	 */
-	protected final AuthenticationEntryPoint getAuthenticationEntryPoint() {
+	protected AuthenticationEntryPoint getAuthenticationEntryPoint() {
 		return this.authenticationEntryPoint;
 	}
 

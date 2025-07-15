@@ -22,6 +22,7 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.AuthorizationRequestingAccessDeniedHandler;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.access.AccessDeniedHandlerImpl;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
@@ -204,6 +205,13 @@ public final class ExceptionHandlingConfigurer<H extends HttpSecurityBuilder<H>>
 		AccessDeniedHandler deniedHandler = this.accessDeniedHandler;
 		if (deniedHandler == null) {
 			deniedHandler = createDefaultDeniedHandler(http);
+			AuthorizeStepsConfigurer steps = http.getConfigurer(AuthorizeStepsConfigurer.class);
+			if (steps != null && steps.hasSteps()) {
+				AuthorizationRequestingAccessDeniedHandler authorizationRequesting =
+						steps.getAccessDeniedHandler();
+				authorizationRequesting.setDefaultAccessDeniedHandler(deniedHandler);
+				deniedHandler = authorizationRequesting;
+			}
 		}
 		return deniedHandler;
 	}

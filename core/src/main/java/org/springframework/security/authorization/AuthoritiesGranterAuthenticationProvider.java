@@ -16,10 +16,7 @@
 
 package org.springframework.security.authorization;
 
-import java.util.function.Function;
-
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.authority.AuthoritiesContainer;
@@ -27,28 +24,24 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.util.Assert;
 
-public final class AuthoritiesGranterAuthenticationManager implements AuthenticationManager, AuthenticationProvider {
+public final class AuthoritiesGranterAuthenticationProvider implements AuthenticationManager {
 
-	private final Function<Class<?>, Boolean> supports;
-
-	private final AuthenticationManager authenticationManager;
+	private final AuthenticationManager authenticationProvider;
 
 	private final AuthoritiesGranter authoritiesGranter;
 
 	private SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder
 		.getContextHolderStrategy();
 
-	public AuthoritiesGranterAuthenticationManager(Function<Class<?>, Boolean> supports,
-			AuthenticationManager authenticationManager, AuthoritiesGranter authoritiesGranter) {
-		this.supports = supports;
-		this.authenticationManager = authenticationManager;
-		this.authoritiesGranter = authoritiesGranter;
+	public AuthoritiesGranterAuthenticationProvider(AuthenticationManager manager, AuthoritiesGranter granter) {
+		this.authenticationProvider = manager;
+		this.authoritiesGranter = granter;
 	}
 
 	@Override
 	public Authentication authenticate(Authentication authentication) throws AuthenticationException {
 		Authentication current = this.securityContextHolderStrategy.getContext().getAuthentication();
-		Authentication result = this.authenticationManager.authenticate(authentication);
+		Authentication result = this.authenticationProvider.authenticate(authentication);
 		if (!(result instanceof AuthoritiesContainer container)) {
 			return result;
 		}
@@ -57,11 +50,6 @@ public final class AuthoritiesGranterAuthenticationManager implements Authentica
 			container = container.grantedAuthorities((a) -> a.addAll(current.getAuthorities()));
 		}
 		return (Authentication) container;
-	}
-
-	@Override
-	public boolean supports(Class<?> authentication) {
-		return this.supports.apply(authentication);
 	}
 
 	public void setSecurityContextHolderStrategy(SecurityContextHolderStrategy securityContextHolderStrategy) {

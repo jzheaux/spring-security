@@ -17,6 +17,7 @@
 package org.springframework.security.web;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import jakarta.servlet.ServletException;
@@ -24,6 +25,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.security.authorization.AuthoritiesGranter;
 import org.springframework.security.authorization.AuthorityAuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationDeniedException;
@@ -59,12 +61,19 @@ public final class AuthorizationRequestingAccessDeniedHandler implements AccessD
 		for (GrantedAuthority needed : decision.getAuthorities()) {
 			for (AuthorizationRequestEntry entry : this.entries) {
 				if (entry.granter.grantsAuthority(needed)) {
-					entry.requester.commence(request, response, null);
+					InsufficientAuthenticationException iae = new InsufficientAuthenticationException(
+							"access denied", access);
+					iae.setAuthenticationRequest(denied.getAuthentication());
+					entry.requester.commence(request, response, iae);
 					return;
 				}
 			}
 		}
 		this.delegate.handle(request, response, access);
+	}
+
+	public static Builder builder() {
+		return new Builder();
 	}
 
 	public static final class AuthorizationRequestEntry {
@@ -80,4 +89,19 @@ public final class AuthorizationRequestingAccessDeniedHandler implements AccessD
 
 	}
 
+	public static class Builder {
+		private final List<AuthorizationRequestEntry> entries = new ArrayList<>();
+
+		private Builder() {
+		}
+
+		public Builder add(AuthoritiesGranter granter, AuthenticationEntryPoint requester) {
+			this.entries.add(new AuthorizationRequestEntry(granter, requester));
+			return this;
+		}
+
+		public AuthorizationRequestingAccessDeniedHandler build() {
+			return new AuthorizationRequestingAccessDeniedHandler(this.entries);
+		}
+	}
 }
