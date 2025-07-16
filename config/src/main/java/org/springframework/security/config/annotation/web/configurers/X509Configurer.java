@@ -22,7 +22,10 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authorization.AuthoritiesGranter;
+import org.springframework.security.authorization.AuthoritiesGranterAuthenticationManager;
+import org.springframework.security.authorization.AuthoritiesGranterAuthorizationManager;
 import org.springframework.security.authorization.AuthorizationManager;
+import org.springframework.security.authorization.SingleResultAuthorizationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -31,8 +34,11 @@ import org.springframework.security.core.userdetails.AuthenticationUserDetailsSe
 import org.springframework.security.core.userdetails.UserDetailsByNameServiceWrapper;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.AuthorizationRequestingAccessDeniedHandler;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.authentication.Http403ForbiddenEntryPoint;
+import org.springframework.security.web.authentication.PrePostAuthenticationEntryPoint;
+import org.springframework.security.web.authentication.RedispatchAuthenticationEntryPoint;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationProvider;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedGrantedAuthoritiesWebAuthenticationDetails;
@@ -40,6 +46,7 @@ import org.springframework.security.web.authentication.preauth.x509.SubjectDnX50
 import org.springframework.security.web.authentication.preauth.x509.X509AuthenticationFilter;
 import org.springframework.security.web.authentication.preauth.x509.X509PrincipalExtractor;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
+import org.springframework.security.web.util.matcher.AnyRequestMatcher;
 
 /**
  * Adds X509 based pre authentication to an application. Since validating the certificate
@@ -84,6 +91,11 @@ public final class X509Configurer<H extends HttpSecurityBuilder<H>> extends Abst
 		implements AuthorizableConfigurer<X509Configurer<H>> {
 
 	private X509AuthenticationFilter x509AuthenticationFilter;
+
+	private AuthoritiesGranter authoritiesGranter = (a) -> a;
+
+	private AuthorizationManager<RequestAuthorizationContext> authorizationManager = SingleResultAuthorizationManager
+		.permitAll();
 
 	private X509PrincipalExtractor x509PrincipalExtractor;
 
@@ -182,17 +194,39 @@ public final class X509Configurer<H extends HttpSecurityBuilder<H>> extends Abst
 		authenticationProvider.setPreAuthenticatedUserDetailsService(getAuthenticationUserDetailsService(http));
 		http.authenticationProvider(authenticationProvider)
 			.setSharedObject(AuthenticationEntryPoint.class, new Http403ForbiddenEntryPoint());
+		ExceptionHandlingConfigurer<H> exceptions = http.getConfigurer(ExceptionHandlingConfigurer.class);
+		if (exceptions != null) {
+			exceptions.defaultAuthenticationEntryPointFor(new Http403ForbiddenEntryPoint(), AnyRequestMatcher.INSTANCE);
+		}
+		AuthorizationRequestingAccessDeniedHandler.Builder accessDeniedHandler = http.getSharedObject(
+				AuthorizationRequestingAccessDeniedHandler.Builder.class,
+				AuthorizationRequestingAccessDeniedHandler::builder);
+		accessDeniedHandler.add(this.authoritiesGranter, new PrePostAuthenticationEntryPoint(
+				new Http403ForbiddenEntryPoint(), new RedispatchAuthenticationEntryPoint()));
 	}
 
 	@Override
 	public void configure(H http) {
-		X509AuthenticationFilter filter = getFilter(http.getSharedObject(AuthenticationManager.class), http);
+		X509AuthenticationFilter filter = getFilter(getAuthenticationManager(http), http);
 		http.addFilter(filter);
+	}
+
+	private AuthenticationManager getAuthenticationManager(H http) {
+		AuthenticationManager manager = http.getSharedObject(AuthenticationManager.class);
+		return new AuthoritiesGranterAuthenticationManager(manager, this.authoritiesGranter);
 	}
 
 	private X509AuthenticationFilter getFilter(AuthenticationManager authenticationManager, H http) {
 		if (this.x509AuthenticationFilter == null) {
 			this.x509AuthenticationFilter = new X509AuthenticationFilter();
+			if (!this.authorizationManager.equals(SingleResultAuthorizationManager.permitAll())) {
+				this.x509AuthenticationFilter.setCheckForPrincipalChanges(true);
+			}
+			this.x509AuthenticationFilter.setAuthorizationManager(this.authorizationManager);
+			AuthorizationRequestingAccessDeniedHandler.Builder accessDeniedHandler = http.getSharedObject(
+					AuthorizationRequestingAccessDeniedHandler.Builder.class,
+					AuthorizationRequestingAccessDeniedHandler::builder);
+			this.x509AuthenticationFilter.setAccessDeniedHandler(accessDeniedHandler.build());
 			this.x509AuthenticationFilter.setAuthenticationManager(authenticationManager);
 			if (this.x509PrincipalExtractor != null) {
 				this.x509AuthenticationFilter.setPrincipalExtractor(this.x509PrincipalExtractor);
@@ -230,11 +264,20 @@ public final class X509Configurer<H extends HttpSecurityBuilder<H>> extends Abst
 
 	@Override
 	public X509Configurer<H> grants(AuthoritiesGranter granter) {
+		this.authoritiesGranter = granter;
 		return this;
 	}
 
 	@Override
-	public X509Configurer<H> needs(AuthorizationManager<RequestAuthorizationContext> needs) {
+	public X509Configurer<H> authenticates(AuthoritiesGranter granter) {
+		getBuilder().setSharedObject(AuthorizationManager.class, new AuthoritiesGranterAuthorizationManager<>(granter));
+		this.authoritiesGranter = granter;
+		return this;
+	}
+
+	@Override
+	public X509Configurer<H> needs(AuthorizationManager<RequestAuthorizationContext> manager) {
+		this.authorizationManager = manager;
 		return this;
 	}
 

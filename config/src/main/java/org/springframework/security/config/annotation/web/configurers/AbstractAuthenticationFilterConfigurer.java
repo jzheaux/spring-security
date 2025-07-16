@@ -18,8 +18,6 @@ package org.springframework.security.config.annotation.web.configurers;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
-import java.util.stream.Stream;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -28,13 +26,14 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authorization.AuthoritiesGranter;
-import org.springframework.security.authorization.AuthorityAuthorizationManager;
+import org.springframework.security.authorization.AuthoritiesGranterAuthenticationManager;
+import org.springframework.security.authorization.AuthoritiesGranterAuthorizationManager;
 import org.springframework.security.authorization.AuthorizationManager;
-import org.springframework.security.authorization.SimpleAuthoritiesGranter;
 import org.springframework.security.authorization.SingleResultAuthorizationManager;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.AuthorizationRequestingAccessDeniedHandler;
 import org.springframework.security.web.PortMapper;
 import org.springframework.security.web.PortResolver;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
@@ -52,7 +51,6 @@ import org.springframework.security.web.savedrequest.RequestCache;
 import org.springframework.security.web.util.matcher.AndRequestMatcher;
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
 import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
-import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestHeaderRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.accept.ContentNegotiationStrategy;
@@ -70,13 +68,14 @@ import org.springframework.web.accept.HeaderContentNegotiationStrategy;
  * @see FormLoginConfigurer
  */
 public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecurityBuilder<B>, T extends AbstractAuthenticationFilterConfigurer<B, T, F>, F extends AbstractAuthenticationProcessingFilter>
-		extends AbstractHttpConfigurer<T, B> {
+		extends AbstractHttpConfigurer<T, B> implements AuthorizableConfigurer<T> {
 
 	private F authFilter;
 
-	private AuthoritiesGranter grants;
+	private AuthoritiesGranter authoritiesGranter = (a) -> a;
 
-	private AuthorizationManager<RequestAuthorizationContext> needs = SingleResultAuthorizationManager.permitAll();
+	private AuthorizationManager<RequestAuthorizationContext> authorizationManager = SingleResultAuthorizationManager
+		.permitAll();
 
 	private AuthenticationDetailsSource<HttpServletRequest, ?> authenticationDetailsSource;
 
@@ -120,28 +119,26 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		}
 	}
 
-	public T grants(String grant) {
-		this.grants = new SimpleAuthoritiesGranter(grant);
-		return getSelf();
-
-		/*
-		 * ott.grants("authenticated").needs("ott:read");
-		 * form.grants("ott:read").needs(captchaNotNeeded); captcha.grants("form:read");
-		 */
-	}
-
+	/*
+	 * ott.grants("authenticated").needs("ott:read");
+	 * form.grants("ott:read").needs(captchaNotNeeded); captcha.grants("form:read");
+	 */
+	@Override
 	public T grants(AuthoritiesGranter granter) {
-		this.grants = granter;
+		this.authoritiesGranter = granter;
 		return getSelf();
 	}
 
-	public T needs(String need) {
-		this.needs = AuthorityAuthorizationManager.hasAuthority(need);
+	@Override
+	public T authenticates(AuthoritiesGranter granter) {
+		getBuilder().setSharedObject(AuthorizationManager.class, new AuthoritiesGranterAuthorizationManager<>(granter));
+		this.authoritiesGranter = granter;
 		return getSelf();
 	}
 
+	@Override
 	public T needs(AuthorizationManager<RequestAuthorizationContext> needs) {
-		this.needs = needs;
+		this.authorizationManager = needs;
 		return getSelf();
 	}
 
@@ -275,18 +272,10 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		updateAuthenticationDefaults();
 		updateAccessDefaults(http);
 		registerDefaultAuthenticationEntryPoint(http);
-		if (this.grants != null || hasNeeds()) {
-			AuthorizeStepsConfigurer<B> steps = http.getConfigurer(AuthorizeStepsConfigurer.class);
-			List<RequestMatcher> endpoints = Stream
-				.concat(getAuthenticationViewEndpoints().stream(), getAuthenticationProcessingEndpoints().stream())
-				.map(getRequestMatcherBuilder()::matcher)
-				.map(RequestMatcher.class::cast)
-				.toList();
-			steps.step((authn) -> authn.endpoint(new OrRequestMatcher(endpoints)).needs(this.needs));
-			steps.step((authn) -> authn
-				.entryPoint(getAuthenticationEntryPoint(), this.authFilter::setAuthenticationManager)
-				.grants(this.grants));
-		}
+		AuthorizationRequestingAccessDeniedHandler.Builder accessDeniedHandler = http.getSharedObject(
+				AuthorizationRequestingAccessDeniedHandler.Builder.class,
+				AuthorizationRequestingAccessDeniedHandler::builder);
+		accessDeniedHandler.add(this.authoritiesGranter, getAuthenticationEntryPoint());
 	}
 
 	@SuppressWarnings("unchecked")
@@ -332,7 +321,14 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		if (requestCache != null) {
 			this.defaultSuccessHandler.setRequestCache(requestCache);
 		}
-		this.authFilter.setAuthenticationManager(http.getSharedObject(AuthenticationManager.class));
+		this.authFilter.setAuthorizationManager(this.authorizationManager);
+		AuthorizationRequestingAccessDeniedHandler.Builder accessDeniedHandler = http.getSharedObject(
+				AuthorizationRequestingAccessDeniedHandler.Builder.class,
+				AuthorizationRequestingAccessDeniedHandler::builder);
+		this.authFilter.setAccessDeniedHandler(accessDeniedHandler.build());
+		AuthenticationManager manager = http.getSharedObject(AuthenticationManager.class);
+		manager = new AuthoritiesGranterAuthenticationManager(manager, this.authoritiesGranter);
+		this.authFilter.setAuthenticationManager(manager);
 		this.authFilter.setAuthenticationSuccessHandler(this.successHandler);
 		this.authFilter.setAuthenticationFailureHandler(this.failureHandler);
 		if (this.authenticationDetailsSource != null) {
@@ -356,14 +352,6 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		this.authFilter.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
 		F filter = postProcess(this.authFilter);
 		http.addFilter(filter);
-	}
-
-	protected List<String> getAuthenticationViewEndpoints() {
-		return isCustomLoginPage() ? List.of() : List.of(this.loginPage);
-	}
-
-	protected List<String> getAuthenticationProcessingEndpoints() {
-		return List.of(this.loginProcessingUrl);
 	}
 
 	/**
@@ -393,8 +381,8 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		return this.customLoginPage;
 	}
 
-	public final boolean hasNeeds() {
-		return !SingleResultAuthorizationManager.permitAll().equals(this.needs);
+	public final boolean isPermitAll() {
+		return SingleResultAuthorizationManager.permitAll().equals(this.authorizationManager);
 	}
 
 	/**

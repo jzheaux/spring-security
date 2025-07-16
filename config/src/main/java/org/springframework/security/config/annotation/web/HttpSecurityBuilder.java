@@ -16,6 +16,8 @@
 
 package org.springframework.security.config.annotation.web;
 
+import java.util.function.Supplier;
+
 import jakarta.servlet.Filter;
 
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -87,6 +89,15 @@ public interface HttpSecurityBuilder<H extends HttpSecurityBuilder<H>>
 	 * @return the shared Object or null if it is not found
 	 */
 	<C> C getSharedObject(Class<C> sharedType);
+
+	default <C> C getSharedObject(Class<C> sharedType, Supplier<C> supplier) {
+		C c = getSharedObject(sharedType);
+		if (c == null) {
+			setSharedObject(sharedType, supplier.get());
+			c = getSharedObject(sharedType);
+		}
+		return c;
+	}
 
 	/**
 	 * Allows adding an additional {@link AuthenticationProvider} to be used

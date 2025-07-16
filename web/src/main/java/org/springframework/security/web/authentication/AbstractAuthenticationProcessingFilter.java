@@ -36,12 +36,18 @@ import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.InternalAuthenticationServiceException;
 import org.springframework.security.authentication.event.InteractiveAuthenticationSuccessEvent;
+import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.security.authorization.AuthorizationManager;
+import org.springframework.security.authorization.SingleResultAuthorizationManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.SpringSecurityMessageSource;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
+import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.security.web.access.AccessDeniedHandlerImpl;
+import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.authentication.session.NullAuthenticatedSessionStrategy;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
@@ -121,6 +127,10 @@ public abstract class AbstractAuthenticationProcessingFilter extends GenericFilt
 		.getContextHolderStrategy();
 
 	protected ApplicationEventPublisher eventPublisher;
+
+	private AuthorizationManager<RequestAuthorizationContext> authorized = SingleResultAuthorizationManager.permitAll();
+
+	private AccessDeniedHandler accessDeniedHandler = new AccessDeniedHandlerImpl();
 
 	protected AuthenticationDetailsSource<HttpServletRequest, ?> authenticationDetailsSource = new WebAuthenticationDetailsSource();
 
@@ -234,6 +244,14 @@ public abstract class AbstractAuthenticationProcessingFilter extends GenericFilt
 			throws IOException, ServletException {
 		if (!requiresAuthentication(request, response)) {
 			chain.doFilter(request, response);
+			return;
+		}
+		try {
+			this.authorized.verify(this.securityContextHolderStrategy.getContext()::getAuthentication,
+					new RequestAuthorizationContext(request));
+		}
+		catch (AuthorizationDeniedException ex) {
+			this.accessDeniedHandler.handle(request, response, ex);
 			return;
 		}
 		try {
@@ -381,6 +399,14 @@ public abstract class AbstractAuthenticationProcessingFilter extends GenericFilt
 		Assert.notNull(authenticationConverter, "authenticationConverter cannot be null");
 		this.authenticationConverter = authenticationConverter;
 		this.continueChainWhenNoAuthenticationResult = true;
+	}
+
+	public void setAuthorizationManager(AuthorizationManager<RequestAuthorizationContext> authorizationManager) {
+		this.authorized = authorizationManager;
+	}
+
+	public void setAccessDeniedHandler(AccessDeniedHandler accessDeniedHandler) {
+		this.accessDeniedHandler = accessDeniedHandler;
 	}
 
 	protected AuthenticationManager getAuthenticationManager() {

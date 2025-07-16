@@ -167,15 +167,13 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 					"At least one mapping is required (for example, authorizeHttpRequests().anyRequest().authenticated())");
 			RequestMatcherDelegatingAuthorizationManager.Builder builder = RequestMatcherDelegatingAuthorizationManager
 				.builder();
-			AuthorizeStepsConfigurer<H> steps = http.getConfigurer(AuthorizeStepsConfigurer.class);
+			AuthorizationManager<RequestAuthorizationContext> authenticatedAuthorizationManager = http
+				.getSharedObject(AuthorizationManager.class, SingleResultAuthorizationManager::permitAll);
 			for (RequestMatcherEntry<AuthorizationManager<RequestAuthorizationContext>> entry : this.entries) {
 				RequestMatcher requestMatcher = entry.getRequestMatcher();
 				AuthorizationManager<RequestAuthorizationContext> authorizationManager = entry.getEntry();
-				if (steps == null || !steps.hasSteps()) {
-					builder.add(requestMatcher, authorizationManager);
-					continue;
-				}
-				builder.add(requestMatcher, AuthorizationManagers.allOf(steps.isAuthenticated(), authorizationManager));
+				builder.add(requestMatcher,
+						AuthorizationManagers.allOf(authenticatedAuthorizationManager, authorizationManager));
 			}
 			AuthorizationManager<HttpServletRequest> manager = postProcess(builder.build());
 			return AuthorizeHttpRequestsConfigurer.this.postProcessor.postProcess(manager);

@@ -25,7 +25,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.core.ResolvableType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authorization.AuthoritiesGranter;
-import org.springframework.security.authorization.AuthoritiesGranterAuthenticationProvider;
+import org.springframework.security.authorization.AuthoritiesGranterAuthenticationManager;
 import org.springframework.security.authorization.AuthorityAuthorizationManager;
 import org.springframework.security.authorization.AuthorizationEventPublisher;
 import org.springframework.security.authorization.AuthorizationManager;
@@ -136,7 +136,7 @@ public final class AuthorizeStepsConfigurer<H extends HttpSecurityBuilder<H>>
 				AuthorizeStepsConfigurer.this.accessRequestingBuilder.add(granter, this.entryPoint);
 				AuthenticationManager manager = AuthorizeStepsConfigurer.this.getBuilder()
 					.getSharedObject(AuthenticationManager.class);
-				this.managerConsumer.accept(new AuthoritiesGranterAuthenticationProvider(manager, granter));
+				this.managerConsumer.accept(new AuthoritiesGranterAuthenticationManager(manager, granter));
 				return AuthorizeStepConfigurer.this;
 			}
 

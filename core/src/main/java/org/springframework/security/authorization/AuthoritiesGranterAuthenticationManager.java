@@ -24,7 +24,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.util.Assert;
 
-public final class AuthoritiesGranterAuthenticationProvider implements AuthenticationManager {
+public final class AuthoritiesGranterAuthenticationManager implements AuthenticationManager {
 
 	private final AuthenticationManager authenticationProvider;
 
@@ -33,7 +33,7 @@ public final class AuthoritiesGranterAuthenticationProvider implements Authentic
 	private SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder
 		.getContextHolderStrategy();
 
-	public AuthoritiesGranterAuthenticationProvider(AuthenticationManager manager, AuthoritiesGranter granter) {
+	public AuthoritiesGranterAuthenticationManager(AuthenticationManager manager, AuthoritiesGranter granter) {
 		this.authenticationProvider = manager;
 		this.authoritiesGranter = granter;
 	}

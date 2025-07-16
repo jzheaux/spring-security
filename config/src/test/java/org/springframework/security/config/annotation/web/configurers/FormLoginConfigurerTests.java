@@ -28,7 +28,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.authorization.AuthoritiesGranterAuthenticationProvider;
+import org.springframework.security.authorization.AuthoritiesGranterAuthenticationManager;
+import org.springframework.security.authorization.AuthoritiesGranterAuthorizationManager;
 import org.springframework.security.authorization.SimpleAuthoritiesGranter;
 import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.SecurityContextChangedListenerConfig;
@@ -45,6 +46,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.TestClientRegistrations;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders;
@@ -54,7 +57,6 @@ import org.springframework.security.web.AuthorizationRequestingAccessDeniedHandl
 import org.springframework.security.web.PortMapper;
 import org.springframework.security.web.PortResolver;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.access.AuthoritiesGranterAuthorizationManager;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.access.intercept.RequestMatcherDelegatingAuthorizationManager;
@@ -418,7 +420,7 @@ public class FormLoginConfigurerTests {
 			.andExpect(redirectedUrl("http://localhost/login"));
 		this.mockMvc.perform(get("/login").with(SecurityMockMvcRequestPostProcessors.user(user)))
 			.andExpect(status().is3xxRedirection())
-			.andExpect(redirectedUrl("http://localhost/login"));
+			.andExpect(redirectedUrl("http://localhost/oauth2/authorization/id"));
 		this.mockMvc
 			.perform(post("/login")
 				.with(SecurityMockMvcRequestPostProcessors.oauth2Login()
@@ -463,6 +465,27 @@ public class FormLoginConfigurerTests {
 			.build();
 		this.mockMvc.perform(get("/profile").with(SecurityMockMvcRequestPostProcessors.user(user)))
 			.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void requestWhenUnauthenticatedX509ThenRequiresTwoSteps() throws Exception {
+		this.spring.register(MfaDslX509Config.class).autowire();
+		this.mockMvc.perform(get("/")).andExpect(status().isForbidden());
+		this.mockMvc.perform(get("/login")).andExpect(status().isForbidden());
+		this.mockMvc.perform(get("/").with(SecurityMockMvcRequestPostProcessors.x509("rod.cer")))
+			.andExpect(status().is3xxRedirection())
+			.andExpect(redirectedUrl("http://localhost/login"));
+		UserDetails user = PasswordEncodedUser.withUsername("rod")
+			.password("password")
+			.authorities("form:read")
+			.build();
+		this.mockMvc
+			.perform(post("/login").param("username", user.getUsername())
+				.param("password", user.getPassword())
+				.with(SecurityMockMvcRequestPostProcessors.x509("rod.cer"))
+				.with(SecurityMockMvcRequestPostProcessors.csrf()))
+			.andExpect(status().is3xxRedirection())
+			.andExpect(redirectedUrl("/"));
 	}
 
 	@Configuration
@@ -848,7 +871,7 @@ public class FormLoginConfigurerTests {
 			AuthorizationRequestingAccessDeniedHandler accessDeniedHandler = new AuthorizationRequestingAccessDeniedHandler(
 					mapping);
 			AuthorizationFilter filter = new AuthorizationFilter(RequestMatcherDelegatingAuthorizationManager.builder()
-				.add(pathPattern("/login"), new AuthoritiesGranterAuthorizationManager(oauth2Login))
+				.add(pathPattern("/login"), new AuthoritiesGranterAuthorizationManager<>(oauth2Login))
 				.anyRequest()
 				.permitAll()
 				.build());
@@ -856,13 +879,13 @@ public class FormLoginConfigurerTests {
 			// @formatter:off
 			http
 				.authorizeHttpRequests((authorize) -> authorize
-					.requestMatchers("/profile").access(new AuthoritiesGranterAuthorizationManager(formLoginTime))
-					.anyRequest().access(new AuthoritiesGranterAuthorizationManager(formLogin))
+					.requestMatchers("/profile").access(new AuthoritiesGranterAuthorizationManager<>(formLoginTime))
+					.anyRequest().access(new AuthoritiesGranterAuthorizationManager<>(formLogin))
 				)
 				.formLogin((form) -> form.withObjectPostProcessor(new ObjectPostProcessor<UsernamePasswordAuthenticationFilter>() {
 					@Override
 					public <O extends UsernamePasswordAuthenticationFilter> O postProcess(O object) {
-						AuthoritiesGranterAuthenticationProvider manager =  new AuthoritiesGranterAuthenticationProvider(
+						AuthoritiesGranterAuthenticationManager manager =  new AuthoritiesGranterAuthenticationManager(
 								http.getSharedObject(AuthenticationManager.class), formLogin);
 						object.setAuthenticationManager(manager);
 						return object;
@@ -871,8 +894,8 @@ public class FormLoginConfigurerTests {
 				.oauth2Login((oauth2) -> oauth2.withObjectPostProcessor(new ObjectPostProcessor<OneTimeTokenAuthenticationFilter>() {
 					@Override
 					public <O extends OneTimeTokenAuthenticationFilter> O postProcess(O object) {
-						AuthoritiesGranterAuthenticationProvider manager =  new AuthoritiesGranterAuthenticationProvider(
-								http.getSharedObject(AuthenticationManager.class), formLogin);
+						AuthoritiesGranterAuthenticationManager manager =  new AuthoritiesGranterAuthenticationManager(
+								http.getSharedObject(AuthenticationManager.class), oauth2Login);
 						object.setAuthenticationManager(manager);
 						return object;
 					}
@@ -894,8 +917,8 @@ public class FormLoginConfigurerTests {
 		}
 
 		@Bean
-		OneTimeTokenGenerationSuccessHandler clients() {
-			return mock(OneTimeTokenGenerationSuccessHandler.class);
+		ClientRegistrationRepository clients() {
+			return new InMemoryClientRegistrationRepository(TestClientRegistrations.clientRegistration().build());
 		}
 
 	}
@@ -911,7 +934,7 @@ public class FormLoginConfigurerTests {
 				.formLogin((form) -> form.grants(
 					new SimpleAuthoritiesGranter(Duration.ofSeconds(300), "ott:read", "profile:read"))
 				)
-				.oneTimeTokenLogin((ott) -> ott.grants("authenticated").needs("ott:read"))
+				.oneTimeTokenLogin((ott) -> ott.authenticates().needs("ott:read"))
 				.authorizeHttpRequests((authorize) -> authorize
 					.requestMatchers("/profile").hasAuthority("profile:read")
 					.anyRequest().authenticated()
@@ -945,8 +968,8 @@ public class FormLoginConfigurerTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.formLogin((form) -> form.grants("x509:read"))
-				.x509((x509) -> x509.grants("authenticated").needs("x509:read"))
+				.x509((x509) -> x509.grants("form:read"))
+				.formLogin((form) -> form.authenticates().needs("form:read"))
 				.authorizeHttpRequests((authorize) -> authorize.anyRequest().authenticated());
 			return http.build();
 			// @formatter:on
@@ -954,17 +977,8 @@ public class FormLoginConfigurerTests {
 
 		@Bean
 		UserDetailsService users() {
-			return new InMemoryUserDetailsManager(PasswordEncodedUser.user());
-		}
-
-		@Bean
-		PasswordEncoder encoder() {
-			return NoOpPasswordEncoder.getInstance();
-		}
-
-		@Bean
-		OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler() {
-			return new RedirectOneTimeTokenGenerationSuccessHandler("/ott/sent");
+			return new InMemoryUserDetailsManager(
+					PasswordEncodedUser.withUsername("rod").password("{noop}password").build());
 		}
 
 	}

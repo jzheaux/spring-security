@@ -14,35 +14,31 @@
  * limitations under the License.
  */
 
-package org.springframework.security.web.access;
+package org.springframework.security.authorization;
 
 import java.util.Collection;
 import java.util.function.Supplier;
 
-import org.springframework.security.authorization.AuthoritiesGranter;
-import org.springframework.security.authorization.AuthorityAuthorizationDecision;
-import org.springframework.security.authorization.AuthorizationManager;
-import org.springframework.security.authorization.AuthorizationResult;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthoritiesContainer;
-import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 
-public class AuthoritiesGranterAuthorizationManager implements AuthorizationManager<RequestAuthorizationContext> {
+public final class AuthoritiesGranterAuthorizationManager<T> implements AuthorizationManager<T> {
 
-	private final AuthoritiesGranter granter;
+	private final AuthoritiesGranter authoritiesGranter;
 
 	public AuthoritiesGranterAuthorizationManager(AuthoritiesGranter granter) {
-		this.granter = granter;
+		this.authoritiesGranter = granter;
 	}
 
 	@Override
-	public AuthorizationResult authorize(Supplier<Authentication> authentication, RequestAuthorizationContext object) {
-		if (!(authentication.get() instanceof AuthoritiesContainer container)) {
+	public AuthorizationResult authorize(Supplier<Authentication> authentication, T object) {
+		Authentication current = authentication.get();
+		if (!(current instanceof AuthoritiesContainer container)) {
 			return null;
 		}
-		Collection<GrantedAuthority> neededAuthorities = this.granter.neededAuthorities(container);
-		return new AuthorityAuthorizationDecision(neededAuthorities.isEmpty(), neededAuthorities);
+		Collection<GrantedAuthority> needed = this.authoritiesGranter.neededAuthorities(container);
+		return new AuthorityAuthorizationDecision(needed.isEmpty(), needed);
 	}
 
 }

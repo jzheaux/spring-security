@@ -32,6 +32,7 @@ import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.access.AccessDeniedHandlerImpl;
+import org.springframework.util.Assert;
 
 public final class AuthorizationRequestingAccessDeniedHandler implements AccessDeniedHandler {
 
@@ -82,13 +83,15 @@ public final class AuthorizationRequestingAccessDeniedHandler implements AccessD
 		private final AuthenticationEntryPoint requester;
 
 		public AuthorizationRequestEntry(AuthoritiesGranter granter, AuthenticationEntryPoint requester) {
+			Assert.notNull(granter, "authoritiesGranter cannot be null");
+			Assert.notNull(requester, "authenticationEntryPoint cannot be null");
 			this.granter = granter;
 			this.requester = requester;
 		}
 
 	}
 
-	public static class Builder {
+	public static final class Builder {
 
 		private final List<AuthorizationRequestEntry> entries = new ArrayList<>();
 

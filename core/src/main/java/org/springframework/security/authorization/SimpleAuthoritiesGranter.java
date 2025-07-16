@@ -18,6 +18,7 @@ package org.springframework.security.authorization;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -48,7 +49,7 @@ public final class SimpleAuthoritiesGranter implements AuthoritiesGranter {
 	}
 
 	@Override
-	public Boolean grantsAuthority(GrantedAuthority authority) {
+	public boolean grantsAuthority(GrantedAuthority authority) {
 		return this.authorities.contains(authority.getAuthority());
 	}
 
@@ -60,8 +61,8 @@ public final class SimpleAuthoritiesGranter implements AuthoritiesGranter {
 					authorities.add(new SimpleGrantedAuthority(authority));
 				}
 				else {
-					authorities
-						.add(new ExpirableGrantedAuthority(authority, this.clock.instant().plus(this.grantingTime)));
+					Instant expiresAt = this.clock.instant().plus(this.grantingTime);
+					authorities.add(new ExpirableGrantedAuthority(authority, expiresAt));
 				}
 			}
 		});

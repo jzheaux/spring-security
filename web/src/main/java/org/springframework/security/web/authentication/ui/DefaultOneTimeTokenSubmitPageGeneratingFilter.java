@@ -29,6 +29,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.security.authorization.AuthorizationManager;
+import org.springframework.security.authorization.SingleResultAuthorizationManager;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.context.SecurityContextHolderStrategy;
+import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.security.web.access.AccessDeniedHandlerImpl;
+import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.authentication.ott.OneTimeTokenAuthenticationFilter;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
@@ -50,6 +58,13 @@ public final class DefaultOneTimeTokenSubmitPageGeneratingFilter extends OncePer
 	private RequestMatcher requestMatcher = PathPatternRequestMatcher.withDefaults()
 		.matcher(HttpMethod.GET, DEFAULT_SUBMIT_PAGE_URL);
 
+	private SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder
+		.getContextHolderStrategy();
+
+	private AuthorizationManager<RequestAuthorizationContext> authorized = SingleResultAuthorizationManager.permitAll();
+
+	private AccessDeniedHandler accessDeniedHandler = new AccessDeniedHandlerImpl();
+
 	private Function<HttpServletRequest, Map<String, String>> resolveHiddenInputs = (request) -> Collections.emptyMap();
 
 	private String loginProcessingUrl = OneTimeTokenAuthenticationFilter.DEFAULT_LOGIN_PROCESSING_URL;
@@ -59,6 +74,14 @@ public final class DefaultOneTimeTokenSubmitPageGeneratingFilter extends OncePer
 			throws ServletException, IOException {
 		if (!this.requestMatcher.matches(request)) {
 			filterChain.doFilter(request, response);
+			return;
+		}
+		try {
+			this.authorized.verify(this.securityContextHolderStrategy.getContext()::getAuthentication,
+					new RequestAuthorizationContext(request));
+		}
+		catch (AuthorizationDeniedException ex) {
+			this.accessDeniedHandler.handle(request, response, ex);
 			return;
 		}
 		String html = generateHtml(request);
@@ -112,6 +135,19 @@ public final class DefaultOneTimeTokenSubmitPageGeneratingFilter extends OncePer
 	public void setRequestMatcher(RequestMatcher requestMatcher) {
 		Assert.notNull(requestMatcher, "requestMatcher cannot be null");
 		this.requestMatcher = requestMatcher;
+	}
+
+	public void setSecurityContextHolderStrategy(SecurityContextHolderStrategy securityContextHolderStrategy) {
+		Assert.notNull(securityContextHolderStrategy, "securityContextHolderStrategy cannot be null");
+		this.securityContextHolderStrategy = securityContextHolderStrategy;
+	}
+
+	public void setAuthorizationManager(AuthorizationManager<RequestAuthorizationContext> authorizationManager) {
+		this.authorized = authorizationManager;
+	}
+
+	public void setAccessDeniedHandler(AccessDeniedHandler accessDeniedHandler) {
+		this.accessDeniedHandler = accessDeniedHandler;
 	}
 
 	/**

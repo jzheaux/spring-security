@@ -466,7 +466,7 @@ public final class Saml2LoginConfigurer<B extends HttpSecurityBuilder<B>>
 	private void initDefaultLoginFilter(B http) {
 		DefaultLoginPageGeneratingFilter loginPageGeneratingFilter = http
 			.getSharedObject(DefaultLoginPageGeneratingFilter.class);
-		if (loginPageGeneratingFilter == null || this.isCustomLoginPage() || hasNeeds()) {
+		if (loginPageGeneratingFilter == null || this.isCustomLoginPage() || !isPermitAll()) {
 			return;
 		}
 		loginPageGeneratingFilter.setSaml2LoginEnabled(true);

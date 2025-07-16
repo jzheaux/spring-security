@@ -16,9 +16,7 @@
 
 package org.springframework.security.config.annotation.web.configurers.ott;
 
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,15 +29,21 @@ import org.springframework.security.authentication.ott.InMemoryOneTimeTokenServi
 import org.springframework.security.authentication.ott.OneTimeToken;
 import org.springframework.security.authentication.ott.OneTimeTokenAuthenticationProvider;
 import org.springframework.security.authentication.ott.OneTimeTokenService;
+import org.springframework.security.authorization.AuthoritiesGranter;
+import org.springframework.security.authorization.AuthorizationManager;
+import org.springframework.security.authorization.SingleResultAuthorizationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractAuthenticationFilterConfigurer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.AuthorizableConfigurer;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.AuthorizationRequestingAccessDeniedHandler;
+import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.authentication.AuthenticationConverter;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -104,11 +108,17 @@ import org.springframework.util.StringUtils;
  * @see AbstractAuthenticationFilterConfigurer
  */
 public final class OneTimeTokenLoginConfigurer<H extends HttpSecurityBuilder<H>> extends
-		AbstractAuthenticationFilterConfigurer<H, OneTimeTokenLoginConfigurer<H>, OneTimeTokenAuthenticationFilter> {
+		AbstractAuthenticationFilterConfigurer<H, OneTimeTokenLoginConfigurer<H>, OneTimeTokenAuthenticationFilter>
+		implements AuthorizableConfigurer<OneTimeTokenLoginConfigurer<H>> {
 
 	private final ApplicationContext context;
 
 	private OneTimeTokenService oneTimeTokenService;
+
+	private AuthoritiesGranter authoritiesGranter = (a) -> a;
+
+	private AuthorizationManager<RequestAuthorizationContext> authorizationManager = SingleResultAuthorizationManager
+		.permitAll();
 
 	private String defaultSubmitPageUrl = DefaultOneTimeTokenSubmitPageGeneratingFilter.DEFAULT_SUBMIT_PAGE_URL;
 
@@ -145,7 +155,7 @@ public final class OneTimeTokenLoginConfigurer<H extends HttpSecurityBuilder<H>>
 	private void intiDefaultLoginFilter(H http) {
 		DefaultLoginPageGeneratingFilter loginPageGeneratingFilter = http
 			.getSharedObject(DefaultLoginPageGeneratingFilter.class);
-		if (loginPageGeneratingFilter == null || isCustomLoginPage() || hasNeeds()) {
+		if (loginPageGeneratingFilter == null || isCustomLoginPage() || !isPermitAll()) {
 			return;
 		}
 		loginPageGeneratingFilter.setOneTimeTokenEnabled(true);
@@ -168,21 +178,6 @@ public final class OneTimeTokenLoginConfigurer<H extends HttpSecurityBuilder<H>>
 	}
 
 	@Override
-	protected List<String> getAuthenticationViewEndpoints() {
-		List<String> views = new ArrayList<>();
-		if (this.submitPageEnabled) {
-			views.add(this.defaultSubmitPageUrl);
-		}
-		views.addAll(super.getAuthenticationViewEndpoints());
-		return views;
-	}
-
-	@Override
-	protected List<String> getAuthenticationProcessingEndpoints() {
-		return List.of(getLoginProcessingUrl(), this.tokenGeneratingUrl);
-	}
-
-	@Override
 	protected AuthenticationEntryPoint getAuthenticationEntryPoint() {
 		AuthenticationEntryPoint pre = super.getAuthenticationEntryPoint();
 		if (isCustomLoginPage()) {
@@ -191,7 +186,7 @@ public final class OneTimeTokenLoginConfigurer<H extends HttpSecurityBuilder<H>>
 		if (this.customTokenGeneratingUrl) {
 			return pre;
 		}
-		if (!hasNeeds()) {
+		if (isPermitAll()) {
 			return pre;
 		}
 		String postUrl = this.tokenGeneratingUrl + "?username={u}";
@@ -201,6 +196,11 @@ public final class OneTimeTokenLoginConfigurer<H extends HttpSecurityBuilder<H>>
 	private void configureOttGenerateFilter(H http) {
 		GenerateOneTimeTokenFilter generateFilter = new GenerateOneTimeTokenFilter(getOneTimeTokenService(),
 				getOneTimeTokenGenerationSuccessHandler());
+		generateFilter.setAuthorizationManager(this.authorizationManager);
+		AuthorizationRequestingAccessDeniedHandler.Builder accessDeniedHandler = http.getSharedObject(
+				AuthorizationRequestingAccessDeniedHandler.Builder.class,
+				AuthorizationRequestingAccessDeniedHandler::builder);
+		generateFilter.setAccessDeniedHandler(accessDeniedHandler.build());
 		generateFilter.setRequestMatcher(getRequestMatcherBuilder().matcher(HttpMethod.POST, this.tokenGeneratingUrl));
 		generateFilter.setRequestResolver(getGenerateRequestResolver());
 		http.addFilter(postProcess(generateFilter));
@@ -229,6 +229,11 @@ public final class OneTimeTokenLoginConfigurer<H extends HttpSecurityBuilder<H>>
 		DefaultOneTimeTokenSubmitPageGeneratingFilter submitPage = new DefaultOneTimeTokenSubmitPageGeneratingFilter();
 		submitPage.setResolveHiddenInputs(this::hiddenInputs);
 		submitPage.setRequestMatcher(getRequestMatcherBuilder().matcher(HttpMethod.GET, this.defaultSubmitPageUrl));
+		submitPage.setAuthorizationManager(this.authorizationManager);
+		AuthorizationRequestingAccessDeniedHandler.Builder accessDeniedHandler = http.getSharedObject(
+				AuthorizationRequestingAccessDeniedHandler.Builder.class,
+				AuthorizationRequestingAccessDeniedHandler::builder);
+		submitPage.setAccessDeniedHandler(accessDeniedHandler.build());
 		submitPage.setLoginProcessingUrl(this.getLoginProcessingUrl());
 		http.addFilter(postProcess(submitPage));
 	}
@@ -246,6 +251,27 @@ public final class OneTimeTokenLoginConfigurer<H extends HttpSecurityBuilder<H>>
 	@Override
 	protected RequestMatcher createLoginProcessingUrlMatcher(String loginProcessingUrl) {
 		return getRequestMatcherBuilder().matcher(HttpMethod.POST, loginProcessingUrl);
+	}
+
+	@Override
+	public OneTimeTokenLoginConfigurer<H> grants(AuthoritiesGranter granter) {
+		this.authoritiesGranter = granter;
+		super.grants(granter);
+		return this;
+	}
+
+	@Override
+	public OneTimeTokenLoginConfigurer<H> authenticates(AuthoritiesGranter granter) {
+		this.authoritiesGranter = granter;
+		super.authenticates(granter);
+		return this;
+	}
+
+	@Override
+	public OneTimeTokenLoginConfigurer<H> needs(AuthorizationManager<RequestAuthorizationContext> manager) {
+		this.authorizationManager = manager;
+		super.needs(manager);
+		return this;
 	}
 
 	/**

@@ -17,9 +17,12 @@
 package org.springframework.security.web.authentication.preauth;
 
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.function.Consumer;
 
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.AuthoritiesContainer;
 
 /**
  * {@link org.springframework.security.core.Authentication} implementation for
@@ -28,7 +31,7 @@ import org.springframework.security.core.GrantedAuthority;
  * @author Ruud Senden
  * @since 2.0
  */
-public class PreAuthenticatedAuthenticationToken extends AbstractAuthenticationToken {
+public class PreAuthenticatedAuthenticationToken extends AbstractAuthenticationToken implements AuthoritiesContainer {
 
 	private static final long serialVersionUID = 620L;
 
@@ -78,6 +81,13 @@ public class PreAuthenticatedAuthenticationToken extends AbstractAuthenticationT
 	@Override
 	public Object getPrincipal() {
 		return this.principal;
+	}
+
+	@Override
+	public AuthoritiesContainer grantAuthorities(Consumer<Collection<GrantedAuthority>> authorities) {
+		Collection<GrantedAuthority> existing = new HashSet<>(getGrantedAuthorities());
+		authorities.accept(existing);
+		return new PreAuthenticatedAuthenticationToken(getPrincipal(), getCredentials(), existing);
 	}
 
 }

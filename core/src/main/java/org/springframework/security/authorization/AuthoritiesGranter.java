@@ -27,8 +27,8 @@ public interface AuthoritiesGranter {
 
 	AuthoritiesContainer grantAuthorities(AuthoritiesContainer authentication);
 
-	default Boolean grantsAuthority(GrantedAuthority authority) {
-		return null;
+	default boolean grantsAuthority(GrantedAuthority authority) {
+		return false;
 	}
 
 	default Collection<GrantedAuthority> neededAuthorities(AuthoritiesContainer authentication) {
