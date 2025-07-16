@@ -40,14 +40,14 @@ public final class AuthoritiesGranterAuthenticationProvider implements Authentic
 
 	@Override
 	public Authentication authenticate(Authentication authentication) throws AuthenticationException {
-		Authentication current = this.securityContextHolderStrategy.getContext().getAuthentication();
 		Authentication result = this.authenticationProvider.authenticate(authentication);
 		if (!(result instanceof AuthoritiesContainer container)) {
 			return result;
 		}
+		Authentication current = this.securityContextHolderStrategy.getContext().getAuthentication();
 		container = this.authoritiesGranter.grantAuthorities(container);
 		if (current != null && current.isAuthenticated()) {
-			container = container.grantedAuthorities((a) -> a.addAll(current.getAuthorities()));
+			container = container.grantAuthorities((a) -> a.addAll(current.getAuthorities()));
 		}
 		return (Authentication) container;
 	}

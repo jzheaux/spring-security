@@ -21,6 +21,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authorization.AuthoritiesGranter;
+import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -29,6 +31,7 @@ import org.springframework.security.core.userdetails.AuthenticationUserDetailsSe
 import org.springframework.security.core.userdetails.UserDetailsByNameServiceWrapper;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.authentication.Http403ForbiddenEntryPoint;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationProvider;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
@@ -77,8 +80,8 @@ import org.springframework.security.web.context.RequestAttributeSecurityContextR
  * @author Ngoc Nhan
  * @since 3.2
  */
-public final class X509Configurer<H extends HttpSecurityBuilder<H>>
-		extends AbstractHttpConfigurer<X509Configurer<H>, H> {
+public final class X509Configurer<H extends HttpSecurityBuilder<H>> extends AbstractHttpConfigurer<X509Configurer<H>, H>
+		implements AuthorizableConfigurer<X509Configurer<H>> {
 
 	private X509AuthenticationFilter x509AuthenticationFilter;
 
@@ -223,6 +226,16 @@ public final class X509Configurer<H extends HttpSecurityBuilder<H>>
 			return null;
 		}
 		return context.getBeanProvider(type).getIfUnique();
+	}
+
+	@Override
+	public X509Configurer<H> grants(AuthoritiesGranter granter) {
+		return this;
+	}
+
+	@Override
+	public X509Configurer<H> needs(AuthorizationManager<RequestAuthorizationContext> needs) {
+		return this;
 	}
 
 }

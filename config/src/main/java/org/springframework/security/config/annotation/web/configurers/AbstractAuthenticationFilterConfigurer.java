@@ -125,9 +125,9 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		return getSelf();
 
 		/*
-		ott.grants("authenticated").needs("ott:read");
-		form.grants("ott:read").needs(captchaNotNeeded);
-		captcha.grants("form:read");*/
+		 * ott.grants("authenticated").needs("ott:read");
+		 * form.grants("ott:read").needs(captchaNotNeeded); captcha.grants("form:read");
+		 */
 	}
 
 	public T grants(AuthoritiesGranter granter) {
@@ -277,16 +277,15 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		registerDefaultAuthenticationEntryPoint(http);
 		if (this.grants != null || hasNeeds()) {
 			AuthorizeStepsConfigurer<B> steps = http.getConfigurer(AuthorizeStepsConfigurer.class);
-			List<RequestMatcher> endpoints = Stream.concat(getAuthenticationViewEndpoints().stream(),
-							getAuthenticationProcessingEndpoints().stream())
-					.map(getRequestMatcherBuilder()::matcher)
-					.map(RequestMatcher.class::cast).toList();
+			List<RequestMatcher> endpoints = Stream
+				.concat(getAuthenticationViewEndpoints().stream(), getAuthenticationProcessingEndpoints().stream())
+				.map(getRequestMatcherBuilder()::matcher)
+				.map(RequestMatcher.class::cast)
+				.toList();
+			steps.step((authn) -> authn.endpoint(new OrRequestMatcher(endpoints)).needs(this.needs));
 			steps.step((authn) -> authn
-				.endpoint(new OrRequestMatcher(endpoints)).needs(this.needs)
-			);
-			steps.step((authn) -> authn
-				.entryPoint(getAuthenticationEntryPoint(), this.authFilter::setAuthenticationManager).grants(this.grants)
-			);
+				.entryPoint(getAuthenticationEntryPoint(), this.authFilter::setAuthenticationManager)
+				.grants(this.grants));
 		}
 	}
 
@@ -360,7 +359,7 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 	}
 
 	protected List<String> getAuthenticationViewEndpoints() {
-		return List.of(this.loginPage);
+		return isCustomLoginPage() ? List.of() : List.of(this.loginPage);
 	}
 
 	protected List<String> getAuthenticationProcessingEndpoints() {

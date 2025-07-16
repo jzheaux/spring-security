@@ -11,7 +11,9 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 
 public class PrePostAuthenticationEntryPoint implements AuthenticationEntryPoint {
+
 	private final AuthenticationEntryPoint pre;
+
 	private final AuthenticationEntryPoint post;
 
 	public PrePostAuthenticationEntryPoint(AuthenticationEntryPoint pre, AuthenticationEntryPoint post) {
@@ -20,12 +22,15 @@ public class PrePostAuthenticationEntryPoint implements AuthenticationEntryPoint
 	}
 
 	@Override
-	public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) throws IOException, ServletException {
+	public void commence(HttpServletRequest request, HttpServletResponse response,
+			AuthenticationException authException) throws IOException, ServletException {
 		Authentication authentication = authException.getAuthenticationRequest();
 		if (authentication != null && authentication.isAuthenticated()) {
 			this.post.commence(request, response, authException);
-		} else {
+		}
+		else {
 			this.pre.commence(request, response, authException);
 		}
 	}
+
 }

@@ -17,21 +17,19 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.FormPostRedirectStrategy;
 import org.springframework.security.web.RedirectStrategy;
 import org.springframework.security.web.csrf.CsrfToken;
-import org.springframework.security.web.csrf.CsrfTokenRepository;
-import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
 import org.springframework.util.Assert;
 import org.springframework.web.util.UriComponentsBuilder;
 
 public final class PostAuthenticationEntryPoint implements AuthenticationEntryPoint {
+
 	private final String entryPointUri;
+
 	private final Map<String, Function<Authentication, String>> params;
 
-	private SecurityContextHolderStrategy securityContextHolderStrategy =
-			SecurityContextHolder.getContextHolderStrategy();
+	private SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder
+		.getContextHolderStrategy();
 
 	private RedirectStrategy redirectStrategy = new FormPostRedirectStrategy();
-
-	private CsrfTokenRepository csrfTokens = new HttpSessionCsrfTokenRepository();
 
 	public PostAuthenticationEntryPoint(String entryPointUri, Map<String, Function<Authentication, String>> params) {
 		this.entryPointUri = entryPointUri;
@@ -39,17 +37,21 @@ public final class PostAuthenticationEntryPoint implements AuthenticationEntryPo
 	}
 
 	@Override
-	public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) throws IOException, ServletException {
+	public void commence(HttpServletRequest request, HttpServletResponse response,
+			AuthenticationException authException) throws IOException, ServletException {
 		Authentication authentication = getAuthentication(authException);
 		Assert.notNull(authentication, "could not find authentication in order to perform post");
-		Map<String, String> params = this.params.entrySet().stream().collect(Collectors.toMap(
-				Map.Entry::getKey, (entry) -> entry.getValue().apply(authentication)));
-		CsrfToken csrf = this.csrfTokens.loadToken(request);
+		Map<String, String> params = this.params.entrySet()
+			.stream()
+			.collect(Collectors.toMap(Map.Entry::getKey, (entry) -> entry.getValue().apply(authentication)));
+		CsrfToken csrf = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
 		if (csrf != null) {
 			params.put(csrf.getParameterName(), csrf.getToken());
 		}
 		String entryPointUrl = UriComponentsBuilder.fromPath(this.entryPointUri)
-				.build(false).expand(params).toUriString();
+			.build(false)
+			.expand(params)
+			.toUriString();
 		this.redirectStrategy.sendRedirect(request, response, entryPointUrl);
 	}
 
@@ -66,6 +68,7 @@ public final class PostAuthenticationEntryPoint implements AuthenticationEntryPo
 	}
 
 	private static final class Root {
+
 		private final Authentication authentication;
 
 		private Root(Authentication authentication) {
@@ -75,5 +78,7 @@ public final class PostAuthenticationEntryPoint implements AuthenticationEntryPo
 		public Authentication getAuthentication() {
 			return this.authentication;
 		}
+
 	}
+
 }

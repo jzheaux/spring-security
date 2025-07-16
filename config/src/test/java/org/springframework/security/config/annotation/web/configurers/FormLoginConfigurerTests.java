@@ -435,34 +435,35 @@ public class FormLoginConfigurerTests {
 		this.spring.register(MfaDslConfig.class).autowire();
 		UserDetails user = PasswordEncodedUser.user();
 		this.mockMvc.perform(get("/profile").with(SecurityMockMvcRequestPostProcessors.user(user)))
-				.andExpect(status().isOk())
-				.andExpect(content().string(containsString("/ott/generate")));
-		this.mockMvc.perform(post("/ott/generate")
-				.with(SecurityMockMvcRequestPostProcessors.user(user))
+			.andExpect(status().isOk())
+			.andExpect(content().string(containsString("/ott/generate")));
+		this.mockMvc
+			.perform(post("/ott/generate").with(SecurityMockMvcRequestPostProcessors.user(user))
 				.with(SecurityMockMvcRequestPostProcessors.csrf()))
-				.andExpect(status().is3xxRedirection())
-				.andExpect(redirectedUrl("http://localhost/login"));
-		this.mockMvc.perform(post("/login")
-				.param("username", user.getUsername())
+			.andExpect(status().is3xxRedirection())
+			.andExpect(redirectedUrl("http://localhost/login"));
+		this.mockMvc
+			.perform(post("/login").param("username", user.getUsername())
 				.param("password", user.getPassword())
 				.with(SecurityMockMvcRequestPostProcessors.csrf()))
-				.andExpect(status().is3xxRedirection())
-				.andExpect(redirectedUrl("/"));
+			.andExpect(status().is3xxRedirection())
+			.andExpect(redirectedUrl("/"));
 		user = PasswordEncodedUser.withUserDetails(user).authorities("profile:read", "ott:read").build();
 		this.mockMvc.perform(get("/profile").with(SecurityMockMvcRequestPostProcessors.user(user)))
-				.andExpect(status().isOk())
-				.andExpect(content().string(containsString("/ott/generate")));
-		this.mockMvc.perform(post("/ott/generate")
-				.param("username", "user")
+			.andExpect(status().isOk())
+			.andExpect(content().string(containsString("/ott/generate")));
+		this.mockMvc
+			.perform(post("/ott/generate").param("username", "user")
 				.with(SecurityMockMvcRequestPostProcessors.user(user))
 				.with(SecurityMockMvcRequestPostProcessors.csrf()))
-				.andExpect(status().is3xxRedirection())
-				.andExpect(redirectedUrl("/ott/sent"));
-		user = PasswordEncodedUser.withUserDetails(user).authorities("profile:read", "ott:read", "authenticated").build();
+			.andExpect(status().is3xxRedirection())
+			.andExpect(redirectedUrl("/ott/sent"));
+		user = PasswordEncodedUser.withUserDetails(user)
+			.authorities("profile:read", "ott:read", "authenticated")
+			.build();
 		this.mockMvc.perform(get("/profile").with(SecurityMockMvcRequestPostProcessors.user(user)))
-				.andExpect(status().isNotFound());
+			.andExpect(status().isNotFound());
 	}
-
 
 	@Configuration
 	@EnableWebSecurity
@@ -936,5 +937,36 @@ public class FormLoginConfigurerTests {
 
 	}
 
+	@Configuration
+	@EnableWebSecurity
+	static class MfaDslX509Config {
+
+		@Bean
+		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+			// @formatter:off
+			http
+				.formLogin((form) -> form.grants("x509:read"))
+				.x509((x509) -> x509.grants("authenticated").needs("x509:read"))
+				.authorizeHttpRequests((authorize) -> authorize.anyRequest().authenticated());
+			return http.build();
+			// @formatter:on
+		}
+
+		@Bean
+		UserDetailsService users() {
+			return new InMemoryUserDetailsManager(PasswordEncodedUser.user());
+		}
+
+		@Bean
+		PasswordEncoder encoder() {
+			return NoOpPasswordEncoder.getInstance();
+		}
+
+		@Bean
+		OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler() {
+			return new RedirectOneTimeTokenGenerationSuccessHandler("/ott/sent");
+		}
+
+	}
 
 }

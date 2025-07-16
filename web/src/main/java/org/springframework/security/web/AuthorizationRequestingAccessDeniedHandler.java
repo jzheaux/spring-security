@@ -61,9 +61,8 @@ public final class AuthorizationRequestingAccessDeniedHandler implements AccessD
 		for (GrantedAuthority needed : decision.getAuthorities()) {
 			for (AuthorizationRequestEntry entry : this.entries) {
 				if (entry.granter.grantsAuthority(needed)) {
-					InsufficientAuthenticationException iae = new InsufficientAuthenticationException(
-							"access denied", access);
-					iae.setAuthenticationRequest(denied.getAuthentication());
+					InsufficientAuthenticationException iae = new InsufficientAuthenticationException("access denied",
+							access);
 					entry.requester.commence(request, response, iae);
 					return;
 				}
@@ -90,6 +89,7 @@ public final class AuthorizationRequestingAccessDeniedHandler implements AccessD
 	}
 
 	public static class Builder {
+
 		private final List<AuthorizationRequestEntry> entries = new ArrayList<>();
 
 		private Builder() {
@@ -103,5 +103,7 @@ public final class AuthorizationRequestingAccessDeniedHandler implements AccessD
 		public AuthorizationRequestingAccessDeniedHandler build() {
 			return new AuthorizationRequestingAccessDeniedHandler(this.entries);
 		}
+
 	}
+
 }

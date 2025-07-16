@@ -101,7 +101,6 @@ public class AuthorizationFilter extends GenericFilterBean {
 			this.eventPublisher.publishAuthorizationEvent(this::getAuthentication, request, result);
 			if (result != null && !result.isGranted()) {
 				AuthorizationDeniedException ex = new AuthorizationDeniedException("Access Denied", result);
-				ex.setAuthentication(getAuthentication());
 				this.accessDeniedHandler.handle(request, response, ex);
 				return;
 			}

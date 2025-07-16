@@ -19,7 +19,6 @@ package org.springframework.security.authorization;
 import java.io.Serial;
 
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.Authentication;
 import org.springframework.util.Assert;
 
 /**
@@ -35,8 +34,6 @@ public class AuthorizationDeniedException extends AccessDeniedException implemen
 
 	private final AuthorizationResult result;
 
-	private Authentication authentication;
-
 	public AuthorizationDeniedException(String msg, AuthorizationResult authorizationResult) {
 		super(msg);
 		Assert.notNull(authorizationResult, "authorizationResult cannot be null");
@@ -50,14 +47,6 @@ public class AuthorizationDeniedException extends AccessDeniedException implemen
 
 	public AuthorizationResult getAuthorizationResult() {
 		return this.result;
-	}
-
-	public Authentication getAuthentication() {
-		return authentication;
-	}
-
-	public void setAuthentication(Authentication authentication) {
-		this.authentication = authentication;
 	}
 
 	@Override

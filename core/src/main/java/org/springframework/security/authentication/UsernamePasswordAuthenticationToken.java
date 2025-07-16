@@ -127,7 +127,7 @@ public class UsernamePasswordAuthenticationToken extends AbstractAuthenticationT
 	}
 
 	@Override
-	public AuthoritiesContainer grantedAuthorities(Consumer<Collection<GrantedAuthority>> authorities) {
+	public AuthoritiesContainer grantAuthorities(Consumer<Collection<GrantedAuthority>> authorities) {
 		Collection<GrantedAuthority> existing = new HashSet<>(getGrantedAuthorities());
 		authorities.accept(existing);
 		return new UsernamePasswordAuthenticationToken(getPrincipal(), getCredentials(), existing);

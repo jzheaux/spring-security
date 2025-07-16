@@ -42,7 +42,8 @@ import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
 /**
- * Adds Step-wise Authentication using {@link AuthorizationManager} and {@link AccessDeniedHandler}.
+ * Adds Step-wise Authentication using {@link AuthorizationManager} and
+ * {@link AccessDeniedHandler}.
  *
  * @param <H> the type of {@link HttpSecurityBuilder} that is being configured.
  * @author Josh Cummings
@@ -53,11 +54,11 @@ public final class AuthorizeStepsConfigurer<H extends HttpSecurityBuilder<H>>
 
 	private int mappingsCount;
 
-	private final AuthorizationRequestingAccessDeniedHandler.Builder accessRequestingBuilder =
-			AuthorizationRequestingAccessDeniedHandler.builder();
+	private final AuthorizationRequestingAccessDeniedHandler.Builder accessRequestingBuilder = AuthorizationRequestingAccessDeniedHandler
+		.builder();
 
-	private final RequestMatcherDelegatingAuthorizationManager.Builder accessDenyingBuilder =
-			RequestMatcherDelegatingAuthorizationManager.builder();
+	private final RequestMatcherDelegatingAuthorizationManager.Builder accessDenyingBuilder = RequestMatcherDelegatingAuthorizationManager
+		.builder();
 
 	private final AuthorizationEventPublisher publisher;
 
@@ -69,11 +70,11 @@ public final class AuthorizeStepsConfigurer<H extends HttpSecurityBuilder<H>>
 	 */
 	public AuthorizeStepsConfigurer(ApplicationContext context) {
 		this.publisher = context.getBeanProvider(AuthorizationEventPublisher.class)
-				.getIfUnique(() -> new SpringAuthorizationEventPublisher(context));
+			.getIfUnique(() -> new SpringAuthorizationEventPublisher(context));
 		ResolvableType type = ResolvableType.forClassWithGenerics(ObjectPostProcessor.class,
 				ResolvableType.forClassWithGenerics(AuthorizationManager.class, HttpServletRequest.class));
 		ObjectProvider<ObjectPostProcessor<AuthorizationManager<HttpServletRequest>>> provider = context
-				.getBeanProvider(type);
+			.getBeanProvider(type);
 		this.postProcessor = provider.getIfUnique(ObjectPostProcessor::identity);
 	}
 
@@ -81,8 +82,8 @@ public final class AuthorizeStepsConfigurer<H extends HttpSecurityBuilder<H>>
 	public void configure(H http) {
 		if (hasSteps()) {
 			this.accessDenyingBuilder.anyRequest().permitAll();
-			AuthorizationManager<HttpServletRequest> authorizationManager = this.postProcessor.postProcess(
-					this.accessDenyingBuilder.build());
+			AuthorizationManager<HttpServletRequest> authorizationManager = this.postProcessor
+				.postProcess(this.accessDenyingBuilder.build());
 			AuthorizationFilter authorizationFilter = new AuthorizationFilter(authorizationManager);
 			authorizationFilter.setAuthorizationEventPublisher(this.publisher);
 			authorizationFilter.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
@@ -110,7 +111,8 @@ public final class AuthorizeStepsConfigurer<H extends HttpSecurityBuilder<H>>
 
 	public final class AuthorizeStepConfigurer {
 
-		public AuthorizeRequestingConfigurer entryPoint(AuthenticationEntryPoint entryPoint, Consumer<AuthenticationManager> managerConsumer) {
+		public AuthorizeRequestingConfigurer entryPoint(AuthenticationEntryPoint entryPoint,
+				Consumer<AuthenticationManager> managerConsumer) {
 			return new AuthorizeRequestingConfigurer(entryPoint, managerConsumer);
 		}
 
@@ -119,7 +121,9 @@ public final class AuthorizeStepsConfigurer<H extends HttpSecurityBuilder<H>>
 		}
 
 		public final class AuthorizeRequestingConfigurer {
+
 			private final AuthenticationEntryPoint entryPoint;
+
 			private final Consumer<AuthenticationManager> managerConsumer;
 
 			private AuthorizeRequestingConfigurer(AuthenticationEntryPoint entryPoint,
@@ -130,13 +134,16 @@ public final class AuthorizeStepsConfigurer<H extends HttpSecurityBuilder<H>>
 
 			AuthorizeStepConfigurer grants(AuthoritiesGranter granter) {
 				AuthorizeStepsConfigurer.this.accessRequestingBuilder.add(granter, this.entryPoint);
-				AuthenticationManager manager = AuthorizeStepsConfigurer.this.getBuilder().getSharedObject(AuthenticationManager.class);
+				AuthenticationManager manager = AuthorizeStepsConfigurer.this.getBuilder()
+					.getSharedObject(AuthenticationManager.class);
 				this.managerConsumer.accept(new AuthoritiesGranterAuthenticationProvider(manager, granter));
 				return AuthorizeStepConfigurer.this;
 			}
+
 		}
 
 		public final class AuthorizeEndpointConfigurer {
+
 			private final RequestMatcher requestMatcher;
 
 			AuthorizeEndpointConfigurer(RequestMatcher requestMatcher) {
@@ -148,6 +155,9 @@ public final class AuthorizeStepsConfigurer<H extends HttpSecurityBuilder<H>>
 				AuthorizeStepsConfigurer.this.accessDenyingBuilder.add(this.requestMatcher, manager);
 				return AuthorizeStepConfigurer.this;
 			}
+
 		}
+
 	}
+
 }

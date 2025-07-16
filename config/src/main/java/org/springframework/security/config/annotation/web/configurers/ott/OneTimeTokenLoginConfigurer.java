@@ -16,6 +16,7 @@
 
 package org.springframework.security.config.annotation.web.configurers.ott;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -168,10 +169,12 @@ public final class OneTimeTokenLoginConfigurer<H extends HttpSecurityBuilder<H>>
 
 	@Override
 	protected List<String> getAuthenticationViewEndpoints() {
+		List<String> views = new ArrayList<>();
 		if (this.submitPageEnabled) {
-			return List.of(getLoginPage(), this.defaultSubmitPageUrl);
+			views.add(this.defaultSubmitPageUrl);
 		}
-		return List.of(getLoginPage());
+		views.addAll(super.getAuthenticationViewEndpoints());
+		return views;
 	}
 
 	@Override

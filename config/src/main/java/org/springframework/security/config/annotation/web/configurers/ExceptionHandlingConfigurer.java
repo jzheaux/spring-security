@@ -207,8 +207,7 @@ public final class ExceptionHandlingConfigurer<H extends HttpSecurityBuilder<H>>
 			deniedHandler = createDefaultDeniedHandler(http);
 			AuthorizeStepsConfigurer steps = http.getConfigurer(AuthorizeStepsConfigurer.class);
 			if (steps != null && steps.hasSteps()) {
-				AuthorizationRequestingAccessDeniedHandler authorizationRequesting =
-						steps.getAccessDeniedHandler();
+				AuthorizationRequestingAccessDeniedHandler authorizationRequesting = steps.getAccessDeniedHandler();
 				authorizationRequesting.setDefaultAccessDeniedHandler(deniedHandler);
 				deniedHandler = authorizationRequesting;
 			}

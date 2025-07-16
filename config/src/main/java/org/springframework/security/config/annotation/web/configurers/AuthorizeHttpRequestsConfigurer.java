@@ -165,7 +165,8 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 							+ ". Try completing it with something like requestUrls().<something>.hasRole('USER')");
 			Assert.state(this.mappingCount > 0,
 					"At least one mapping is required (for example, authorizeHttpRequests().anyRequest().authenticated())");
-			RequestMatcherDelegatingAuthorizationManager.Builder builder = RequestMatcherDelegatingAuthorizationManager.builder();
+			RequestMatcherDelegatingAuthorizationManager.Builder builder = RequestMatcherDelegatingAuthorizationManager
+				.builder();
 			AuthorizeStepsConfigurer<H> steps = http.getConfigurer(AuthorizeStepsConfigurer.class);
 			for (RequestMatcherEntry<AuthorizationManager<RequestAuthorizationContext>> entry : this.entries) {
 				RequestMatcher requestMatcher = entry.getRequestMatcher();

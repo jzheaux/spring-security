@@ -54,7 +54,7 @@ public final class SimpleAuthoritiesGranter implements AuthoritiesGranter {
 
 	@Override
 	public AuthoritiesContainer grantAuthorities(AuthoritiesContainer authentication) {
-		return authentication.grantedAuthorities((authorities) -> {
+		return authentication.grantAuthorities((authorities) -> {
 			for (String authority : this.authorities) {
 				if (this.grantingTime == null) {
 					authorities.add(new SimpleGrantedAuthority(authority));

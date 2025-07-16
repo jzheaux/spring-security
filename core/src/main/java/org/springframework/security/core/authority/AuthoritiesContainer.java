@@ -37,6 +37,6 @@ public interface AuthoritiesContainer {
 		return granted;
 	}
 
-	AuthoritiesContainer grantedAuthorities(Consumer<Collection<GrantedAuthority>> authorities);
+	AuthoritiesContainer grantAuthorities(Consumer<Collection<GrantedAuthority>> authorities);
 
 }
