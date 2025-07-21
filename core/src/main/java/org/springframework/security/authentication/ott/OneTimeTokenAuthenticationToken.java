@@ -19,11 +19,14 @@ package org.springframework.security.authentication.ott;
 import java.io.Serial;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.function.Consumer;
 
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.AuthoritiesContainer;
 
 /**
  * Represents a One-Time Token authentication that can be authenticated or not.
@@ -31,7 +34,8 @@ import org.springframework.security.core.GrantedAuthority;
  * @author Marcus da Coregio
  * @since 6.4
  */
-public class OneTimeTokenAuthenticationToken extends AbstractAuthenticationToken {
+public class OneTimeTokenAuthenticationToken extends AbstractAuthenticationToken
+	implements AuthoritiesContainer {
 
 	@Serial
 	private static final long serialVersionUID = -8691636031126328365L;
@@ -104,4 +108,10 @@ public class OneTimeTokenAuthenticationToken extends AbstractAuthenticationToken
 		return this.principal;
 	}
 
+	@Override
+	public AuthoritiesContainer grantAuthorities(Consumer<Collection<GrantedAuthority>> authorities) {
+		Collection<GrantedAuthority> existing = new HashSet<>(getGrantedAuthorities());
+		authorities.accept(existing);
+		return OneTimeTokenAuthenticationToken.authenticated(getPrincipal(), existing);
+	}
 }
