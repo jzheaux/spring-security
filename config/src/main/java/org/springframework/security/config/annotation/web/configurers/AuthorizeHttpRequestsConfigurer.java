@@ -172,8 +172,13 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 			for (RequestMatcherEntry<AuthorizationManager<RequestAuthorizationContext>> entry : this.entries) {
 				RequestMatcher requestMatcher = entry.getRequestMatcher();
 				AuthorizationManager<RequestAuthorizationContext> authorizationManager = entry.getEntry();
-				builder.add(requestMatcher,
-						AuthorizationManagers.allOf(authenticatedAuthorizationManager, authorizationManager));
+				if (requestMatcher instanceof PermitAllSupport.ExactUrlRequestMatcher) {
+					builder.add(requestMatcher, authorizationManager);
+				}
+				else {
+					builder.add(requestMatcher,
+							AuthorizationManagers.allOf(authenticatedAuthorizationManager, authorizationManager));
+				}
 			}
 			AuthorizationManager<HttpServletRequest> manager = postProcess(builder.build());
 			return AuthorizeHttpRequestsConfigurer.this.postProcessor.postProcess(manager);

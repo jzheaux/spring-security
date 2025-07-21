@@ -457,6 +457,10 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		if (this.permitAll) {
 			PermitAllSupport.permitAll(http, this.loginPage, this.loginProcessingUrl, this.failureUrl);
 		}
+		else if (!this.authorizationManager.equals(SingleResultAuthorizationManager.permitAll())) {
+			PermitAllSupport.needs(http, this.authorizationManager, this.loginPage, this.loginProcessingUrl,
+					this.failureUrl);
+		}
 	}
 
 	/**

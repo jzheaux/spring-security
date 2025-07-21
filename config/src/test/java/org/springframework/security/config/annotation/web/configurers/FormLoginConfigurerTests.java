@@ -969,7 +969,11 @@ public class FormLoginConfigurerTests {
 			// @formatter:off
 			http
 				.x509((x509) -> x509.grants("form:read"))
-				.formLogin((form) -> form.authenticates().needs("form:read"))
+				.formLogin((form) -> form
+					.loginPage("/login")
+					.needs("form:read")
+					.authenticates()
+				)
 				.authorizeHttpRequests((authorize) -> authorize.anyRequest().authenticated());
 			return http.build();
 			// @formatter:on
