@@ -34,8 +34,7 @@ import org.springframework.security.core.authority.AuthoritiesContainer;
  * @author Marcus da Coregio
  * @since 6.4
  */
-public class OneTimeTokenAuthenticationToken extends AbstractAuthenticationToken
-	implements AuthoritiesContainer {
+public class OneTimeTokenAuthenticationToken extends AbstractAuthenticationToken implements AuthoritiesContainer {
 
 	@Serial
 	private static final long serialVersionUID = -8691636031126328365L;
@@ -114,4 +113,5 @@ public class OneTimeTokenAuthenticationToken extends AbstractAuthenticationToken
 		authorities.accept(existing);
 		return OneTimeTokenAuthenticationToken.authenticated(getPrincipal(), existing);
 	}
+
 }

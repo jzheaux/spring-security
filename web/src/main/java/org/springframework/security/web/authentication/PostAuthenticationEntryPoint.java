@@ -60,14 +60,12 @@ public final class PostAuthenticationEntryPoint implements AuthenticationEntryPo
 		Map<String, String> params = this.params.entrySet()
 			.stream()
 			.collect(Collectors.toMap(Map.Entry::getKey, (entry) -> entry.getValue().apply(authentication)));
+		UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(this.entryPointUri);
 		CsrfToken csrf = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
 		if (csrf != null) {
-			params.put(csrf.getParameterName(), csrf.getToken());
+			builder.queryParam(csrf.getParameterName(), csrf.getToken());
 		}
-		String entryPointUrl = UriComponentsBuilder.fromPath(this.entryPointUri)
-			.build(false)
-			.expand(params)
-			.toUriString();
+		String entryPointUrl = builder.build(false).expand(params).toUriString();
 		this.redirectStrategy.sendRedirect(request, response, entryPointUrl);
 	}
 
