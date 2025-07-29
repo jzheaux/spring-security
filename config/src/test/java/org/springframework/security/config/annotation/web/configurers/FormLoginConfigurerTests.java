@@ -17,8 +17,6 @@
 package org.springframework.security.config.annotation.web.configurers;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,11 +24,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.authorization.AuthoritiesGranterAuthenticationManager;
-import org.springframework.security.authorization.AuthoritiesGranterAuthorizationManager;
-import org.springframework.security.authorization.SimpleAuthoritiesGranter;
 import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.SecurityContextChangedListenerConfig;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -46,24 +40,16 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
-import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
-import org.springframework.security.oauth2.client.registration.TestClientRegistrations;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
-import org.springframework.security.web.AuthorizationRequestingAccessDeniedHandler;
-import org.springframework.security.web.AuthorizationRequestingAccessDeniedHandler.AuthorizationRequestEntry;
 import org.springframework.security.web.PortMapper;
 import org.springframework.security.web.PortResolver;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
-import org.springframework.security.web.access.intercept.AuthorizationFilter;
-import org.springframework.security.web.access.intercept.RequestMatcherDelegatingAuthorizationManager;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.authentication.ott.OneTimeTokenAuthenticationFilter;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 import org.springframework.security.web.authentication.ott.RedirectOneTimeTokenGenerationSuccessHandler;
 import org.springframework.security.web.savedrequest.RequestCache;
@@ -82,7 +68,6 @@ import static org.springframework.security.config.annotation.SecurityContextChan
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.logout;
 import static org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.authenticated;
-import static org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.pathPattern;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -412,57 +397,33 @@ public class FormLoginConfigurerTests {
 	}
 
 	@Test
-	void requestWhenAuthenticatedNotByDaoThenRedirects() throws Exception {
-		this.spring.register(MfaConfig.class).autowire();
-		UserDetails user = PasswordEncodedUser.user();
-		this.mockMvc.perform(get("/").with(SecurityMockMvcRequestPostProcessors.user(user)))
-			.andExpect(status().is3xxRedirection())
-			.andExpect(redirectedUrl("http://localhost/login"));
-		this.mockMvc.perform(get("/login").with(SecurityMockMvcRequestPostProcessors.user(user)))
-			.andExpect(status().is3xxRedirection())
-			.andExpect(redirectedUrl("http://localhost/oauth2/authorization/id"));
-		this.mockMvc
-			.perform(post("/login")
-				.with(SecurityMockMvcRequestPostProcessors.oauth2Login()
-					.clientRegistration(TestClientRegistrations.clientRegistration().build()))
-				.with(SecurityMockMvcRequestPostProcessors.csrf())
-				.param("username", user.getUsername())
-				.param("password", user.getPassword()))
-			.andExpect(status().is3xxRedirection())
-			.andExpect(redirectedUrl("/"));
-	}
-
-	@Test
 	void requestWhenUnauthenticatedThenRequiresTwoSteps() throws Exception {
 		this.spring.register(MfaDslConfig.class).autowire();
 		UserDetails user = PasswordEncodedUser.user();
 		this.mockMvc.perform(get("/profile").with(SecurityMockMvcRequestPostProcessors.user(user)))
-			.andExpect(status().isOk())
-			.andExpect(content().string(containsString("/ott/generate")));
-		this.mockMvc
-			.perform(post("/ott/generate").with(SecurityMockMvcRequestPostProcessors.user(user))
-				.with(SecurityMockMvcRequestPostProcessors.csrf()))
 			.andExpect(status().is3xxRedirection())
 			.andExpect(redirectedUrl("http://localhost/login"));
-		this.mockMvc
-			.perform(post("/login").param("username", user.getUsername())
-				.param("password", user.getPassword())
-				.with(SecurityMockMvcRequestPostProcessors.csrf()))
-			.andExpect(status().is3xxRedirection())
-			.andExpect(redirectedUrl("/"));
-		user = PasswordEncodedUser.withUserDetails(user).authorities("profile:read", "ott:read").build();
-		this.mockMvc.perform(get("/profile").with(SecurityMockMvcRequestPostProcessors.user(user)))
-			.andExpect(status().isOk())
-			.andExpect(content().string(containsString("/ott/generate")));
 		this.mockMvc
 			.perform(post("/ott/generate").param("username", "user")
 				.with(SecurityMockMvcRequestPostProcessors.user(user))
 				.with(SecurityMockMvcRequestPostProcessors.csrf()))
 			.andExpect(status().is3xxRedirection())
 			.andExpect(redirectedUrl("/ott/sent"));
-		user = PasswordEncodedUser.withUserDetails(user)
-			.authorities("profile:read", "ott:read", "authenticated")
-			.build();
+		this.mockMvc
+			.perform(post("/login").param("username", user.getUsername())
+				.param("password", user.getPassword())
+				.with(SecurityMockMvcRequestPostProcessors.csrf()))
+			.andExpect(status().is3xxRedirection())
+			.andExpect(redirectedUrl("/"));
+		user = PasswordEncodedUser.withUserDetails(user).authorities("profile:read", "AUTHN_OTT").build();
+		this.mockMvc.perform(get("/profile").with(SecurityMockMvcRequestPostProcessors.user(user)))
+			.andExpect(status().is3xxRedirection())
+			.andExpect(redirectedUrl("http://localhost/login"));
+		user = PasswordEncodedUser.withUserDetails(user).authorities("profile:read", "AUTHN_FORM").build();
+		this.mockMvc.perform(get("/profile").with(SecurityMockMvcRequestPostProcessors.user(user)))
+			.andExpect(status().isOk())
+			.andExpect(content().string(containsString("/ott/generate")));
+		user = PasswordEncodedUser.withUserDetails(user).authorities("profile:read", "AUTHN_FORM", "AUTHN_OTT").build();
 		this.mockMvc.perform(get("/profile").with(SecurityMockMvcRequestPostProcessors.user(user)))
 			.andExpect(status().isNotFound());
 	}
@@ -471,13 +432,13 @@ public class FormLoginConfigurerTests {
 	void requestWhenUnauthenticatedX509ThenRequiresTwoSteps() throws Exception {
 		this.spring.register(MfaDslX509Config.class).autowire();
 		this.mockMvc.perform(get("/")).andExpect(status().isForbidden());
-		this.mockMvc.perform(get("/login")).andExpect(status().isForbidden());
+		this.mockMvc.perform(get("/login")).andExpect(status().isOk());
 		this.mockMvc.perform(get("/").with(SecurityMockMvcRequestPostProcessors.x509("rod.cer")))
 			.andExpect(status().is3xxRedirection())
 			.andExpect(redirectedUrl("http://localhost/login"));
 		UserDetails user = PasswordEncodedUser.withUsername("rod")
 			.password("password")
-			.authorities("form:read")
+			.authorities("AUTHN_FORM")
 			.build();
 		this.mockMvc
 			.perform(post("/login").param("username", user.getUsername())
@@ -855,86 +816,17 @@ public class FormLoginConfigurerTests {
 
 	@Configuration
 	@EnableWebSecurity
-	static class MfaConfig {
-
-		@Bean
-		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-			SimpleAuthoritiesGranter formLogin = new SimpleAuthoritiesGranter("AUTHN_DAO");
-			SimpleAuthoritiesGranter oauth2Login = new SimpleAuthoritiesGranter("AUTHN_OAUTH2");
-			SimpleAuthoritiesGranter formLoginTime = new SimpleAuthoritiesGranter(Duration.ofSeconds(3600),
-					"AUTHN_DAO");
-			List<AuthorizationRequestEntry> mapping = new ArrayList<>();
-			mapping.add(new AuthorizationRequestEntry(formLogin, new LoginUrlAuthenticationEntryPoint("/login")));
-			mapping.add(new AuthorizationRequestEntry(oauth2Login,
-					new LoginUrlAuthenticationEntryPoint("/oauth2/authorization/id")));
-			mapping.add(new AuthorizationRequestEntry(formLoginTime, new LoginUrlAuthenticationEntryPoint("/login")));
-			AuthorizationRequestingAccessDeniedHandler accessDeniedHandler = new AuthorizationRequestingAccessDeniedHandler(
-					mapping);
-			AuthorizationFilter filter = new AuthorizationFilter(RequestMatcherDelegatingAuthorizationManager.builder()
-				.add(pathPattern("/login"), new AuthoritiesGranterAuthorizationManager<>(oauth2Login))
-				.anyRequest()
-				.permitAll()
-				.build());
-			filter.setAccessDeniedHandler(accessDeniedHandler);
-			// @formatter:off
-			http
-				.authorizeHttpRequests((authorize) -> authorize
-					.requestMatchers("/profile").access(new AuthoritiesGranterAuthorizationManager<>(formLoginTime))
-					.anyRequest().access(new AuthoritiesGranterAuthorizationManager<>(formLogin))
-				)
-				.formLogin((form) -> form.withObjectPostProcessor(new ObjectPostProcessor<UsernamePasswordAuthenticationFilter>() {
-					@Override
-					public <O extends UsernamePasswordAuthenticationFilter> O postProcess(O object) {
-						AuthoritiesGranterAuthenticationManager manager =  new AuthoritiesGranterAuthenticationManager(
-								http.getSharedObject(AuthenticationManager.class), formLogin);
-						object.setAuthenticationManager(manager);
-						return object;
-					}
-				}))
-				.oauth2Login((oauth2) -> oauth2.withObjectPostProcessor(new ObjectPostProcessor<OneTimeTokenAuthenticationFilter>() {
-					@Override
-					public <O extends OneTimeTokenAuthenticationFilter> O postProcess(O object) {
-						AuthoritiesGranterAuthenticationManager manager =  new AuthoritiesGranterAuthenticationManager(
-								http.getSharedObject(AuthenticationManager.class), oauth2Login);
-						object.setAuthenticationManager(manager);
-						return object;
-					}
-				}))
-				.exceptionHandling((exceptions) -> exceptions.accessDeniedHandler(accessDeniedHandler))
-				.addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class);
-			return http.build();
-			// @formatter:on
-		}
-
-		@Bean
-		UserDetailsService users() {
-			return new InMemoryUserDetailsManager(PasswordEncodedUser.user());
-		}
-
-		@Bean
-		PasswordEncoder encoder() {
-			return NoOpPasswordEncoder.getInstance();
-		}
-
-		@Bean
-		ClientRegistrationRepository clients() {
-			return new InMemoryClientRegistrationRepository(TestClientRegistrations.clientRegistration().build());
-		}
-
-	}
-
-	@Configuration
-	@EnableWebSecurity
 	static class MfaDslConfig {
 
 		@Bean
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.formLogin((form) -> form.grants(
-					new SimpleAuthoritiesGranter(Duration.ofSeconds(300), "ott:read", "profile:read"))
+				.formLogin((form) -> form
+					.order(1)
+					.grants(Duration.ofSeconds(300), "profile:read")
 				)
-				.oneTimeTokenLogin((ott) -> ott.authenticates().needs("ott:read"))
+				.oneTimeTokenLogin((ott) -> ott.order(2))
 				.authorizeHttpRequests((authorize) -> authorize
 					.requestMatchers("/profile").hasAuthority("profile:read")
 					.anyRequest().authenticated()
@@ -968,12 +860,8 @@ public class FormLoginConfigurerTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.x509((x509) -> x509.grants("form:read"))
-				.formLogin((form) -> form
-					.loginPage("/login")
-					.needs("form:read")
-					.authenticates()
-				)
+				.x509((x509) -> x509.order(1))
+				.formLogin((form) -> form.order(2))
 				.authorizeHttpRequests((authorize) -> authorize.anyRequest().authenticated());
 			return http.build();
 			// @formatter:on

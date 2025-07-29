@@ -32,18 +32,12 @@ import org.springframework.core.log.LogMessage;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.event.InteractiveAuthenticationSuccessEvent;
-import org.springframework.security.authorization.AuthorizationDeniedException;
-import org.springframework.security.authorization.AuthorizationManager;
-import org.springframework.security.authorization.SingleResultAuthorizationManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.web.WebAttributes;
-import org.springframework.security.web.access.AccessDeniedHandler;
-import org.springframework.security.web.access.AccessDeniedHandlerImpl;
-import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -114,10 +108,6 @@ public abstract class AbstractPreAuthenticatedProcessingFilter extends GenericFi
 
 	private boolean invalidateSessionOnPrincipalChange = true;
 
-	private AuthorizationManager<RequestAuthorizationContext> authorized = SingleResultAuthorizationManager.permitAll();
-
-	private AccessDeniedHandler accessDeniedHandler = new AccessDeniedHandlerImpl();
-
 	private AuthenticationSuccessHandler authenticationSuccessHandler = null;
 
 	private AuthenticationFailureHandler authenticationFailureHandler = null;
@@ -152,14 +142,6 @@ public abstract class AbstractPreAuthenticatedProcessingFilter extends GenericFi
 			if (logger.isDebugEnabled()) {
 				logger.debug(LogMessage
 					.of(() -> "Authenticating " + this.securityContextHolderStrategy.getContext().getAuthentication()));
-			}
-			try {
-				this.authorized.verify(this.securityContextHolderStrategy.getContext()::getAuthentication,
-						new RequestAuthorizationContext((HttpServletRequest) request));
-			}
-			catch (AuthorizationDeniedException ex) {
-				this.accessDeniedHandler.handle((HttpServletRequest) request, (HttpServletResponse) response, ex);
-				return;
 			}
 			doAuthenticate((HttpServletRequest) request, (HttpServletResponse) response);
 		}
@@ -271,14 +253,6 @@ public abstract class AbstractPreAuthenticatedProcessingFilter extends GenericFi
 	@Override
 	public void setApplicationEventPublisher(ApplicationEventPublisher anApplicationEventPublisher) {
 		this.eventPublisher = anApplicationEventPublisher;
-	}
-
-	public void setAccessDeniedHandler(AccessDeniedHandler accessDeniedHandler) {
-		this.accessDeniedHandler = accessDeniedHandler;
-	}
-
-	public void setAuthorizationManager(AuthorizationManager<RequestAuthorizationContext> authorizationManager) {
-		this.authorized = authorizationManager;
 	}
 
 	/**

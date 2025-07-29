@@ -328,6 +328,11 @@ public final class Saml2LoginConfigurer<B extends HttpSecurityBuilder<B>>
 		}
 	}
 
+	@Override
+	protected String getDefaultAuthority() {
+		return "AUTHN_SAML2";
+	}
+
 	RelyingPartyRegistrationRepository relyingPartyRegistrationRepository(B http) {
 		if (this.relyingPartyRegistrationRepository == null) {
 			this.relyingPartyRegistrationRepository = getSharedOrBean(http, RelyingPartyRegistrationRepository.class);
@@ -466,7 +471,7 @@ public final class Saml2LoginConfigurer<B extends HttpSecurityBuilder<B>>
 	private void initDefaultLoginFilter(B http) {
 		DefaultLoginPageGeneratingFilter loginPageGeneratingFilter = http
 			.getSharedObject(DefaultLoginPageGeneratingFilter.class);
-		if (loginPageGeneratingFilter == null || this.isCustomLoginPage() || !isPermitAll()) {
+		if (loginPageGeneratingFilter == null || this.isCustomLoginPage()) {
 			return;
 		}
 		loginPageGeneratingFilter.setSaml2LoginEnabled(true);

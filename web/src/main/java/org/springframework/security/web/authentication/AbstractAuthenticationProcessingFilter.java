@@ -401,14 +401,6 @@ public abstract class AbstractAuthenticationProcessingFilter extends GenericFilt
 		this.continueChainWhenNoAuthenticationResult = true;
 	}
 
-	public void setAuthorizationManager(AuthorizationManager<RequestAuthorizationContext> authorizationManager) {
-		this.authorized = authorizationManager;
-	}
-
-	public void setAccessDeniedHandler(AccessDeniedHandler accessDeniedHandler) {
-		this.accessDeniedHandler = accessDeniedHandler;
-	}
-
 	protected AuthenticationManager getAuthenticationManager() {
 		return this.authenticationManager;
 	}

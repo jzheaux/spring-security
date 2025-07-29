@@ -16,12 +16,15 @@
 
 package org.springframework.security.config.annotation.web.configurers;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationContext;
+import org.springframework.core.Ordered;
 import org.springframework.core.ResolvableType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authorization.AuthoritiesGranter;
@@ -33,6 +36,7 @@ import org.springframework.security.authorization.SpringAuthorizationEventPublis
 import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.AuthorizationRequestEntry;
 import org.springframework.security.web.AuthorizationRequestingAccessDeniedHandler;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
@@ -54,8 +58,7 @@ public final class AuthorizeStepsConfigurer<H extends HttpSecurityBuilder<H>>
 
 	private int mappingsCount;
 
-	private final AuthorizationRequestingAccessDeniedHandler.Builder accessRequestingBuilder = AuthorizationRequestingAccessDeniedHandler
-		.builder();
+	private final List<AuthorizationRequestEntry> entries = new ArrayList<>();
 
 	private final RequestMatcherDelegatingAuthorizationManager.Builder accessDenyingBuilder = RequestMatcherDelegatingAuthorizationManager
 		.builder();
@@ -106,7 +109,7 @@ public final class AuthorizeStepsConfigurer<H extends HttpSecurityBuilder<H>>
 	}
 
 	AuthorizationRequestingAccessDeniedHandler getAccessDeniedHandler() {
-		return this.accessRequestingBuilder.build();
+		return new AuthorizationRequestingAccessDeniedHandler(this.entries);
 	}
 
 	public final class AuthorizeStepConfigurer {
@@ -133,7 +136,8 @@ public final class AuthorizeStepsConfigurer<H extends HttpSecurityBuilder<H>>
 			}
 
 			AuthorizeStepConfigurer grants(AuthoritiesGranter granter) {
-				AuthorizeStepsConfigurer.this.accessRequestingBuilder.add(granter, this.entryPoint);
+				AuthorizeStepsConfigurer.this.entries
+					.add(new AuthorizationRequestEntry(granter, this.entryPoint, Ordered.LOWEST_PRECEDENCE));
 				AuthenticationManager manager = AuthorizeStepsConfigurer.this.getBuilder()
 					.getSharedObject(AuthenticationManager.class);
 				this.managerConsumer.accept(new AuthoritiesGranterAuthenticationManager(manager, granter));

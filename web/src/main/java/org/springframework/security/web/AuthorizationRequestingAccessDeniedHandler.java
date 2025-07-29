@@ -24,28 +24,24 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.springframework.core.annotation.AnnotationAwareOrderComparator;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.InsufficientAuthenticationException;
-import org.springframework.security.authorization.AuthoritiesGranter;
 import org.springframework.security.authorization.AuthorityAuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.access.AccessDeniedHandlerImpl;
-import org.springframework.util.Assert;
 
 public final class AuthorizationRequestingAccessDeniedHandler implements AccessDeniedHandler {
 
 	private final List<AuthorizationRequestEntry> entries;
 
-	private AccessDeniedHandler delegate = new AccessDeniedHandlerImpl();
+	private final AccessDeniedHandler delegate = new AccessDeniedHandlerImpl();
 
 	public AuthorizationRequestingAccessDeniedHandler(List<AuthorizationRequestEntry> entries) {
-		this.entries = entries;
-	}
-
-	public void setDefaultAccessDeniedHandler(AccessDeniedHandler defaultAccessDeniedHandler) {
-		this.delegate = defaultAccessDeniedHandler;
+		this.entries = new ArrayList<>(entries);
+		AnnotationAwareOrderComparator.sort(this.entries);
 	}
 
 	@Override
@@ -61,52 +57,15 @@ public final class AuthorizationRequestingAccessDeniedHandler implements AccessD
 		}
 		for (GrantedAuthority needed : decision.getAuthorities()) {
 			for (AuthorizationRequestEntry entry : this.entries) {
-				if (entry.granter.grantsAuthority(needed)) {
+				if (entry.getAuthoritiesGranter().grantsAuthority(needed)) {
 					InsufficientAuthenticationException iae = new InsufficientAuthenticationException("access denied",
 							access);
-					entry.requester.commence(request, response, iae);
+					entry.getAuthenticationEntryPoint().commence(request, response, iae);
 					return;
 				}
 			}
 		}
 		this.delegate.handle(request, response, access);
-	}
-
-	public static Builder builder() {
-		return new Builder();
-	}
-
-	public static final class AuthorizationRequestEntry {
-
-		private final AuthoritiesGranter granter;
-
-		private final AuthenticationEntryPoint requester;
-
-		public AuthorizationRequestEntry(AuthoritiesGranter granter, AuthenticationEntryPoint requester) {
-			Assert.notNull(granter, "authoritiesGranter cannot be null");
-			Assert.notNull(requester, "authenticationEntryPoint cannot be null");
-			this.granter = granter;
-			this.requester = requester;
-		}
-
-	}
-
-	public static final class Builder {
-
-		private final List<AuthorizationRequestEntry> entries = new ArrayList<>();
-
-		private Builder() {
-		}
-
-		public Builder add(AuthoritiesGranter granter, AuthenticationEntryPoint requester) {
-			this.entries.add(new AuthorizationRequestEntry(granter, requester));
-			return this;
-		}
-
-		public AuthorizationRequestingAccessDeniedHandler build() {
-			return new AuthorizationRequestingAccessDeniedHandler(this.entries);
-		}
-
 	}
 
 }

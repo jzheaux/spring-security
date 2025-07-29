@@ -140,6 +140,8 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 
 		private final List<RequestMatcherEntry<AuthorizationManager<RequestAuthorizationContext>>> entries = new ArrayList<>();
 
+		private final List<String> authorities = new ArrayList<>();
+
 		private List<RequestMatcher> unmappedMatchers;
 
 		private int mappingCount;
@@ -168,12 +170,14 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 					"At least one mapping is required (for example, authorizeHttpRequests().anyRequest().authenticated())");
 			RequestMatcherDelegatingAuthorizationManager.Builder builder = RequestMatcherDelegatingAuthorizationManager
 				.builder();
-			AuthorizationManager<RequestAuthorizationContext> authenticatedAuthorizationManager = http
-				.getSharedObject(AuthorizationManager.class, SingleResultAuthorizationManager::permitAll);
+			AuthorizationManager<RequestAuthorizationContext> authenticatedAuthorizationManager = AuthorizationManagers
+				.allOf(this.authorities.stream()
+					.map(AuthorityAuthorizationManager::hasAuthority)
+					.toArray(AuthorizationManager[]::new));
 			for (RequestMatcherEntry<AuthorizationManager<RequestAuthorizationContext>> entry : this.entries) {
 				RequestMatcher requestMatcher = entry.getRequestMatcher();
 				AuthorizationManager<RequestAuthorizationContext> authorizationManager = entry.getEntry();
-				if (authorizationManager instanceof AuthorizeHttpRequestsConfigurer.WithAuthenticationAuthorizationManager m) {
+				if (authorizationManager instanceof WithAuthenticationAuthorizationManager m) {
 					m.setAuthenticated(authenticatedAuthorizationManager);
 				}
 				builder.add(requestMatcher, authorizationManager);
@@ -197,6 +201,11 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 		public AuthorizationManagerRequestMatcherRegistry withObjectPostProcessor(
 				ObjectPostProcessor<?> objectPostProcessor) {
 			addObjectPostProcessor(objectPostProcessor);
+			return this;
+		}
+
+		public AuthorizationManagerRequestMatcherRegistry withDefaultAuthority(String authority) {
+			this.authorities.add(authority);
 			return this;
 		}
 

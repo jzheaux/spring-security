@@ -20,15 +20,13 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthoritiesContainer;
 import org.springframework.security.core.authority.ExpirableGrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.util.Assert;
 
 public final class SimpleAuthoritiesGranter implements AuthoritiesGranter {
 
@@ -44,6 +42,7 @@ public final class SimpleAuthoritiesGranter implements AuthoritiesGranter {
 	}
 
 	public SimpleAuthoritiesGranter(Duration grantingTime, String... authorities) {
+		Assert.notEmpty(authorities, "authorities cannot be empty");
 		this.grantingTime = grantingTime;
 		this.authorities = List.of(authorities);
 	}
@@ -66,15 +65,6 @@ public final class SimpleAuthoritiesGranter implements AuthoritiesGranter {
 				}
 			}
 		});
-	}
-
-	@Override
-	public Collection<GrantedAuthority> neededAuthorities(AuthoritiesContainer authentication) {
-		Set<String> authorities = new HashSet<>(this.authorities);
-		for (GrantedAuthority authority : authentication.getGrantedAuthorities()) {
-			authorities.remove(authority.getAuthority());
-		}
-		return authorities.stream().map(SimpleGrantedAuthority::new).collect(Collectors.toSet());
 	}
 
 }

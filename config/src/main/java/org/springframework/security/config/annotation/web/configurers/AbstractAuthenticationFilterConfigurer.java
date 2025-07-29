@@ -22,21 +22,20 @@ import java.util.Collections;
 import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.context.ApplicationContext;
+import org.springframework.core.Ordered;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authorization.AuthoritiesGranter;
 import org.springframework.security.authorization.AuthoritiesGranterAuthenticationManager;
-import org.springframework.security.authorization.AuthoritiesGranterAuthorizationManager;
-import org.springframework.security.authorization.AuthorizationManager;
-import org.springframework.security.authorization.SingleResultAuthorizationManager;
+import org.springframework.security.authorization.CompositeAuthoritiesGranter;
+import org.springframework.security.authorization.SimpleAuthoritiesGranter;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
-import org.springframework.security.web.AuthorizationRequestingAccessDeniedHandler;
+import org.springframework.security.web.AuthorizationRequestEntry;
 import org.springframework.security.web.PortMapper;
 import org.springframework.security.web.PortResolver;
-import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -72,10 +71,11 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 
 	private F authFilter;
 
-	private AuthoritiesGranter authoritiesGranter = (a) -> a;
+	private AuthoritiesGranter defaultAuthorization = new SimpleAuthoritiesGranter(getDefaultAuthority());
 
-	private AuthorizationManager<RequestAuthorizationContext> authorizationManager = SingleResultAuthorizationManager
-		.permitAll();
+	private AuthoritiesGranter authoritiesGranter = this.defaultAuthorization;
+
+	private int order = Ordered.LOWEST_PRECEDENCE;
 
 	private AuthenticationDetailsSource<HttpServletRequest, ?> authenticationDetailsSource;
 
@@ -119,26 +119,15 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		}
 	}
 
-	/*
-	 * ott.grants("authenticated").needs("ott:read");
-	 * form.grants("ott:read").needs(captchaNotNeeded); captcha.grants("form:read");
-	 */
 	@Override
 	public T grants(AuthoritiesGranter granter) {
-		this.authoritiesGranter = granter;
+		this.authoritiesGranter = new CompositeAuthoritiesGranter(this.defaultAuthorization, granter);
 		return getSelf();
 	}
 
 	@Override
-	public T authenticates(AuthoritiesGranter granter) {
-		getBuilder().setSharedObject(AuthorizationManager.class, new AuthoritiesGranterAuthorizationManager<>(granter));
-		this.authoritiesGranter = granter;
-		return getSelf();
-	}
-
-	@Override
-	public T needs(AuthorizationManager<RequestAuthorizationContext> needs) {
-		this.authorizationManager = needs;
+	public T order(int order) {
+		this.order = order;
 		return getSelf();
 	}
 
@@ -272,10 +261,28 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		updateAuthenticationDefaults();
 		updateAccessDefaults(http);
 		registerDefaultAuthenticationEntryPoint(http);
-		AuthorizationRequestingAccessDeniedHandler.Builder accessDeniedHandler = http.getSharedObject(
-				AuthorizationRequestingAccessDeniedHandler.Builder.class,
-				AuthorizationRequestingAccessDeniedHandler::builder);
-		accessDeniedHandler.add(this.authoritiesGranter, getAuthenticationEntryPoint());
+		if (this.order == Ordered.LOWEST_PRECEDENCE) {
+			return;
+		}
+		ExceptionHandlingConfigurer<B> exceptions = http.getConfigurer(ExceptionHandlingConfigurer.class);
+		if (exceptions != null) {
+			AuthenticationEntryPoint entryPoint = getPostAuthenticationEntryPoint();
+			AuthorizationRequestEntry entry = new AuthorizationRequestEntry(this.authoritiesGranter, entryPoint,
+					this.order);
+			exceptions.authorizationRequestEntries((entries) -> entries.add(entry));
+		}
+		AuthorizeHttpRequestsConfigurer<B> authorize = http.getConfigurer(AuthorizeHttpRequestsConfigurer.class);
+		if (authorize != null) {
+			authorize.getRegistry().withDefaultAuthority(getDefaultAuthority());
+		}
+	}
+
+	protected String getDefaultAuthority() {
+		return "AUTHN_AUTHENTICATION";
+	}
+
+	protected AuthenticationEntryPoint getPostAuthenticationEntryPoint() {
+		return this.authenticationEntryPoint;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -321,13 +328,10 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		if (requestCache != null) {
 			this.defaultSuccessHandler.setRequestCache(requestCache);
 		}
-		this.authFilter.setAuthorizationManager(this.authorizationManager);
-		AuthorizationRequestingAccessDeniedHandler.Builder accessDeniedHandler = http.getSharedObject(
-				AuthorizationRequestingAccessDeniedHandler.Builder.class,
-				AuthorizationRequestingAccessDeniedHandler::builder);
-		this.authFilter.setAccessDeniedHandler(accessDeniedHandler.build());
 		AuthenticationManager manager = http.getSharedObject(AuthenticationManager.class);
-		manager = new AuthoritiesGranterAuthenticationManager(manager, this.authoritiesGranter);
+		if (this.order != Ordered.LOWEST_PRECEDENCE) {
+			manager = new AuthoritiesGranterAuthenticationManager(manager, this.authoritiesGranter);
+		}
 		this.authFilter.setAuthenticationManager(manager);
 		this.authFilter.setAuthenticationSuccessHandler(this.successHandler);
 		this.authFilter.setAuthenticationFailureHandler(this.failureHandler);
@@ -379,10 +383,6 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 	 */
 	public final boolean isCustomLoginPage() {
 		return this.customLoginPage;
-	}
-
-	public final boolean isPermitAll() {
-		return SingleResultAuthorizationManager.permitAll().equals(this.authorizationManager);
 	}
 
 	/**
@@ -456,10 +456,6 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 	protected final void updateAccessDefaults(B http) {
 		if (this.permitAll) {
 			PermitAllSupport.permitAll(http, this.loginPage, this.loginProcessingUrl, this.failureUrl);
-		}
-		else if (!this.authorizationManager.equals(SingleResultAuthorizationManager.permitAll())) {
-			PermitAllSupport.needs(http, this.authorizationManager, this.loginPage, this.loginProcessingUrl,
-					this.failureUrl);
 		}
 	}
 

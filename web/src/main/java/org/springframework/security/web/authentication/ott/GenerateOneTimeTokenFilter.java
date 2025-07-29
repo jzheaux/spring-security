@@ -27,14 +27,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.ott.GenerateOneTimeTokenRequest;
 import org.springframework.security.authentication.ott.OneTimeToken;
 import org.springframework.security.authentication.ott.OneTimeTokenService;
-import org.springframework.security.authorization.AuthorizationDeniedException;
-import org.springframework.security.authorization.AuthorizationManager;
-import org.springframework.security.authorization.SingleResultAuthorizationManager;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.context.SecurityContextHolderStrategy;
-import org.springframework.security.web.access.AccessDeniedHandler;
-import org.springframework.security.web.access.AccessDeniedHandlerImpl;
-import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
@@ -59,13 +51,6 @@ public final class GenerateOneTimeTokenFilter extends OncePerRequestFilter {
 	private RequestMatcher requestMatcher = PathPatternRequestMatcher.withDefaults()
 		.matcher(HttpMethod.POST, DEFAULT_GENERATE_URL);
 
-	private SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder
-		.getContextHolderStrategy();
-
-	private AuthorizationManager<RequestAuthorizationContext> authorized = SingleResultAuthorizationManager.permitAll();
-
-	private AccessDeniedHandler accessDeniedHandler = new AccessDeniedHandlerImpl();
-
 	private GenerateOneTimeTokenRequestResolver requestResolver = new DefaultGenerateOneTimeTokenRequestResolver();
 
 	public GenerateOneTimeTokenFilter(OneTimeTokenService tokenService,
@@ -81,14 +66,6 @@ public final class GenerateOneTimeTokenFilter extends OncePerRequestFilter {
 			throws ServletException, IOException {
 		if (!this.requestMatcher.matches(request)) {
 			filterChain.doFilter(request, response);
-			return;
-		}
-		try {
-			this.authorized.verify(this.securityContextHolderStrategy.getContext()::getAuthentication,
-					new RequestAuthorizationContext(request));
-		}
-		catch (AuthorizationDeniedException ex) {
-			this.accessDeniedHandler.handle(request, response, ex);
 			return;
 		}
 		String username = request.getParameter("username");
@@ -112,19 +89,6 @@ public final class GenerateOneTimeTokenFilter extends OncePerRequestFilter {
 	public void setRequestMatcher(RequestMatcher requestMatcher) {
 		Assert.notNull(requestMatcher, "requestMatcher cannot be null");
 		this.requestMatcher = requestMatcher;
-	}
-
-	public void setSecurityContextHolderStrategy(SecurityContextHolderStrategy securityContextHolderStrategy) {
-		Assert.notNull(securityContextHolderStrategy, "securityContextHolderStrategy cannot be null");
-		this.securityContextHolderStrategy = securityContextHolderStrategy;
-	}
-
-	public void setAuthorizationManager(AuthorizationManager<RequestAuthorizationContext> authorizationManager) {
-		this.authorized = authorizationManager;
-	}
-
-	public void setAccessDeniedHandler(AccessDeniedHandler accessDeniedHandler) {
-		this.accessDeniedHandler = accessDeniedHandler;
 	}
 
 	/**

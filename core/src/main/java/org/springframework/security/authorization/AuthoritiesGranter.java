@@ -16,10 +16,6 @@
 
 package org.springframework.security.authorization;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
-
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthoritiesContainer;
 
@@ -29,18 +25,6 @@ public interface AuthoritiesGranter {
 
 	default boolean grantsAuthority(GrantedAuthority authority) {
 		return false;
-	}
-
-	default Collection<GrantedAuthority> neededAuthorities(AuthoritiesContainer authentication) {
-		Set<GrantedAuthority> valid = new HashSet<>(authentication.getGrantedAuthorities());
-		Set<GrantedAuthority> granted = new HashSet<>(grantAuthorities(authentication).getGrantedAuthorities());
-		Set<GrantedAuthority> needed = new HashSet<>();
-		for (GrantedAuthority grant : granted) {
-			if (valid.contains(grant)) {
-				needed.add(grant);
-			}
-		}
-		return needed;
 	}
 
 }

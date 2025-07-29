@@ -411,6 +411,11 @@ public final class OAuth2LoginConfigurer<B extends HttpSecurityBuilder<B>>
 		return getRequestMatcherBuilder().matcher(loginProcessingUrl);
 	}
 
+	@Override
+	protected String getDefaultAuthority() {
+		return "AUTHN_OAUTH2";
+	}
+
 	private OAuth2AuthorizationRequestResolver getAuthorizationRequestResolver() {
 		if (this.authorizationEndpointConfig.authorizationRequestResolver != null) {
 			return this.authorizationEndpointConfig.authorizationRequestResolver;
@@ -512,7 +517,7 @@ public final class OAuth2LoginConfigurer<B extends HttpSecurityBuilder<B>>
 	private void initDefaultLoginFilter(B http) {
 		DefaultLoginPageGeneratingFilter loginPageGeneratingFilter = http
 			.getSharedObject(DefaultLoginPageGeneratingFilter.class);
-		if (loginPageGeneratingFilter == null || this.isCustomLoginPage() || !isPermitAll()) {
+		if (loginPageGeneratingFilter == null || this.isCustomLoginPage()) {
 			return;
 		}
 		loginPageGeneratingFilter.setOauth2LoginEnabled(true);

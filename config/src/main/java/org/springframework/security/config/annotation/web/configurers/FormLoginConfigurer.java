@@ -238,6 +238,11 @@ public final class FormLoginConfigurer<H extends HttpSecurityBuilder<H>> extends
 		return getRequestMatcherBuilder().matcher(HttpMethod.POST, loginProcessingUrl);
 	}
 
+	@Override
+	protected String getDefaultAuthority() {
+		return "AUTHN_FORM";
+	}
+
 	/**
 	 * Gets the HTTP parameter that is used to submit the username.
 	 * @return the HTTP parameter that is used to submit the username
@@ -262,7 +267,7 @@ public final class FormLoginConfigurer<H extends HttpSecurityBuilder<H>> extends
 	private void initDefaultLoginFilter(H http) {
 		DefaultLoginPageGeneratingFilter loginPageGeneratingFilter = http
 			.getSharedObject(DefaultLoginPageGeneratingFilter.class);
-		if (loginPageGeneratingFilter != null && !isCustomLoginPage() && isPermitAll()) {
+		if (loginPageGeneratingFilter != null && !isCustomLoginPage()) {
 			loginPageGeneratingFilter.setFormLoginEnabled(true);
 			loginPageGeneratingFilter.setUsernameParameter(getUsernameParameter());
 			loginPageGeneratingFilter.setPasswordParameter(getPasswordParameter());
