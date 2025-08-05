@@ -70,6 +70,11 @@ public class Saml2Authentication extends AbstractAuthenticationToken {
 	}
 
 	@Override
+	public Saml2Authentication withGrantedAuthorities(Collection<GrantedAuthority> authorities) {
+		return new Saml2Authentication(getPrincipal(), getSaml2Response(), authorities);
+	}
+
+	@Override
 	public Object getPrincipal() {
 		return this.principal;
 	}

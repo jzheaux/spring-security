@@ -57,6 +57,11 @@ public class BearerTokenAuthentication extends AbstractOAuth2TokenAuthentication
 	}
 
 	@Override
+	public BearerTokenAuthentication withGrantedAuthorities(Collection<GrantedAuthority> authorities) {
+		return new BearerTokenAuthentication((OAuth2AuthenticatedPrincipal) getPrincipal(), getToken(), authorities);
+	}
+
+	@Override
 	public Map<String, Object> getTokenAttributes() {
 		return this.attributes;
 	}

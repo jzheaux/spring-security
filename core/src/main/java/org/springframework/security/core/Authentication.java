@@ -19,6 +19,8 @@ package org.springframework.security.core;
 import java.io.Serializable;
 import java.security.Principal;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.jspecify.annotations.Nullable;
 
@@ -135,5 +137,19 @@ public interface Authentication extends Principal, Serializable {
 	 * {@link #isAuthenticated()}
 	 */
 	void setAuthenticated(boolean isAuthenticated) throws IllegalArgumentException;
+
+	default Collection<GrantedAuthority> getGrantedAuthorities() {
+		Set<GrantedAuthority> granted = new HashSet<>();
+		for (GrantedAuthority authority : getAuthorities()) {
+			if (authority.isGranted()) {
+				granted.add(authority);
+			}
+		}
+		return granted;
+	}
+
+	default Authentication withGrantedAuthorities(Collection<GrantedAuthority> authorities) {
+		throw new UnsupportedOperationException("cannot grant authorities to this token");
+	}
 
 }

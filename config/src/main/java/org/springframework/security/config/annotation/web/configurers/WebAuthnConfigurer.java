@@ -25,6 +25,8 @@ import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.security.authentication.ProviderManager;
+import org.springframework.security.authorization.AuthoritiesGranter;
+import org.springframework.security.authorization.CompositeAuthoritiesGranter;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
@@ -55,8 +57,8 @@ import org.springframework.util.Assert;
  * @author Rob Winch
  * @since 6.4
  */
-public class WebAuthnConfigurer<H extends HttpSecurityBuilder<H>>
-		extends AbstractHttpConfigurer<WebAuthnConfigurer<H>, H> {
+public class WebAuthnConfigurer<H extends HttpSecurityBuilder<H>> extends
+		AbstractHttpConfigurer<WebAuthnConfigurer<H>, H> implements AuthorizableConfigurer<WebAuthnConfigurer<H>> {
 
 	private String rpId;
 
@@ -69,6 +71,11 @@ public class WebAuthnConfigurer<H extends HttpSecurityBuilder<H>>
 	private PublicKeyCredentialCreationOptionsRepository creationOptionsRepository;
 
 	private HttpMessageConverter<Object> converter;
+
+	private Integer factorOrder;
+
+	private CompositeAuthoritiesGranter.Builder authoritiesGranter = CompositeAuthoritiesGranter
+		.withDefaultAuthority("AUTHN_WEBAUTHN");
 
 	/**
 	 * The Relying Party id.
@@ -151,6 +158,18 @@ public class WebAuthnConfigurer<H extends HttpSecurityBuilder<H>>
 	}
 
 	@Override
+	public WebAuthnConfigurer<H> grants(AuthoritiesGranter granter) {
+		this.authoritiesGranter.authoritiesGranters((a) -> a.add(granter));
+		return this;
+	}
+
+	@Override
+	public WebAuthnConfigurer<H> factor(Integer order) {
+		this.factorOrder = order;
+		return this;
+	}
+
+	@Override
 	public void configure(H http) throws Exception {
 		UserDetailsService userDetailsService = getSharedOrBean(http, UserDetailsService.class)
 			.orElseThrow(() -> new IllegalStateException("Missing UserDetailsService Bean"));
@@ -168,6 +187,9 @@ public class WebAuthnConfigurer<H extends HttpSecurityBuilder<H>>
 				rpOperations);
 		PublicKeyCredentialCreationOptionsFilter creationOptionsFilter = new PublicKeyCredentialCreationOptionsFilter(
 				rpOperations);
+		if (this.factorOrder != null) {
+			webAuthnAuthnFilter.setAuthoritiesGranter(this.authoritiesGranter.build());
+		}
 		if (creationOptionsRepository != null) {
 			webAuthnRegistrationFilter.setCreationOptionsRepository(creationOptionsRepository);
 			creationOptionsFilter.setCreationOptionsRepository(creationOptionsRepository);

@@ -18,7 +18,9 @@ package org.springframework.security.authentication;
 
 import java.util.Collection;
 
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.util.Assert;
 
 /**
  * Represents a remembered <code>Authentication</code>.
@@ -68,6 +70,12 @@ public class RememberMeAuthenticationToken extends AbstractAuthenticationToken {
 		this.keyHash = keyHash;
 		this.principal = principal;
 		setAuthenticated(true);
+	}
+
+	@Override
+	public Authentication withGrantedAuthorities(Collection<GrantedAuthority> authorities) {
+		Assert.isTrue(isAuthenticated(), "cannot grant authorities to unauthenticated tokens");
+		return new RememberMeAuthenticationToken(this.keyHash, getPrincipal(), authorities);
 	}
 
 	/**

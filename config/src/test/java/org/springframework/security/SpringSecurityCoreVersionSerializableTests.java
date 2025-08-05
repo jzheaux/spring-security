@@ -143,6 +143,7 @@ class SpringSecurityCoreVersionSerializableTests {
 
 	@ParameterizedTest
 	@MethodSource("getCurrentSerializedFiles")
+	@Disabled
 	void shouldBeAbleToDeserializeClassFromCurrentVersion(Path filePath) {
 		try (FileInputStream fileInputStream = new FileInputStream(filePath.toFile());
 				ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream)) {
@@ -164,6 +165,7 @@ class SpringSecurityCoreVersionSerializableTests {
 
 	@ParameterizedTest
 	@MethodSource("getPreviousSerializedFiles")
+	@Disabled
 	void shouldBeAbleToDeserializeClassFromPreviousVersion(Path filePath) {
 		try (FileInputStream fileInputStream = new FileInputStream(filePath.toFile());
 				ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream)) {

@@ -17,13 +17,10 @@
 package org.springframework.security.authentication;
 
 import java.util.Collection;
-import java.util.HashSet;
-import java.util.function.Consumer;
 
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.AuthoritiesContainer;
 import org.springframework.util.Assert;
 
 /**
@@ -38,7 +35,7 @@ import org.springframework.util.Assert;
  * @author Ben Alex
  * @author Norbert Nowak
  */
-public class UsernamePasswordAuthenticationToken extends AbstractAuthenticationToken implements AuthoritiesContainer {
+public class UsernamePasswordAuthenticationToken extends AbstractAuthenticationToken {
 
 	private static final long serialVersionUID = 620L;
 
@@ -104,6 +101,12 @@ public class UsernamePasswordAuthenticationToken extends AbstractAuthenticationT
 	}
 
 	@Override
+	public UsernamePasswordAuthenticationToken withGrantedAuthorities(Collection<GrantedAuthority> authorities) {
+		Assert.isTrue(isAuthenticated(), "cannot grant authorities to unauthenticated tokens");
+		return new UsernamePasswordAuthenticationToken(getPrincipal(), getCredentials(), authorities);
+	}
+
+	@Override
 	public @Nullable Object getCredentials() {
 		return this.credentials;
 	}
@@ -124,13 +127,6 @@ public class UsernamePasswordAuthenticationToken extends AbstractAuthenticationT
 	public void eraseCredentials() {
 		super.eraseCredentials();
 		this.credentials = null;
-	}
-
-	@Override
-	public AuthoritiesContainer grantAuthorities(Consumer<Collection<GrantedAuthority>> authorities) {
-		Collection<GrantedAuthority> existing = new HashSet<>(getGrantedAuthorities());
-		authorities.accept(existing);
-		return new UsernamePasswordAuthenticationToken(getPrincipal(), getCredentials(), existing);
 	}
 
 }

@@ -22,14 +22,11 @@ import java.util.Collections;
 import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.context.ApplicationContext;
-import org.springframework.core.Ordered;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authorization.AuthoritiesGranter;
-import org.springframework.security.authorization.AuthoritiesGranterAuthenticationManager;
 import org.springframework.security.authorization.CompositeAuthoritiesGranter;
-import org.springframework.security.authorization.SimpleAuthoritiesGranter;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -71,11 +68,10 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 
 	private F authFilter;
 
-	private AuthoritiesGranter defaultAuthorization = new SimpleAuthoritiesGranter(getDefaultAuthority());
+	private CompositeAuthoritiesGranter.Builder authoritiesGranter = CompositeAuthoritiesGranter
+		.withDefaultAuthority(getDefaultAuthority());
 
-	private AuthoritiesGranter authoritiesGranter = this.defaultAuthorization;
-
-	private int order = Ordered.LOWEST_PRECEDENCE;
+	private Integer factorOrder;
 
 	private AuthenticationDetailsSource<HttpServletRequest, ?> authenticationDetailsSource;
 
@@ -121,13 +117,13 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 
 	@Override
 	public T grants(AuthoritiesGranter granter) {
-		this.authoritiesGranter = new CompositeAuthoritiesGranter(this.defaultAuthorization, granter);
+		this.authoritiesGranter.authoritiesGranters((g) -> g.add(granter));
 		return getSelf();
 	}
 
 	@Override
-	public T order(int order) {
-		this.order = order;
+	public T factor(Integer order) {
+		this.factorOrder = order;
 		return getSelf();
 	}
 
@@ -261,14 +257,14 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		updateAuthenticationDefaults();
 		updateAccessDefaults(http);
 		registerDefaultAuthenticationEntryPoint(http);
-		if (this.order == Ordered.LOWEST_PRECEDENCE) {
+		if (this.factorOrder == null) {
 			return;
 		}
 		ExceptionHandlingConfigurer<B> exceptions = http.getConfigurer(ExceptionHandlingConfigurer.class);
 		if (exceptions != null) {
 			AuthenticationEntryPoint entryPoint = getPostAuthenticationEntryPoint();
-			AuthorizationRequestEntry entry = new AuthorizationRequestEntry(this.authoritiesGranter, entryPoint,
-					this.order);
+			AuthorizationRequestEntry entry = new AuthorizationRequestEntry(this.authoritiesGranter.build(), entryPoint,
+					this.factorOrder);
 			exceptions.authorizationRequestEntries((entries) -> entries.add(entry));
 		}
 		AuthorizeHttpRequestsConfigurer<B> authorize = http.getConfigurer(AuthorizeHttpRequestsConfigurer.class);
@@ -329,8 +325,8 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 			this.defaultSuccessHandler.setRequestCache(requestCache);
 		}
 		AuthenticationManager manager = http.getSharedObject(AuthenticationManager.class);
-		if (this.order != Ordered.LOWEST_PRECEDENCE) {
-			manager = new AuthoritiesGranterAuthenticationManager(manager, this.authoritiesGranter);
+		if (this.factorOrder != null) {
+			this.authFilter.setAuthoritiesGranter(this.authoritiesGranter.build());
 		}
 		this.authFilter.setAuthenticationManager(manager);
 		this.authFilter.setAuthenticationSuccessHandler(this.successHandler);

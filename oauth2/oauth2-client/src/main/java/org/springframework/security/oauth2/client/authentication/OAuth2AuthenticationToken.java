@@ -66,6 +66,12 @@ public class OAuth2AuthenticationToken extends AbstractAuthenticationToken {
 	}
 
 	@Override
+	public OAuth2AuthenticationToken withGrantedAuthorities(Collection<GrantedAuthority> authorities) {
+		Assert.isTrue(isAuthenticated(), "cannot grant authorities to unauthenticated tokens");
+		return new OAuth2AuthenticationToken(getPrincipal(), authorities, this.authorizedClientRegistrationId);
+	}
+
+	@Override
 	public OAuth2User getPrincipal() {
 		return this.principal;
 	}

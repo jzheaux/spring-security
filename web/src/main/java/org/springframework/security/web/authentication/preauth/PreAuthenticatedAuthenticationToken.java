@@ -17,12 +17,10 @@
 package org.springframework.security.web.authentication.preauth;
 
 import java.util.Collection;
-import java.util.HashSet;
-import java.util.function.Consumer;
 
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.AuthoritiesContainer;
+import org.springframework.util.Assert;
 
 /**
  * {@link org.springframework.security.core.Authentication} implementation for
@@ -31,7 +29,7 @@ import org.springframework.security.core.authority.AuthoritiesContainer;
  * @author Ruud Senden
  * @since 2.0
  */
-public class PreAuthenticatedAuthenticationToken extends AbstractAuthenticationToken implements AuthoritiesContainer {
+public class PreAuthenticatedAuthenticationToken extends AbstractAuthenticationToken {
 
 	private static final long serialVersionUID = 620L;
 
@@ -67,6 +65,13 @@ public class PreAuthenticatedAuthenticationToken extends AbstractAuthenticationT
 		setAuthenticated(true);
 	}
 
+	@Override
+	public PreAuthenticatedAuthenticationToken withGrantedAuthorities(Collection<GrantedAuthority> authorities) {
+		Assert.isTrue(isAuthenticated(), "cannot grant authorities to unauthenticated tokens");
+		Assert.notNull(this.principal, "principal cannot be null when authenticated");
+		return new PreAuthenticatedAuthenticationToken(getPrincipal(), getCredentials(), authorities);
+	}
+
 	/**
 	 * Get the credentials
 	 */
@@ -81,13 +86,6 @@ public class PreAuthenticatedAuthenticationToken extends AbstractAuthenticationT
 	@Override
 	public Object getPrincipal() {
 		return this.principal;
-	}
-
-	@Override
-	public AuthoritiesContainer grantAuthorities(Consumer<Collection<GrantedAuthority>> authorities) {
-		Collection<GrantedAuthority> existing = new HashSet<>(getGrantedAuthorities());
-		authorities.accept(existing);
-		return new PreAuthenticatedAuthenticationToken(getPrincipal(), getCredentials(), existing);
 	}
 
 }

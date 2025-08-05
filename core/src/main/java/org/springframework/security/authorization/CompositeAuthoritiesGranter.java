@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2025 the original author or authors.
+ * Copyright 2004-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,10 @@ package org.springframework.security.authorization;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.Consumer;
 
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.AuthoritiesContainer;
 
 public final class CompositeAuthoritiesGranter implements AuthoritiesGranter {
 
@@ -46,12 +47,40 @@ public final class CompositeAuthoritiesGranter implements AuthoritiesGranter {
 	}
 
 	@Override
-	public AuthoritiesContainer grantAuthorities(AuthoritiesContainer authentication) {
-		AuthoritiesContainer granted = authentication;
+	public Authentication grantAuthorities(Authentication authentication) {
+		Authentication granted = authentication;
 		for (AuthoritiesGranter granter : this.authoritiesGranters) {
 			granted = granter.grantAuthorities(granted);
 		}
 		return granted;
+	}
+
+	public static Builder withDefaultAuthority(String authority) {
+		return new Builder().authoritiesGranters((g) -> g.add(new CurrentAuthoritiesMergingAuthoritiesGranter()))
+			.authoritiesGranters((g) -> g.add(new SimpleAuthoritiesGranter(authority)));
+	}
+
+	public static final class Builder {
+
+		private List<AuthoritiesGranter> authoritiesGranters = new ArrayList<>();
+
+		private Builder() {
+		}
+
+		public Builder mergeCurrentAuthorities() {
+			this.authoritiesGranters.add(new CurrentAuthoritiesMergingAuthoritiesGranter());
+			return this;
+		}
+
+		public Builder authoritiesGranters(Consumer<List<AuthoritiesGranter>> authoritiesGranters) {
+			authoritiesGranters.accept(this.authoritiesGranters);
+			return this;
+		}
+
+		public AuthoritiesGranter build() {
+			return new CompositeAuthoritiesGranter(this.authoritiesGranters);
+		}
+
 	}
 
 }

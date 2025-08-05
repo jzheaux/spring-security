@@ -47,6 +47,11 @@ public class WebAuthnAuthentication extends AbstractAuthenticationToken {
 	}
 
 	@Override
+	public WebAuthnAuthentication withGrantedAuthorities(Collection<GrantedAuthority> authorities) {
+		return new WebAuthnAuthentication(this.principal, authorities);
+	}
+
+	@Override
 	public void setAuthenticated(boolean authenticated) {
 		Assert.isTrue(!authenticated, "Cannot set this token to trusted");
 		super.setAuthenticated(authenticated);

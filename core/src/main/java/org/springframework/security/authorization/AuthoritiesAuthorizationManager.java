@@ -24,7 +24,6 @@ import org.springframework.security.access.hierarchicalroles.NullRoleHierarchy;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.AuthoritiesContainer;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.util.Assert;
 
@@ -76,9 +75,7 @@ public final class AuthoritiesAuthorizationManager implements AuthorizationManag
 	}
 
 	private Collection<? extends GrantedAuthority> getGrantedAuthorities(Authentication authentication) {
-		Collection<GrantedAuthority> authorities = new HashSet<>(
-				(authentication instanceof AuthoritiesContainer container) ? container.getGrantedAuthorities()
-						: authentication.getAuthorities());
+		Collection<GrantedAuthority> authorities = new HashSet<>(authentication.getGrantedAuthorities());
 		return this.roleHierarchy.getReachableGrantedAuthorities(authorities);
 	}
 

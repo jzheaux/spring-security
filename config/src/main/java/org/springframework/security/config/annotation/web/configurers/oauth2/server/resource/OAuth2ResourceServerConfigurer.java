@@ -31,9 +31,13 @@ import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationManagerResolver;
 import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authorization.AuthoritiesGranter;
+import org.springframework.security.authorization.CompositeAuthoritiesGranter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.AuthorizableConfigurer;
+import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
 import org.springframework.security.config.annotation.web.configurers.CsrfConfigurer;
 import org.springframework.security.config.annotation.web.configurers.ExceptionHandlingConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -54,6 +58,7 @@ import org.springframework.security.oauth2.server.resource.web.access.BearerToke
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.AuthorizationRequestEntry;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.access.AccessDeniedHandlerImpl;
 import org.springframework.security.web.access.DelegatingAccessDeniedHandler;
@@ -148,7 +153,8 @@ import org.springframework.web.accept.HeaderContentNegotiationStrategy;
  * @see AbstractHttpConfigurer
  */
 public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<H>>
-		extends AbstractHttpConfigurer<OAuth2ResourceServerConfigurer<H>, H> {
+		extends AbstractHttpConfigurer<OAuth2ResourceServerConfigurer<H>, H>
+		implements AuthorizableConfigurer<OAuth2ResourceServerConfigurer<H>> {
 
 	private static final boolean dPoPAuthenticationAvailable;
 
@@ -162,6 +168,11 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 			"X-Requested-With", "XMLHttpRequest");
 
 	private final ApplicationContext context;
+
+	private Integer factorOrder;
+
+	private final CompositeAuthoritiesGranter.Builder authoritiesGranter = CompositeAuthoritiesGranter
+		.withDefaultAuthority("AUTHN_BEARER");
 
 	private AuthenticationManagerResolver<HttpServletRequest> authenticationManagerResolver;
 
@@ -250,6 +261,18 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 	}
 
 	@Override
+	public OAuth2ResourceServerConfigurer<H> grants(AuthoritiesGranter granter) {
+		this.authoritiesGranter.authoritiesGranters((g) -> g.add(granter));
+		return this;
+	}
+
+	@Override
+	public OAuth2ResourceServerConfigurer<H> factor(Integer order) {
+		this.factorOrder = order;
+		return this;
+	}
+
+	@Override
 	public void init(H http) {
 		validateConfiguration();
 		registerDefaultAccessDeniedHandler(http);
@@ -258,6 +281,19 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 		AuthenticationProvider authenticationProvider = getAuthenticationProvider();
 		if (authenticationProvider != null) {
 			http.authenticationProvider(authenticationProvider);
+		}
+		if (this.factorOrder == null) {
+			return;
+		}
+		ExceptionHandlingConfigurer<H> exceptions = http.getConfigurer(ExceptionHandlingConfigurer.class);
+		if (exceptions != null) {
+			AuthorizationRequestEntry entry = new AuthorizationRequestEntry(this.authoritiesGranter.build(),
+					this.authenticationEntryPoint, this.factorOrder);
+			exceptions.authorizationRequestEntries((entries) -> entries.add(entry));
+		}
+		AuthorizeHttpRequestsConfigurer<H> authorize = http.getConfigurer(AuthorizeHttpRequestsConfigurer.class);
+		if (authorize != null) {
+			authorize.getRegistry().withDefaultAuthority("AUTHN_BEARER");
 		}
 	}
 
@@ -274,6 +310,9 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 		BearerTokenAuthenticationFilter filter = new BearerTokenAuthenticationFilter(resolver, converter);
 		filter.setAuthenticationEntryPoint(this.authenticationEntryPoint);
 		filter.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
+		if (this.factorOrder != null) {
+			filter.setAuthoritiesGranter(this.authoritiesGranter.build());
+		}
 		filter = postProcess(filter);
 		http.addFilter(filter);
 		if (dPoPAuthenticationAvailable) {

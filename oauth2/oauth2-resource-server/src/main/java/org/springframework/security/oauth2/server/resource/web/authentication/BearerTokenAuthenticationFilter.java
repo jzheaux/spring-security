@@ -28,6 +28,7 @@ import org.springframework.core.log.LogMessage;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationManagerResolver;
+import org.springframework.security.authorization.AuthoritiesGranter;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContext;
@@ -78,6 +79,8 @@ public class BearerTokenAuthenticationFilter extends OncePerRequestFilter {
 	private final AuthenticationManagerResolver<HttpServletRequest> authenticationManagerResolver;
 
 	private final AuthenticationConverter authenticationConverter;
+
+	private AuthoritiesGranter authoritiesGranter = AuthoritiesGranter.NOOP;
 
 	private SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder
 		.getContextHolderStrategy();
@@ -180,6 +183,7 @@ public class BearerTokenAuthenticationFilter extends OncePerRequestFilter {
 				BearerTokenError error = BearerTokenErrors.invalidToken("Invalid bearer token");
 				throw new OAuth2AuthenticationException(error);
 			}
+			authenticationResult = this.authoritiesGranter.grantAuthorities(authenticationResult);
 			SecurityContext context = this.securityContextHolderStrategy.createEmptyContext();
 			context.setAuthentication(authenticationResult);
 			this.securityContextHolderStrategy.setContext(context);
@@ -217,6 +221,10 @@ public class BearerTokenAuthenticationFilter extends OncePerRequestFilter {
 	public void setSecurityContextRepository(SecurityContextRepository securityContextRepository) {
 		Assert.notNull(securityContextRepository, "securityContextRepository cannot be null");
 		this.securityContextRepository = securityContextRepository;
+	}
+
+	public void setAuthoritiesGranter(AuthoritiesGranter authoritiesGranter) {
+		this.authoritiesGranter = authoritiesGranter;
 	}
 
 	/**

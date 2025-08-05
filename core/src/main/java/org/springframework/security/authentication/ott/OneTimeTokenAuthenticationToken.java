@@ -19,14 +19,12 @@ package org.springframework.security.authentication.ott;
 import java.io.Serial;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
-import java.util.function.Consumer;
 
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.AuthoritiesContainer;
+import org.springframework.util.Assert;
 
 /**
  * Represents a One-Time Token authentication that can be authenticated or not.
@@ -34,7 +32,7 @@ import org.springframework.security.core.authority.AuthoritiesContainer;
  * @author Marcus da Coregio
  * @since 6.4
  */
-public class OneTimeTokenAuthenticationToken extends AbstractAuthenticationToken implements AuthoritiesContainer {
+public class OneTimeTokenAuthenticationToken extends AbstractAuthenticationToken {
 
 	@Serial
 	private static final long serialVersionUID = -8691636031126328365L;
@@ -57,6 +55,13 @@ public class OneTimeTokenAuthenticationToken extends AbstractAuthenticationToken
 		super(authorities);
 		this.principal = principal;
 		setAuthenticated(true);
+	}
+
+	@Override
+	public OneTimeTokenAuthenticationToken withGrantedAuthorities(Collection<GrantedAuthority> authorities) {
+		Assert.isTrue(isAuthenticated(), "cannot grant authorities to unauthenticated tokens");
+		Assert.notNull(this.principal, "principal cannot be null when authenticated");
+		return OneTimeTokenAuthenticationToken.authenticated(this.principal, authorities);
 	}
 
 	/**
@@ -105,13 +110,6 @@ public class OneTimeTokenAuthenticationToken extends AbstractAuthenticationToken
 	@Override
 	public @Nullable Object getPrincipal() {
 		return this.principal;
-	}
-
-	@Override
-	public AuthoritiesContainer grantAuthorities(Consumer<Collection<GrantedAuthority>> authorities) {
-		Collection<GrantedAuthority> existing = new HashSet<>(getGrantedAuthorities());
-		authorities.accept(existing);
-		return OneTimeTokenAuthenticationToken.authenticated(getPrincipal(), existing);
 	}
 
 }

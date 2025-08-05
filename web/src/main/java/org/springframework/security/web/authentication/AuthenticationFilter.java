@@ -28,6 +28,7 @@ import jakarta.servlet.http.HttpSession;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationManagerResolver;
+import org.springframework.security.authorization.AuthoritiesGranter;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContext;
@@ -75,6 +76,8 @@ public class AuthenticationFilter extends OncePerRequestFilter {
 	private RequestMatcher requestMatcher = AnyRequestMatcher.INSTANCE;
 
 	private AuthenticationConverter authenticationConverter;
+
+	private AuthoritiesGranter authoritiesGranter = AuthoritiesGranter.NOOP;
 
 	private AuthenticationSuccessHandler successHandler = new SavedRequestAwareAuthenticationSuccessHandler();
 
@@ -144,6 +147,10 @@ public class AuthenticationFilter extends OncePerRequestFilter {
 		this.authenticationManagerResolver = authenticationManagerResolver;
 	}
 
+	public void setAuthoritiesGranter(AuthoritiesGranter authoritiesGranter) {
+		this.authoritiesGranter = authoritiesGranter;
+	}
+
 	/**
 	 * Sets the {@link SecurityContextRepository} to save the {@link SecurityContext} on
 	 * authentication success. The default action is not to save the
@@ -179,6 +186,7 @@ public class AuthenticationFilter extends OncePerRequestFilter {
 		}
 		try {
 			Authentication authenticationResult = attemptAuthentication(request, response);
+			authenticationResult = this.authoritiesGranter.grantAuthorities(authenticationResult);
 			if (authenticationResult == null) {
 				filterChain.doFilter(request, response);
 				return;

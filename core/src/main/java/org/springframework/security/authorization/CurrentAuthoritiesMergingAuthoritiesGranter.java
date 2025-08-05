@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2025 the original author or authors.
+ * Copyright 2004-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,44 +16,31 @@
 
 package org.springframework.security.authorization;
 
-import org.springframework.security.authentication.AuthenticationManager;
+import java.util.Collection;
+
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.authority.AuthoritiesContainer;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
-import org.springframework.util.Assert;
 
-public final class AuthoritiesGranterAuthenticationManager implements AuthenticationManager {
-
-	private final AuthenticationManager authenticationProvider;
-
-	private final AuthoritiesGranter authoritiesGranter;
+public final class CurrentAuthoritiesMergingAuthoritiesGranter implements AuthoritiesGranter {
 
 	private SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder
 		.getContextHolderStrategy();
 
-	public AuthoritiesGranterAuthenticationManager(AuthenticationManager manager, AuthoritiesGranter granter) {
-		this.authenticationProvider = manager;
-		this.authoritiesGranter = granter;
-	}
-
 	@Override
-	public Authentication authenticate(Authentication authentication) throws AuthenticationException {
-		Authentication result = this.authenticationProvider.authenticate(authentication);
-		if (!(result instanceof AuthoritiesContainer container)) {
-			return result;
-		}
+	public Authentication grantAuthorities(Authentication authentication) {
 		Authentication current = this.securityContextHolderStrategy.getContext().getAuthentication();
-		container = this.authoritiesGranter.grantAuthorities(container);
 		if (current != null && current.isAuthenticated()) {
-			container = container.grantAuthorities((a) -> a.addAll(current.getAuthorities()));
+			Collection<GrantedAuthority> toGrant = authentication.getGrantedAuthorities();
+			Collection<GrantedAuthority> existing = current.getGrantedAuthorities();
+			existing.addAll(toGrant);
+			return current.withGrantedAuthorities(existing);
 		}
-		return (Authentication) container;
+		return authentication;
 	}
 
 	public void setSecurityContextHolderStrategy(SecurityContextHolderStrategy securityContextHolderStrategy) {
-		Assert.notNull(securityContextHolderStrategy, "securityContextHolderStrategy cannot be null");
 		this.securityContextHolderStrategy = securityContextHolderStrategy;
 	}
 

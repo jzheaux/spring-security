@@ -823,10 +823,10 @@ public class FormLoginConfigurerTests {
 			// @formatter:off
 			http
 				.formLogin((form) -> form
-					.order(1)
+					.factor(1)
 					.grants(Duration.ofSeconds(300), "profile:read")
 				)
-				.oneTimeTokenLogin((ott) -> ott.order(2))
+				.oneTimeTokenLogin((ott) -> ott.factor(2))
 				.authorizeHttpRequests((authorize) -> authorize
 					.requestMatchers("/profile").hasAuthority("profile:read")
 					.anyRequest().authenticated()
@@ -860,8 +860,8 @@ public class FormLoginConfigurerTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.x509((x509) -> x509.order(1))
-				.formLogin((form) -> form.order(2))
+				.x509((x509) -> x509.factor(1))
+				.formLogin((form) -> form.factor(2))
 				.authorizeHttpRequests((authorize) -> authorize.anyRequest().authenticated());
 			return http.build();
 			// @formatter:on

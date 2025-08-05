@@ -104,6 +104,12 @@ public class CasAuthenticationToken extends AbstractAuthenticationToken implemen
 		setAuthenticated(true);
 	}
 
+	@Override
+	public CasAuthenticationToken withGrantedAuthorities(Collection<GrantedAuthority> authorities) {
+		return new CasAuthenticationToken(this.keyHash, getPrincipal(), getCredentials(), authorities, this.userDetails,
+				this.assertion);
+	}
+
 	private static Integer extractKeyHash(String key) {
 		Assert.hasLength(key, "key cannot be null or empty");
 		return key.hashCode();
