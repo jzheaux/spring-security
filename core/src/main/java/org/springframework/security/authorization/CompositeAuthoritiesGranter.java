@@ -19,10 +19,8 @@ package org.springframework.security.authorization;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.function.Consumer;
 
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 
 public final class CompositeAuthoritiesGranter implements AuthoritiesGranter {
 
@@ -37,50 +35,12 @@ public final class CompositeAuthoritiesGranter implements AuthoritiesGranter {
 	}
 
 	@Override
-	public boolean grantsAuthority(GrantedAuthority authority) {
-		for (AuthoritiesGranter granter : this.authoritiesGranters) {
-			if (granter.grantsAuthority(authority)) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	@Override
 	public Authentication grantAuthorities(Authentication authentication) {
 		Authentication granted = authentication;
 		for (AuthoritiesGranter granter : this.authoritiesGranters) {
 			granted = granter.grantAuthorities(granted);
 		}
 		return granted;
-	}
-
-	public static Builder withDefaultAuthority(String authority) {
-		return new Builder().authoritiesGranters((g) -> g.add(new CurrentAuthoritiesMergingAuthoritiesGranter()))
-			.authoritiesGranters((g) -> g.add(new SimpleAuthoritiesGranter(authority)));
-	}
-
-	public static final class Builder {
-
-		private List<AuthoritiesGranter> authoritiesGranters = new ArrayList<>();
-
-		private Builder() {
-		}
-
-		public Builder mergeCurrentAuthorities() {
-			this.authoritiesGranters.add(new CurrentAuthoritiesMergingAuthoritiesGranter());
-			return this;
-		}
-
-		public Builder authoritiesGranters(Consumer<List<AuthoritiesGranter>> authoritiesGranters) {
-			authoritiesGranters.accept(this.authoritiesGranters);
-			return this;
-		}
-
-		public AuthoritiesGranter build() {
-			return new CompositeAuthoritiesGranter(this.authoritiesGranters);
-		}
-
 	}
 
 }

@@ -16,12 +16,12 @@
 
 package org.springframework.security.authorization;
 
-import org.springframework.security.core.Authentication;
+import java.util.Collection;
 
-public interface AuthoritiesGranter {
+import org.springframework.security.core.GrantedAuthority;
 
-	AuthoritiesGranter NOOP = (a) -> a;
+public interface AuthorizationRequest {
 
-	Authentication grantAuthorities(Authentication authentication);
+	Collection<GrantedAuthority> getAuthorities();
 
 }

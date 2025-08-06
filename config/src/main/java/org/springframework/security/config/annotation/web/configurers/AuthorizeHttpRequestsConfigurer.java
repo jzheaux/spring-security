@@ -17,6 +17,7 @@
 package org.springframework.security.config.annotation.web.configurers;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -206,6 +207,11 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 
 		public AuthorizationManagerRequestMatcherRegistry withDefaultAuthority(String authority) {
 			this.authorities.add(authority);
+			return this;
+		}
+
+		public AuthorizationManagerRequestMatcherRegistry withDefaultAuthority(Collection<String> authority) {
+			this.authorities.addAll(authority);
 			return this;
 		}
 

@@ -329,7 +329,7 @@ public final class Saml2LoginConfigurer<B extends HttpSecurityBuilder<B>>
 	}
 
 	@Override
-	protected String getDefaultAuthority() {
+	public String defaultAuthority() {
 		return "AUTHN_SAML2";
 	}
 

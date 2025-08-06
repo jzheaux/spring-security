@@ -451,10 +451,6 @@ public abstract class AbstractAuthenticationProcessingFilter extends GenericFilt
 		this.allowSessionCreation = allowSessionCreation;
 	}
 
-	public void setAuthoritiesGranter(AuthoritiesGranter authoritiesGranter) {
-		this.authoritiesGranter = authoritiesGranter;
-	}
-
 	/**
 	 * The session handling strategy which will be invoked immediately after an
 	 * authentication request is successfully processed by the

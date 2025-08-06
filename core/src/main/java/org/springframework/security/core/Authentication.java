@@ -16,6 +16,7 @@
 
 package org.springframework.security.core;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.security.Principal;
 import java.util.Collection;
@@ -55,6 +56,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
  * @author Ben Alex
  */
 public interface Authentication extends Principal, Serializable {
+
+	@Serial
+	long serialVersionUID = -3884394378624019849L;
 
 	/**
 	 * Set by an <code>AuthenticationManager</code> to indicate the authorities that the

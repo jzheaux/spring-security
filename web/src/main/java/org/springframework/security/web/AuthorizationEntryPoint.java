@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-package org.springframework.security.authorization;
+package org.springframework.security.web;
 
-import org.springframework.security.core.Authentication;
+import org.springframework.core.Ordered;
+import org.springframework.security.authorization.AuthorizationRequest;
 
-public interface AuthoritiesGranter {
+public interface AuthorizationEntryPoint extends AuthenticationEntryPoint, Ordered {
 
-	AuthoritiesGranter NOOP = (a) -> a;
-
-	Authentication grantAuthorities(Authentication authentication);
+	boolean authorizes(AuthorizationRequest authorizationRequest);
 
 }

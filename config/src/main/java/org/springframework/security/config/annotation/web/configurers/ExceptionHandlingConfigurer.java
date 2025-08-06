@@ -21,12 +21,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.function.Consumer;
 
-import org.springframework.core.annotation.AnnotationAwareOrderComparator;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
-import org.springframework.security.web.AuthorizationRequestEntry;
+import org.springframework.security.web.AuthorizationEntryPoint;
 import org.springframework.security.web.AuthorizationRequestingAccessDeniedHandler;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.access.AccessDeniedHandlerImpl;
@@ -81,7 +80,7 @@ public final class ExceptionHandlingConfigurer<H extends HttpSecurityBuilder<H>>
 
 	private LinkedHashMap<RequestMatcher, AccessDeniedHandler> defaultDeniedHandlerMappings = new LinkedHashMap<>();
 
-	private final List<AuthorizationRequestEntry> authorizationRequestEntries = new ArrayList<>();
+	private final List<AuthorizationEntryPoint> authorizationRequestEntries = new ArrayList<>();
 
 	/**
 	 * Creates a new instance
@@ -90,8 +89,8 @@ public final class ExceptionHandlingConfigurer<H extends HttpSecurityBuilder<H>>
 	public ExceptionHandlingConfigurer() {
 	}
 
-	public ExceptionHandlingConfigurer<H> authorizationRequestEntries(
-			Consumer<List<AuthorizationRequestEntry>> entriesConsumer) {
+	public ExceptionHandlingConfigurer<H> authorizationEntryPoint(
+			Consumer<List<AuthorizationEntryPoint>> entriesConsumer) {
 		entriesConsumer.accept(this.authorizationRequestEntries);
 		return this;
 	}
@@ -275,10 +274,6 @@ public final class ExceptionHandlingConfigurer<H extends HttpSecurityBuilder<H>>
 	}
 
 	private AuthenticationEntryPoint createDefaultAuthenticationEntryPoint() {
-		if (!this.authorizationRequestEntries.isEmpty()) {
-			AnnotationAwareOrderComparator.sort(this.authorizationRequestEntries);
-			return this.authorizationRequestEntries.iterator().next().getAuthenticationEntryPoint();
-		}
 		if (this.defaultEntryPointMappings.isEmpty()) {
 			return new Http403ForbiddenEntryPoint();
 		}

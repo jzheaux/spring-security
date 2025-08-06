@@ -16,9 +16,11 @@
 
 package org.springframework.security.config.annotation.web.configurers;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -26,10 +28,16 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authorization.AlwaysAuthoritiesGranter;
+import org.springframework.security.authorization.AuthoritiesGranter;
+import org.springframework.security.authorization.AuthoritiesGranterAuthenticationManager;
+import org.springframework.security.authorization.CompositeAuthoritiesGranter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.AuthorizationEntryPoint;
+import org.springframework.security.web.SimpleAuthorizationEntryPoint;
 import org.springframework.security.web.authentication.DelegatingAuthenticationEntryPoint;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.RememberMeServices;
@@ -82,12 +90,17 @@ import org.springframework.web.accept.HeaderContentNegotiationStrategy;
  * @since 3.2
  */
 public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>>
-		extends AbstractHttpConfigurer<HttpBasicConfigurer<B>, B> {
+		extends AbstractHttpConfigurer<HttpBasicConfigurer<B>, B>
+		implements DefaultAuthorityAuthorizableConfigurer<HttpBasicConfigurer<B>> {
 
 	private static final RequestHeaderRequestMatcher X_REQUESTED_WITH = new RequestHeaderRequestMatcher(
 			"X-Requested-With", "XMLHttpRequest");
 
 	private static final String DEFAULT_REALM = "Realm";
+
+	private final List<AuthoritiesGranter> authoritiesGranters = new ArrayList<>();
+
+	private Integer factorOrder;
 
 	private AuthenticationEntryPoint authenticationEntryPoint;
 
@@ -162,8 +175,38 @@ public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>>
 	}
 
 	@Override
+	public HttpBasicConfigurer<B> factor(Integer order) {
+		this.factorOrder = order;
+		return this;
+	}
+
+	@Override
+	public HttpBasicConfigurer<B> grants(AuthoritiesGranter granter) {
+		this.authoritiesGranters.add(granter);
+		return this;
+	}
+
+	@Override
+	public String defaultAuthority() {
+		return "AUTHN_BASIC";
+	}
+
+	@Override
 	public void init(B http) {
 		registerDefaults(http);
+		if (this.factorOrder == null) {
+			return;
+		}
+		AuthorizationEntryPoint entryPoint = new SimpleAuthorizationEntryPoint(this.authenticationEntryPoint,
+				this.factorOrder, defaultAuthority());
+		ExceptionHandlingConfigurer<B> exceptions = http.getConfigurer(ExceptionHandlingConfigurer.class);
+		if (exceptions != null) {
+			exceptions.authorizationEntryPoint((e) -> e.add(entryPoint));
+		}
+		AuthorizeHttpRequestsConfigurer<B> authorize = http.getConfigurer(AuthorizeHttpRequestsConfigurer.class);
+		if (authorize != null) {
+			authorize.getRegistry().withDefaultAuthority(defaultAuthority());
+		}
 	}
 
 	private void registerDefaults(B http) {
@@ -205,9 +248,22 @@ public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>>
 				postProcess(new HttpStatusReturningLogoutSuccessHandler(HttpStatus.NO_CONTENT)), preferredMatcher);
 	}
 
+	private AuthenticationManager getAuthenticationManager(B http) {
+		AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
+		if (this.factorOrder == null) {
+			return authenticationManager;
+		}
+		this.authoritiesGranters.add(0, new AlwaysAuthoritiesGranter(defaultAuthority()));
+		AuthoritiesGranter authoritiesGranter = new CompositeAuthoritiesGranter(this.authoritiesGranters);
+		AuthoritiesGranterAuthenticationManager manager = new AuthoritiesGranterAuthenticationManager(
+				authenticationManager, authoritiesGranter);
+		manager.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
+		return manager;
+	}
+
 	@Override
 	public void configure(B http) {
-		AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
+		AuthenticationManager authenticationManager = getAuthenticationManager(http);
 		BasicAuthenticationFilter basicAuthenticationFilter = new BasicAuthenticationFilter(authenticationManager,
 				this.authenticationEntryPoint);
 		if (this.authenticationDetailsSource != null) {

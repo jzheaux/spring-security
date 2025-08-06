@@ -16,8 +16,10 @@
 
 package org.springframework.security.config.annotation.web.configurers;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -25,14 +27,17 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authorization.AlwaysAuthoritiesGranter;
 import org.springframework.security.authorization.AuthoritiesGranter;
+import org.springframework.security.authorization.AuthoritiesGranterAuthenticationManager;
 import org.springframework.security.authorization.CompositeAuthoritiesGranter;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
-import org.springframework.security.web.AuthorizationRequestEntry;
+import org.springframework.security.web.AuthorizationEntryPoint;
 import org.springframework.security.web.PortMapper;
 import org.springframework.security.web.PortResolver;
+import org.springframework.security.web.SimpleAuthorizationEntryPoint;
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -64,12 +69,11 @@ import org.springframework.web.accept.HeaderContentNegotiationStrategy;
  * @see FormLoginConfigurer
  */
 public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecurityBuilder<B>, T extends AbstractAuthenticationFilterConfigurer<B, T, F>, F extends AbstractAuthenticationProcessingFilter>
-		extends AbstractHttpConfigurer<T, B> implements AuthorizableConfigurer<T> {
+		extends AbstractHttpConfigurer<T, B> implements DefaultAuthorityAuthorizableConfigurer<T> {
+
+	private final List<AuthoritiesGranter> authoritiesGranters = new ArrayList<>();
 
 	private F authFilter;
-
-	private CompositeAuthoritiesGranter.Builder authoritiesGranter = CompositeAuthoritiesGranter
-		.withDefaultAuthority(getDefaultAuthority());
 
 	private Integer factorOrder;
 
@@ -117,7 +121,7 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 
 	@Override
 	public T grants(AuthoritiesGranter granter) {
-		this.authoritiesGranter.authoritiesGranters((g) -> g.add(granter));
+		this.authoritiesGranters.add(granter);
 		return getSelf();
 	}
 
@@ -263,18 +267,14 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		ExceptionHandlingConfigurer<B> exceptions = http.getConfigurer(ExceptionHandlingConfigurer.class);
 		if (exceptions != null) {
 			AuthenticationEntryPoint entryPoint = getPostAuthenticationEntryPoint();
-			AuthorizationRequestEntry entry = new AuthorizationRequestEntry(this.authoritiesGranter.build(), entryPoint,
-					this.factorOrder);
-			exceptions.authorizationRequestEntries((entries) -> entries.add(entry));
+			AuthorizationEntryPoint entry = new SimpleAuthorizationEntryPoint(entryPoint, this.factorOrder,
+					defaultAuthority());
+			exceptions.authorizationEntryPoint((entries) -> entries.add(entry));
 		}
 		AuthorizeHttpRequestsConfigurer<B> authorize = http.getConfigurer(AuthorizeHttpRequestsConfigurer.class);
 		if (authorize != null) {
-			authorize.getRegistry().withDefaultAuthority(getDefaultAuthority());
+			authorize.getRegistry().withDefaultAuthority(defaultAuthority());
 		}
-	}
-
-	protected String getDefaultAuthority() {
-		return "AUTHN_AUTHENTICATION";
 	}
 
 	protected AuthenticationEntryPoint getPostAuthenticationEntryPoint() {
@@ -324,10 +324,7 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		if (requestCache != null) {
 			this.defaultSuccessHandler.setRequestCache(requestCache);
 		}
-		AuthenticationManager manager = http.getSharedObject(AuthenticationManager.class);
-		if (this.factorOrder != null) {
-			this.authFilter.setAuthoritiesGranter(this.authoritiesGranter.build());
-		}
+		AuthenticationManager manager = getAuthenticationManager(http);
 		this.authFilter.setAuthenticationManager(manager);
 		this.authFilter.setAuthenticationSuccessHandler(this.successHandler);
 		this.authFilter.setAuthenticationFailureHandler(this.failureHandler);
@@ -352,6 +349,19 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		this.authFilter.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
 		F filter = postProcess(this.authFilter);
 		http.addFilter(filter);
+	}
+
+	private AuthenticationManager getAuthenticationManager(B http) {
+		AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
+		if (this.factorOrder == null) {
+			return authenticationManager;
+		}
+		this.authoritiesGranters.add(0, new AlwaysAuthoritiesGranter(defaultAuthority()));
+		AuthoritiesGranter authoritiesGranter = new CompositeAuthoritiesGranter(this.authoritiesGranters);
+		AuthoritiesGranterAuthenticationManager manager = new AuthoritiesGranterAuthenticationManager(
+				authenticationManager, authoritiesGranter);
+		manager.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
+		return manager;
 	}
 
 	/**

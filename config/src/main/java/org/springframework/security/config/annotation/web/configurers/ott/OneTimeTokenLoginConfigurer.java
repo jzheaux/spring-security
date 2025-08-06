@@ -174,7 +174,7 @@ public final class OneTimeTokenLoginConfigurer<H extends HttpSecurityBuilder<H>>
 	}
 
 	@Override
-	protected String getDefaultAuthority() {
+	public String defaultAuthority() {
 		return "AUTHN_OTT";
 	}
 

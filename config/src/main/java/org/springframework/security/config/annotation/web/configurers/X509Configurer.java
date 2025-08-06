@@ -16,12 +16,17 @@
 
 package org.springframework.security.config.annotation.web.configurers;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authorization.AlwaysAuthoritiesGranter;
 import org.springframework.security.authorization.AuthoritiesGranter;
+import org.springframework.security.authorization.AuthoritiesGranterAuthenticationManager;
 import org.springframework.security.authorization.CompositeAuthoritiesGranter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
@@ -31,7 +36,8 @@ import org.springframework.security.core.userdetails.AuthenticationUserDetailsSe
 import org.springframework.security.core.userdetails.UserDetailsByNameServiceWrapper;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.AuthenticationEntryPoint;
-import org.springframework.security.web.AuthorizationRequestEntry;
+import org.springframework.security.web.AuthorizationEntryPoint;
+import org.springframework.security.web.SimpleAuthorizationEntryPoint;
 import org.springframework.security.web.authentication.Http403ForbiddenEntryPoint;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationProvider;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
@@ -40,6 +46,7 @@ import org.springframework.security.web.authentication.preauth.x509.SubjectDnX50
 import org.springframework.security.web.authentication.preauth.x509.X509AuthenticationFilter;
 import org.springframework.security.web.authentication.preauth.x509.X509PrincipalExtractor;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
+import org.springframework.security.web.util.matcher.AnyRequestMatcher;
 
 /**
  * Adds X509 based pre authentication to an application. Since validating the certificate
@@ -81,12 +88,11 @@ import org.springframework.security.web.context.RequestAttributeSecurityContextR
  * @since 3.2
  */
 public final class X509Configurer<H extends HttpSecurityBuilder<H>> extends AbstractHttpConfigurer<X509Configurer<H>, H>
-		implements AuthorizableConfigurer<X509Configurer<H>> {
+		implements DefaultAuthorityAuthorizableConfigurer<X509Configurer<H>> {
 
 	private X509AuthenticationFilter x509AuthenticationFilter;
 
-	private final CompositeAuthoritiesGranter.Builder authoritiesGranter = CompositeAuthoritiesGranter
-		.withDefaultAuthority("AUTHN_X509");
+	private final List<AuthoritiesGranter> authoritiesGranters = new ArrayList<>();
 
 	private Integer factorOrder;
 
@@ -182,6 +188,11 @@ public final class X509Configurer<H extends HttpSecurityBuilder<H>> extends Abst
 	}
 
 	@Override
+	public String defaultAuthority() {
+		return "AUTHN_X509";
+	}
+
+	@Override
 	public void init(H http) {
 		PreAuthenticatedAuthenticationProvider authenticationProvider = new PreAuthenticatedAuthenticationProvider();
 		authenticationProvider.setPreAuthenticatedUserDetailsService(getAuthenticationUserDetailsService(http));
@@ -192,13 +203,14 @@ public final class X509Configurer<H extends HttpSecurityBuilder<H>> extends Abst
 		}
 		ExceptionHandlingConfigurer<H> exceptions = http.getConfigurer(ExceptionHandlingConfigurer.class);
 		if (exceptions != null) {
-			AuthorizationRequestEntry entry = new AuthorizationRequestEntry(this.authoritiesGranter.build(),
-					new Http403ForbiddenEntryPoint(), this.factorOrder);
-			exceptions.authorizationRequestEntries((entries) -> entries.add(entry));
+			AuthorizationEntryPoint entry = new SimpleAuthorizationEntryPoint(new Http403ForbiddenEntryPoint(),
+					this.factorOrder, defaultAuthority());
+			exceptions.authorizationEntryPoint((entries) -> entries.add(entry));
+			exceptions.defaultAuthenticationEntryPointFor(new Http403ForbiddenEntryPoint(), AnyRequestMatcher.INSTANCE);
 		}
 		AuthorizeHttpRequestsConfigurer<H> authorize = http.getConfigurer(AuthorizeHttpRequestsConfigurer.class);
 		if (authorize != null) {
-			authorize.getRegistry().withDefaultAuthority("AUTHN_X509");
+			authorize.getRegistry().withDefaultAuthority(defaultAuthority());
 		}
 	}
 
@@ -209,7 +221,16 @@ public final class X509Configurer<H extends HttpSecurityBuilder<H>> extends Abst
 	}
 
 	private AuthenticationManager getAuthenticationManager(H http) {
-		return http.getSharedObject(AuthenticationManager.class);
+		AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
+		if (this.factorOrder == null) {
+			return authenticationManager;
+		}
+		this.authoritiesGranters.add(0, new AlwaysAuthoritiesGranter(defaultAuthority()));
+		AuthoritiesGranter authoritiesGranter = new CompositeAuthoritiesGranter(this.authoritiesGranters);
+		AuthoritiesGranterAuthenticationManager manager = new AuthoritiesGranterAuthenticationManager(
+				authenticationManager, authoritiesGranter);
+		manager.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
+		return manager;
 	}
 
 	private X509AuthenticationFilter getFilter(AuthenticationManager authenticationManager, H http) {
@@ -221,9 +242,6 @@ public final class X509Configurer<H extends HttpSecurityBuilder<H>> extends Abst
 			}
 			if (this.authenticationDetailsSource != null) {
 				this.x509AuthenticationFilter.setAuthenticationDetailsSource(this.authenticationDetailsSource);
-			}
-			if (this.factorOrder != null) {
-				this.x509AuthenticationFilter.setAuthoritiesGranter(this.authoritiesGranter.build());
 			}
 			this.x509AuthenticationFilter.setSecurityContextRepository(new RequestAttributeSecurityContextRepository());
 			this.x509AuthenticationFilter.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
@@ -255,7 +273,7 @@ public final class X509Configurer<H extends HttpSecurityBuilder<H>> extends Abst
 
 	@Override
 	public X509Configurer<H> grants(AuthoritiesGranter granter) {
-		this.authoritiesGranter.authoritiesGranters((g) -> g.add(granter));
+		this.authoritiesGranters.add(granter);
 		return this;
 	}
 

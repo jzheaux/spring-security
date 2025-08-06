@@ -32,7 +32,6 @@ import org.springframework.core.log.LogMessage;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.event.InteractiveAuthenticationSuccessEvent;
-import org.springframework.security.authorization.AuthoritiesGranter;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContext;
@@ -100,8 +99,6 @@ public abstract class AbstractPreAuthenticatedProcessingFilter extends GenericFi
 	private ApplicationEventPublisher eventPublisher = null;
 
 	private AuthenticationDetailsSource<HttpServletRequest, ?> authenticationDetailsSource = new WebAuthenticationDetailsSource();
-
-	private AuthoritiesGranter authoritiesGranter = AuthoritiesGranter.NOOP;
 
 	private AuthenticationManager authenticationManager = null;
 
@@ -205,7 +202,6 @@ public abstract class AbstractPreAuthenticatedProcessingFilter extends GenericFi
 					principal, credentials);
 			authenticationRequest.setDetails(this.authenticationDetailsSource.buildDetails(request));
 			Authentication authenticationResult = this.authenticationManager.authenticate(authenticationRequest);
-			authenticationResult = this.authoritiesGranter.grantAuthorities(authenticationResult);
 			successfulAuthentication(request, response, authenticationResult);
 		}
 		catch (AuthenticationException ex) {
@@ -289,10 +285,6 @@ public abstract class AbstractPreAuthenticatedProcessingFilter extends GenericFi
 	 */
 	public void setAuthenticationManager(AuthenticationManager authenticationManager) {
 		this.authenticationManager = authenticationManager;
-	}
-
-	public void setAuthoritiesGranter(AuthoritiesGranter authoritiesGranter) {
-		this.authoritiesGranter = authoritiesGranter;
 	}
 
 	/**

@@ -29,17 +29,18 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.security.authorization.AuthorityAuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationDeniedException;
-import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.authorization.AuthorizationRequest;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.access.AccessDeniedHandlerImpl;
 
 public final class AuthorizationRequestingAccessDeniedHandler implements AccessDeniedHandler {
 
-	private final List<AuthorizationRequestEntry> entries;
+	private final List<AuthorizationEntryPoint> entries;
 
 	private final AccessDeniedHandler delegate = new AccessDeniedHandlerImpl();
 
-	public AuthorizationRequestingAccessDeniedHandler(List<AuthorizationRequestEntry> entries) {
+	public AuthorizationRequestingAccessDeniedHandler(List<AuthorizationEntryPoint> entries) {
 		this.entries = new ArrayList<>(entries);
 		AnnotationAwareOrderComparator.sort(this.entries);
 	}
@@ -55,14 +56,12 @@ public final class AuthorizationRequestingAccessDeniedHandler implements AccessD
 			this.delegate.handle(request, response, access);
 			return;
 		}
-		for (GrantedAuthority needed : decision.getAuthorities()) {
-			for (AuthorizationRequestEntry entry : this.entries) {
-				if (entry.getAuthoritiesGranter().grantsAuthority(needed)) {
-					InsufficientAuthenticationException iae = new InsufficientAuthenticationException("access denied",
-							access);
-					entry.getAuthenticationEntryPoint().commence(request, response, iae);
-					return;
-				}
+		AuthorizationRequest authorizationRequest = decision::getAuthorities;
+		for (AuthorizationEntryPoint entry : this.entries) {
+			if (entry.authorizes(authorizationRequest)) {
+				AuthenticationException iae = new InsufficientAuthenticationException("access denied", access);
+				entry.commence(request, response, iae);
+				return;
 			}
 		}
 		this.delegate.handle(request, response, access);

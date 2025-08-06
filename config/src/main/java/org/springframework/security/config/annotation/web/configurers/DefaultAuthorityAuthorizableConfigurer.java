@@ -14,14 +14,10 @@
  * limitations under the License.
  */
 
-package org.springframework.security.authorization;
+package org.springframework.security.config.annotation.web.configurers;
 
-import org.springframework.security.core.Authentication;
+interface DefaultAuthorityAuthorizableConfigurer<C> extends AuthorizableConfigurer<C> {
 
-public interface AuthoritiesGranter {
-
-	AuthoritiesGranter NOOP = (a) -> a;
-
-	Authentication grantAuthorities(Authentication authentication);
+	String defaultAuthority();
 
 }

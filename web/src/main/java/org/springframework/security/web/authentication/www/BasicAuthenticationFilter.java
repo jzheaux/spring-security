@@ -28,7 +28,6 @@ import org.springframework.core.log.LogMessage;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authorization.AuthoritiesGranter;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContext;
@@ -100,8 +99,6 @@ public class BasicAuthenticationFilter extends OncePerRequestFilter {
 	private AuthenticationEntryPoint authenticationEntryPoint;
 
 	private AuthenticationManager authenticationManager;
-
-	private AuthoritiesGranter authoritiesGranter = AuthoritiesGranter.NOOP;
 
 	private RememberMeServices rememberMeServices = new NullRememberMeServices();
 
@@ -188,7 +185,6 @@ public class BasicAuthenticationFilter extends OncePerRequestFilter {
 			this.logger.trace(LogMessage.format("Found username '%s' in Basic Authorization header", username));
 			if (authenticationIsRequired(username)) {
 				Authentication authResult = this.authenticationManager.authenticate(authRequest);
-				authResult = this.authoritiesGranter.grantAuthorities(authResult);
 				SecurityContext context = this.securityContextHolderStrategy.createEmptyContext();
 				context.setAuthentication(authResult);
 				this.securityContextHolderStrategy.setContext(context);

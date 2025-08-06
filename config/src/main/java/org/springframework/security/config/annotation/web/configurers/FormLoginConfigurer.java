@@ -239,7 +239,7 @@ public final class FormLoginConfigurer<H extends HttpSecurityBuilder<H>> extends
 	}
 
 	@Override
-	protected String getDefaultAuthority() {
+	public String defaultAuthority() {
 		return "AUTHN_FORM";
 	}
 

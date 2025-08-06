@@ -16,7 +16,9 @@
 
 package org.springframework.security.config.annotation.web.configurers;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -24,12 +26,18 @@ import java.util.Set;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
+import org.springframework.security.authorization.AlwaysAuthoritiesGranter;
 import org.springframework.security.authorization.AuthoritiesGranter;
+import org.springframework.security.authorization.AuthoritiesGranterAuthenticationManager;
 import org.springframework.security.authorization.CompositeAuthoritiesGranter;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.web.AuthorizationEntryPoint;
+import org.springframework.security.web.SimpleAuthorizationEntryPoint;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
+import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.authentication.ui.DefaultLoginPageGeneratingFilter;
 import org.springframework.security.web.authentication.ui.DefaultResourcesFilter;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
@@ -57,8 +65,9 @@ import org.springframework.util.Assert;
  * @author Rob Winch
  * @since 6.4
  */
-public class WebAuthnConfigurer<H extends HttpSecurityBuilder<H>> extends
-		AbstractHttpConfigurer<WebAuthnConfigurer<H>, H> implements AuthorizableConfigurer<WebAuthnConfigurer<H>> {
+public class WebAuthnConfigurer<H extends HttpSecurityBuilder<H>>
+		extends AbstractHttpConfigurer<WebAuthnConfigurer<H>, H>
+		implements DefaultAuthorityAuthorizableConfigurer<WebAuthnConfigurer<H>> {
 
 	private String rpId;
 
@@ -74,8 +83,7 @@ public class WebAuthnConfigurer<H extends HttpSecurityBuilder<H>> extends
 
 	private Integer factorOrder;
 
-	private CompositeAuthoritiesGranter.Builder authoritiesGranter = CompositeAuthoritiesGranter
-		.withDefaultAuthority("AUTHN_WEBAUTHN");
+	private final List<AuthoritiesGranter> authoritiesGranters = new ArrayList<>();
 
 	/**
 	 * The Relying Party id.
@@ -159,7 +167,7 @@ public class WebAuthnConfigurer<H extends HttpSecurityBuilder<H>> extends
 
 	@Override
 	public WebAuthnConfigurer<H> grants(AuthoritiesGranter granter) {
-		this.authoritiesGranter.authoritiesGranters((a) -> a.add(granter));
+		this.authoritiesGranters.add(granter);
 		return this;
 	}
 
@@ -167,6 +175,41 @@ public class WebAuthnConfigurer<H extends HttpSecurityBuilder<H>> extends
 	public WebAuthnConfigurer<H> factor(Integer order) {
 		this.factorOrder = order;
 		return this;
+	}
+
+	@Override
+	public String defaultAuthority() {
+		return "AUTHN_WEBAUTHN";
+	}
+
+	private AuthenticationManager getAuthenticationManager(WebAuthnAuthenticationProvider authenticationProvider) {
+		AuthenticationManager authenticationManager = new ProviderManager(authenticationProvider);
+		if (this.factorOrder == null) {
+			return authenticationManager;
+		}
+		this.authoritiesGranters.add(0, new AlwaysAuthoritiesGranter(defaultAuthority()));
+		AuthoritiesGranter authoritiesGranter = new CompositeAuthoritiesGranter(this.authoritiesGranters);
+		AuthoritiesGranterAuthenticationManager manager = new AuthoritiesGranterAuthenticationManager(
+				authenticationManager, authoritiesGranter);
+		manager.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
+		return manager;
+	}
+
+	@Override
+	public void init(H http) throws Exception {
+		if (this.factorOrder == null) {
+			return;
+		}
+		AuthorizationEntryPoint entryPoint = new SimpleAuthorizationEntryPoint(
+				new LoginUrlAuthenticationEntryPoint("/login"), this.factorOrder, defaultAuthority());
+		ExceptionHandlingConfigurer<H> exceptions = http.getConfigurer(ExceptionHandlingConfigurer.class);
+		if (exceptions != null) {
+			exceptions.authorizationEntryPoint((e) -> e.add(entryPoint));
+		}
+		AuthorizeHttpRequestsConfigurer<H> authorize = http.getConfigurer(AuthorizeHttpRequestsConfigurer.class);
+		if (authorize != null) {
+			authorize.getRegistry().withDefaultAuthority(defaultAuthority());
+		}
 	}
 
 	@Override
@@ -182,14 +225,11 @@ public class WebAuthnConfigurer<H extends HttpSecurityBuilder<H>> extends
 		PublicKeyCredentialCreationOptionsRepository creationOptionsRepository = creationOptionsRepository();
 		WebAuthnAuthenticationFilter webAuthnAuthnFilter = new WebAuthnAuthenticationFilter();
 		webAuthnAuthnFilter.setAuthenticationManager(
-				new ProviderManager(new WebAuthnAuthenticationProvider(rpOperations, userDetailsService)));
+				getAuthenticationManager(new WebAuthnAuthenticationProvider(rpOperations, userDetailsService)));
 		WebAuthnRegistrationFilter webAuthnRegistrationFilter = new WebAuthnRegistrationFilter(userCredentials,
 				rpOperations);
 		PublicKeyCredentialCreationOptionsFilter creationOptionsFilter = new PublicKeyCredentialCreationOptionsFilter(
 				rpOperations);
-		if (this.factorOrder != null) {
-			webAuthnAuthnFilter.setAuthoritiesGranter(this.authoritiesGranter.build());
-		}
 		if (creationOptionsRepository != null) {
 			webAuthnRegistrationFilter.setCreationOptionsRepository(creationOptionsRepository);
 			creationOptionsFilter.setCreationOptionsRepository(creationOptionsRepository);
