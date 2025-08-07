@@ -18,6 +18,7 @@ package org.springframework.security.core.context;
 
 import java.util.function.Supplier;
 
+import org.springframework.security.core.Authentication;
 import org.springframework.util.Assert;
 
 /**

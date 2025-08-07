@@ -16,10 +16,17 @@
 
 package org.springframework.security.core.context;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.SpringSecurityCoreVersion;
+import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 
 /**
@@ -72,6 +79,16 @@ public class SecurityContextImpl implements SecurityContext {
 	}
 
 	@Override
+	public SecurityContext withAuthentication(Authentication authentication) {
+		if (this.authentication == null) {
+			return new SecurityContextImpl(authentication);
+		} else {
+			Authentication composite = CompositeAuthentication.authenticated(authentication, this.authentication);
+			return new SecurityContextImpl(composite);
+		}
+	}
+
+	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append(getClass().getSimpleName()).append(" [");
@@ -85,4 +102,70 @@ public class SecurityContextImpl implements SecurityContext {
 		return sb.toString();
 	}
 
+	private static final class CompositeAuthentication implements Authentication {
+		private final Collection<Authentication> authentications;
+		private final Collection<GrantedAuthority> authorities;
+
+		private CompositeAuthentication(Collection<Authentication> authentications,
+				Collection<GrantedAuthority> authorities) {
+			this.authentications = authentications;
+			this.authorities = authorities;
+		}
+
+		public static CompositeAuthentication authenticated(Authentication... authentications) {
+			Collection<GrantedAuthority> authorities = new HashSet<>();
+			Collection<Authentication> unwrapped = new ArrayList<>();
+			for (Authentication authentication : authentications) {
+				Assert.isTrue(authentication.isAuthenticated(), "all authentications must be authenticated");
+				authorities.addAll(authentication.getAuthorities());
+				if (authentication instanceof CompositeAuthentication composite) {
+					unwrapped.addAll(composite.getAuthentications());
+				} else {
+					unwrapped.add(authentication);
+				}
+			}
+			return new CompositeAuthentication(unwrapped, authorities);
+		}
+
+		public Collection<Authentication> getAuthentications() {
+			return this.authentications;
+		}
+
+		@Override
+		public Collection<? extends GrantedAuthority> getAuthorities() {
+			return this.authorities;
+		}
+
+		@Override
+		public @Nullable Object getCredentials() {
+			return this.authentications.iterator().next().getCredentials();
+		}
+
+		@Override
+		public @Nullable Object getDetails() {
+			return this.authentications.iterator().next().getDetails();
+		}
+
+		@Override
+		public @Nullable Object getPrincipal() {
+			return this.authentications.iterator().next().getPrincipal();
+		}
+
+		@Override
+		public boolean isAuthenticated() {
+			return this.authentications.iterator().next().isAuthenticated();
+		}
+
+		@Override
+		public void setAuthenticated(boolean isAuthenticated) throws IllegalArgumentException {
+			for (Authentication authentication : this.authentications) {
+				authentication.setAuthenticated(isAuthenticated);
+			}
+		}
+
+		@Override
+		public String getName() {
+			return this.authentications.iterator().next().getName();
+		}
+	}
 }

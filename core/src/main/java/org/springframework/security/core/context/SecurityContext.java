@@ -49,4 +49,8 @@ public interface SecurityContext extends Serializable {
 	 */
 	void setAuthentication(@Nullable Authentication authentication);
 
+	default SecurityContext withAuthentication(Authentication authentication) {
+		setAuthentication(authentication);
+		return this;
+	}
 }

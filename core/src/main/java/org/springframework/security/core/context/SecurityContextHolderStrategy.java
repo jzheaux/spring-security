@@ -18,6 +18,8 @@ package org.springframework.security.core.context;
 
 import java.util.function.Supplier;
 
+import org.springframework.security.core.Authentication;
+
 /**
  * A strategy for storing security context information against a thread.
  *
@@ -77,4 +79,7 @@ public interface SecurityContextHolderStrategy {
 	 */
 	SecurityContext createEmptyContext();
 
+	default SecurityContext withAuthentication(Authentication authentication) {
+		return getContext().withAuthentication(authentication);
+	}
 }
