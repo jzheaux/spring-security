@@ -26,15 +26,9 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
-import org.springframework.security.authorization.AlwaysAuthoritiesGranter;
 import org.springframework.security.authorization.AuthoritiesGranter;
-import org.springframework.security.authorization.AuthoritiesGranterAuthenticationManager;
-import org.springframework.security.authorization.CompositeAuthoritiesGranter;
-import org.springframework.security.authorization.PreAuthenticatedAuthoritiesGranter;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.web.AuthorizationEntryPoint;
-import org.springframework.security.web.SimpleAuthorizationEntryPoint;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.authentication.ui.DefaultLoginPageGeneratingFilter;
@@ -64,9 +58,10 @@ import org.springframework.util.Assert;
  * @author Rob Winch
  * @since 6.4
  */
-public class WebAuthnConfigurer<H extends HttpSecurityBuilder<H>>
-		extends AbstractHttpConfigurer<WebAuthnConfigurer<H>, H>
-		implements DefaultAuthorityAuthorizableConfigurer<WebAuthnConfigurer<H>> {
+public class WebAuthnConfigurer<H extends HttpSecurityBuilder<H>> extends
+		AbstractHttpConfigurer<WebAuthnConfigurer<H>, H> implements AuthorizableConfigurer<WebAuthnConfigurer<H>> {
+
+	private final MfaConfigurer<H, WebAuthnConfigurer<H>> mfa = new MfaConfigurer<>("AUTHN_WEBAUTHN");
 
 	private String rpId;
 
@@ -79,10 +74,6 @@ public class WebAuthnConfigurer<H extends HttpSecurityBuilder<H>>
 	private PublicKeyCredentialCreationOptionsRepository creationOptionsRepository;
 
 	private HttpMessageConverter<Object> converter;
-
-	private Integer factorOrder;
-
-	private AuthoritiesGranter authoritiesGranters = new AlwaysAuthoritiesGranter(defaultAuthority());
 
 	/**
 	 * The Relying Party id.
@@ -166,45 +157,25 @@ public class WebAuthnConfigurer<H extends HttpSecurityBuilder<H>>
 
 	@Override
 	public WebAuthnConfigurer<H> grants(AuthoritiesGranter granter) {
-		this.authoritiesGranters = new CompositeAuthoritiesGranter(this.authoritiesGranters, granter);
+		this.mfa.grants(granter);
 		return this;
 	}
 
 	@Override
 	public WebAuthnConfigurer<H> factor(Integer order) {
-		this.factorOrder = order;
+		this.mfa.factor(order);
 		return this;
-	}
-
-	@Override
-	public String defaultAuthority() {
-		return "AUTHN_WEBAUTHN";
 	}
 
 	private AuthenticationManager getAuthenticationManager(WebAuthnAuthenticationProvider authenticationProvider) {
 		AuthenticationManager authenticationManager = new ProviderManager(authenticationProvider);
-		if (this.factorOrder == null) {
-			return authenticationManager;
-		}
-		return new AuthoritiesGranterAuthenticationManager(authenticationManager, this.authoritiesGranters);
+		return this.mfa.postProcess(authenticationManager);
 	}
 
 	@Override
 	public void init(H http) throws Exception {
-		if (this.factorOrder == null) {
-			return;
-		}
-		grants(new PreAuthenticatedAuthoritiesGranter(getSecurityContextHolderStrategy()));
-		ExceptionHandlingConfigurer<H> exceptions = http.getConfigurer(ExceptionHandlingConfigurer.class);
-		if (exceptions != null) {
-			AuthorizationEntryPoint entryPoint = new SimpleAuthorizationEntryPoint(
-					new LoginUrlAuthenticationEntryPoint("/login"), this.factorOrder, this.authoritiesGranters);
-			exceptions.authorizationEntryPoint((e) -> e.add(entryPoint));
-		}
-		AuthorizeHttpRequestsConfigurer<H> authorize = http.getConfigurer(AuthorizeHttpRequestsConfigurer.class);
-		if (authorize != null) {
-			authorize.getRegistry().withDefaultAuthority(defaultAuthority());
-		}
+		this.mfa.authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login"));
+		this.mfa.init(http);
 	}
 
 	@Override

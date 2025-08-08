@@ -16,6 +16,8 @@
 
 package org.springframework.security.config;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Callback interface that accepts a single input argument and returns no result.
  *
@@ -31,6 +33,13 @@ public interface Customizer<T> {
 	 * @param t the input argument
 	 */
 	void customize(T t);
+
+	default void customizeIfPresent(@Nullable T t) {
+		if (t == null) {
+			return;
+		}
+		customize(t);
+	}
 
 	/**
 	 * Returns a {@link Customizer} that does not alter the input argument.

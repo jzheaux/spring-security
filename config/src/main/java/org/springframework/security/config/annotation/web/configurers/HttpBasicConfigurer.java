@@ -26,16 +26,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authorization.AlwaysAuthoritiesGranter;
 import org.springframework.security.authorization.AuthoritiesGranter;
-import org.springframework.security.authorization.AuthoritiesGranterAuthenticationManager;
-import org.springframework.security.authorization.CompositeAuthoritiesGranter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
-import org.springframework.security.web.AuthorizationEntryPoint;
-import org.springframework.security.web.SimpleAuthorizationEntryPoint;
 import org.springframework.security.web.authentication.DelegatingAuthenticationEntryPoint;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.RememberMeServices;
@@ -87,18 +82,15 @@ import org.springframework.web.accept.HeaderContentNegotiationStrategy;
  * @author Evgeniy Cheban
  * @since 3.2
  */
-public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>>
-		extends AbstractHttpConfigurer<HttpBasicConfigurer<B>, B>
-		implements DefaultAuthorityAuthorizableConfigurer<HttpBasicConfigurer<B>> {
+public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>> extends
+		AbstractHttpConfigurer<HttpBasicConfigurer<B>, B> implements AuthorizableConfigurer<HttpBasicConfigurer<B>> {
 
 	private static final RequestHeaderRequestMatcher X_REQUESTED_WITH = new RequestHeaderRequestMatcher(
 			"X-Requested-With", "XMLHttpRequest");
 
 	private static final String DEFAULT_REALM = "Realm";
 
-	private AuthoritiesGranter authoritiesGranters = new AlwaysAuthoritiesGranter(defaultAuthority());
-
-	private Integer factorOrder;
+	private final MfaConfigurer<B, HttpBasicConfigurer<B>> mfa = new MfaConfigurer<>("AUTHN_BASIC");
 
 	private AuthenticationEntryPoint authenticationEntryPoint;
 
@@ -119,6 +111,7 @@ public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>>
 		DelegatingAuthenticationEntryPoint defaultEntryPoint = new DelegatingAuthenticationEntryPoint(entryPoints);
 		defaultEntryPoint.setDefaultEntryPoint(this.basicAuthEntryPoint);
 		this.authenticationEntryPoint = defaultEntryPoint;
+		this.mfa.authenticationEntryPoint(this.authenticationEntryPoint);
 	}
 
 	/**
@@ -143,6 +136,7 @@ public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>>
 	 */
 	public HttpBasicConfigurer<B> authenticationEntryPoint(AuthenticationEntryPoint authenticationEntryPoint) {
 		this.authenticationEntryPoint = authenticationEntryPoint;
+		this.mfa.authenticationEntryPoint(this.authenticationEntryPoint);
 		return this;
 	}
 
@@ -174,37 +168,20 @@ public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>>
 
 	@Override
 	public HttpBasicConfigurer<B> factor(Integer order) {
-		this.factorOrder = order;
+		this.mfa.factor(order);
 		return this;
 	}
 
 	@Override
 	public HttpBasicConfigurer<B> grants(AuthoritiesGranter granter) {
-		this.authoritiesGranters = new CompositeAuthoritiesGranter(this.authoritiesGranters, granter);
+		this.mfa.grants(granter);
 		return this;
-	}
-
-	@Override
-	public String defaultAuthority() {
-		return "AUTHN_BASIC";
 	}
 
 	@Override
 	public void init(B http) {
 		registerDefaults(http);
-		if (this.factorOrder == null) {
-			return;
-		}
-		ExceptionHandlingConfigurer<B> exceptions = http.getConfigurer(ExceptionHandlingConfigurer.class);
-		if (exceptions != null) {
-			AuthorizationEntryPoint entryPoint = new SimpleAuthorizationEntryPoint(this.authenticationEntryPoint,
-					this.factorOrder, this.authoritiesGranters);
-			exceptions.authorizationEntryPoint((e) -> e.add(entryPoint));
-		}
-		AuthorizeHttpRequestsConfigurer<B> authorize = http.getConfigurer(AuthorizeHttpRequestsConfigurer.class);
-		if (authorize != null) {
-			authorize.getRegistry().withDefaultAuthority(defaultAuthority());
-		}
+		this.mfa.init(http);
 	}
 
 	private void registerDefaults(B http) {
@@ -246,17 +223,10 @@ public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>>
 				postProcess(new HttpStatusReturningLogoutSuccessHandler(HttpStatus.NO_CONTENT)), preferredMatcher);
 	}
 
-	private AuthenticationManager getAuthenticationManager(B http) {
-		if (this.factorOrder == null) {
-			return http.getSharedObject(AuthenticationManager.class);
-		}
-		return new AuthoritiesGranterAuthenticationManager(http.getSharedObject(AuthenticationManager.class),
-				this.authoritiesGranters);
-	}
-
 	@Override
 	public void configure(B http) {
-		AuthenticationManager authenticationManager = getAuthenticationManager(http);
+		AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
+		authenticationManager = this.mfa.postProcess(authenticationManager);
 		BasicAuthenticationFilter basicAuthenticationFilter = new BasicAuthenticationFilter(authenticationManager,
 				this.authenticationEntryPoint);
 		if (this.authenticationDetailsSource != null) {

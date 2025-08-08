@@ -31,18 +31,14 @@ import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationManagerResolver;
 import org.springframework.security.authentication.AuthenticationProvider;
-import org.springframework.security.authorization.AlwaysAuthoritiesGranter;
 import org.springframework.security.authorization.AuthoritiesGranter;
-import org.springframework.security.authorization.AuthoritiesGranterAuthenticationManager;
-import org.springframework.security.authorization.CompositeAuthoritiesGranter;
-import org.springframework.security.authorization.PreAuthenticatedAuthoritiesGranter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.AuthorizableConfigurer;
-import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
 import org.springframework.security.config.annotation.web.configurers.CsrfConfigurer;
 import org.springframework.security.config.annotation.web.configurers.ExceptionHandlingConfigurer;
+import org.springframework.security.config.annotation.web.configurers.MfaConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
@@ -61,8 +57,6 @@ import org.springframework.security.oauth2.server.resource.web.access.BearerToke
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.AuthenticationEntryPoint;
-import org.springframework.security.web.AuthorizationEntryPoint;
-import org.springframework.security.web.SimpleAuthorizationEntryPoint;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.access.AccessDeniedHandlerImpl;
 import org.springframework.security.web.access.DelegatingAccessDeniedHandler;
@@ -171,13 +165,9 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 	private static final RequestHeaderRequestMatcher X_REQUESTED_WITH = new RequestHeaderRequestMatcher(
 			"X-Requested-With", "XMLHttpRequest");
 
-	private static final String DEFAULT_AUTHORITY = "AUTHN_BEARER";
+	private final MfaConfigurer<H, OAuth2ResourceServerConfigurer<H>> mfa = new MfaConfigurer<>("AUTHN_BEARER");
 
 	private final ApplicationContext context;
-
-	private Integer factorOrder;
-
-	private AuthoritiesGranter authoritiesGranter = new AlwaysAuthoritiesGranter(DEFAULT_AUTHORITY);
 
 	private AuthenticationManagerResolver<HttpServletRequest> authenticationManagerResolver;
 
@@ -198,6 +188,7 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 	public OAuth2ResourceServerConfigurer(ApplicationContext context) {
 		Assert.notNull(context, "context cannot be null");
 		this.context = context;
+		this.mfa.authenticationEntryPoint(this.authenticationEntryPoint);
 	}
 
 	public OAuth2ResourceServerConfigurer<H> accessDeniedHandler(AccessDeniedHandler accessDeniedHandler) {
@@ -209,6 +200,7 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 	public OAuth2ResourceServerConfigurer<H> authenticationEntryPoint(AuthenticationEntryPoint entryPoint) {
 		Assert.notNull(entryPoint, "entryPoint cannot be null");
 		this.authenticationEntryPoint = entryPoint;
+		this.mfa.authenticationEntryPoint(this.authenticationEntryPoint);
 		return this;
 	}
 
@@ -267,13 +259,13 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 
 	@Override
 	public OAuth2ResourceServerConfigurer<H> grants(AuthoritiesGranter granter) {
-		this.authoritiesGranter = new CompositeAuthoritiesGranter(this.authoritiesGranter, granter);
+		this.mfa.grants(granter);
 		return this;
 	}
 
 	@Override
 	public OAuth2ResourceServerConfigurer<H> factor(Integer order) {
-		this.factorOrder = order;
+		this.mfa.factor(order);
 		return this;
 	}
 
@@ -287,20 +279,7 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 		if (authenticationProvider != null) {
 			http.authenticationProvider(authenticationProvider);
 		}
-		if (this.factorOrder == null) {
-			return;
-		}
-		grants(new PreAuthenticatedAuthoritiesGranter(getSecurityContextHolderStrategy()));
-		ExceptionHandlingConfigurer<H> exceptions = http.getConfigurer(ExceptionHandlingConfigurer.class);
-		if (exceptions != null) {
-			AuthorizationEntryPoint entry = new SimpleAuthorizationEntryPoint(this.authenticationEntryPoint,
-					this.factorOrder, this.authoritiesGranter);
-			exceptions.authorizationEntryPoint((entries) -> entries.add(entry));
-		}
-		AuthorizeHttpRequestsConfigurer<H> authorize = http.getConfigurer(AuthorizeHttpRequestsConfigurer.class);
-		if (authorize != null) {
-			authorize.getRegistry().withDefaultAuthority(DEFAULT_AUTHORITY);
-		}
+		this.mfa.init(http);
 	}
 
 	@Override
@@ -308,7 +287,7 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 		AuthenticationManagerResolver resolver = this.authenticationManagerResolver;
 		if (resolver == null) {
 			AuthenticationManager authenticationManager = getAuthenticationManager(http);
-			resolver = (request) -> wrapAuthenticationManager(authenticationManager);
+			resolver = (request) -> this.mfa.postProcess(authenticationManager);
 		}
 
 		AuthenticationConverter converter = getAuthenticationConverter();
@@ -397,13 +376,6 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 			return this.opaqueTokenConfigurer.getAuthenticationManager(http);
 		}
 		return http.getSharedObject(AuthenticationManager.class);
-	}
-
-	AuthenticationManager wrapAuthenticationManager(AuthenticationManager authenticationManager) {
-		if (this.factorOrder == null) {
-			return authenticationManager;
-		}
-		return new AuthoritiesGranterAuthenticationManager(authenticationManager, this.authoritiesGranter);
 	}
 
 	AuthenticationManagerResolver<HttpServletRequest> getAuthenticationManagerResolver() {

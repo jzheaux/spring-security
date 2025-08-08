@@ -25,18 +25,12 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authorization.AlwaysAuthoritiesGranter;
 import org.springframework.security.authorization.AuthoritiesGranter;
-import org.springframework.security.authorization.AuthoritiesGranterAuthenticationManager;
-import org.springframework.security.authorization.CompositeAuthoritiesGranter;
-import org.springframework.security.authorization.PreAuthenticatedAuthoritiesGranter;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
-import org.springframework.security.web.AuthorizationEntryPoint;
 import org.springframework.security.web.PortMapper;
 import org.springframework.security.web.PortResolver;
-import org.springframework.security.web.SimpleAuthorizationEntryPoint;
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -70,11 +64,9 @@ import org.springframework.web.accept.HeaderContentNegotiationStrategy;
 public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecurityBuilder<B>, T extends AbstractAuthenticationFilterConfigurer<B, T, F>, F extends AbstractAuthenticationProcessingFilter>
 		extends AbstractHttpConfigurer<T, B> implements DefaultAuthorityAuthorizableConfigurer<T> {
 
-	private AuthoritiesGranter authoritiesGranters = new AlwaysAuthoritiesGranter(defaultAuthority());
+	private final MfaConfigurer<B, T> mfa = new MfaConfigurer<>(defaultAuthority());
 
 	private F authFilter;
-
-	private Integer factorOrder;
 
 	private AuthenticationDetailsSource<HttpServletRequest, ?> authenticationDetailsSource;
 
@@ -120,13 +112,13 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 
 	@Override
 	public T grants(AuthoritiesGranter granter) {
-		this.authoritiesGranters = new CompositeAuthoritiesGranter(this.authoritiesGranters, granter);
+		this.mfa.grants(granter);
 		return getSelf();
 	}
 
 	@Override
 	public T factor(Integer order) {
-		this.factorOrder = order;
+		this.mfa.factor(order);
 		return getSelf();
 	}
 
@@ -260,20 +252,8 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		updateAuthenticationDefaults();
 		updateAccessDefaults(http);
 		registerDefaultAuthenticationEntryPoint(http);
-		if (this.factorOrder == null) {
-			return;
-		}
-		grants(new PreAuthenticatedAuthoritiesGranter(getSecurityContextHolderStrategy()));
-		ExceptionHandlingConfigurer<B> exceptions = http.getConfigurer(ExceptionHandlingConfigurer.class);
-		if (exceptions != null) {
-			AuthorizationEntryPoint entry = new SimpleAuthorizationEntryPoint(getPostAuthenticationEntryPoint(),
-					this.factorOrder, this.authoritiesGranters);
-			exceptions.authorizationEntryPoint((entries) -> entries.add(entry));
-		}
-		AuthorizeHttpRequestsConfigurer<B> authorize = http.getConfigurer(AuthorizeHttpRequestsConfigurer.class);
-		if (authorize != null) {
-			authorize.getRegistry().withDefaultAuthority(defaultAuthority());
-		}
+		this.mfa.authenticationEntryPoint(getPostAuthenticationEntryPoint());
+		this.mfa.init(http);
 	}
 
 	protected AuthenticationEntryPoint getPostAuthenticationEntryPoint() {
@@ -351,11 +331,8 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 	}
 
 	private AuthenticationManager getAuthenticationManager(B http) {
-		if (this.factorOrder == null) {
-			return http.getSharedObject(AuthenticationManager.class);
-		}
-		return new AuthoritiesGranterAuthenticationManager(http.getSharedObject(AuthenticationManager.class),
-				this.authoritiesGranters);
+		AuthenticationManager manager = http.getSharedObject(AuthenticationManager.class);
+		return this.mfa.postProcess(manager);
 	}
 
 	/**
