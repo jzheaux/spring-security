@@ -16,10 +16,8 @@
 
 package org.springframework.security.config.annotation.web.configurers;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -31,6 +29,7 @@ import org.springframework.security.authorization.AlwaysAuthoritiesGranter;
 import org.springframework.security.authorization.AuthoritiesGranter;
 import org.springframework.security.authorization.AuthoritiesGranterAuthenticationManager;
 import org.springframework.security.authorization.CompositeAuthoritiesGranter;
+import org.springframework.security.authorization.PreAuthenticatedAuthoritiesGranter;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -71,7 +70,7 @@ import org.springframework.web.accept.HeaderContentNegotiationStrategy;
 public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecurityBuilder<B>, T extends AbstractAuthenticationFilterConfigurer<B, T, F>, F extends AbstractAuthenticationProcessingFilter>
 		extends AbstractHttpConfigurer<T, B> implements DefaultAuthorityAuthorizableConfigurer<T> {
 
-	private final List<AuthoritiesGranter> authoritiesGranters = new ArrayList<>();
+	private AuthoritiesGranter authoritiesGranters = new AlwaysAuthoritiesGranter(defaultAuthority());
 
 	private F authFilter;
 
@@ -121,7 +120,7 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 
 	@Override
 	public T grants(AuthoritiesGranter granter) {
-		this.authoritiesGranters.add(granter);
+		this.authoritiesGranters = new CompositeAuthoritiesGranter(this.authoritiesGranters, granter);
 		return getSelf();
 	}
 
@@ -264,11 +263,11 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		if (this.factorOrder == null) {
 			return;
 		}
+		grants(new PreAuthenticatedAuthoritiesGranter(getSecurityContextHolderStrategy()));
 		ExceptionHandlingConfigurer<B> exceptions = http.getConfigurer(ExceptionHandlingConfigurer.class);
 		if (exceptions != null) {
-			AuthenticationEntryPoint entryPoint = getPostAuthenticationEntryPoint();
-			AuthorizationEntryPoint entry = new SimpleAuthorizationEntryPoint(entryPoint, this.factorOrder,
-					defaultAuthority());
+			AuthorizationEntryPoint entry = new SimpleAuthorizationEntryPoint(getPostAuthenticationEntryPoint(),
+					this.factorOrder, this.authoritiesGranters);
 			exceptions.authorizationEntryPoint((entries) -> entries.add(entry));
 		}
 		AuthorizeHttpRequestsConfigurer<B> authorize = http.getConfigurer(AuthorizeHttpRequestsConfigurer.class);
@@ -352,16 +351,11 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 	}
 
 	private AuthenticationManager getAuthenticationManager(B http) {
-		AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
 		if (this.factorOrder == null) {
-			return authenticationManager;
+			return http.getSharedObject(AuthenticationManager.class);
 		}
-		this.authoritiesGranters.add(0, new AlwaysAuthoritiesGranter(defaultAuthority()));
-		AuthoritiesGranter authoritiesGranter = new CompositeAuthoritiesGranter(this.authoritiesGranters);
-		AuthoritiesGranterAuthenticationManager manager = new AuthoritiesGranterAuthenticationManager(
-				authenticationManager, authoritiesGranter);
-		manager.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
-		return manager;
+		return new AuthoritiesGranterAuthenticationManager(http.getSharedObject(AuthenticationManager.class),
+				this.authoritiesGranters);
 	}
 
 	/**

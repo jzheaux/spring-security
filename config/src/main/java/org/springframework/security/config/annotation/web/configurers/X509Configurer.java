@@ -16,9 +16,6 @@
 
 package org.springframework.security.config.annotation.web.configurers;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.context.ApplicationContext;
@@ -28,6 +25,7 @@ import org.springframework.security.authorization.AlwaysAuthoritiesGranter;
 import org.springframework.security.authorization.AuthoritiesGranter;
 import org.springframework.security.authorization.AuthoritiesGranterAuthenticationManager;
 import org.springframework.security.authorization.CompositeAuthoritiesGranter;
+import org.springframework.security.authorization.PreAuthenticatedAuthoritiesGranter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -92,7 +90,7 @@ public final class X509Configurer<H extends HttpSecurityBuilder<H>> extends Abst
 
 	private X509AuthenticationFilter x509AuthenticationFilter;
 
-	private final List<AuthoritiesGranter> authoritiesGranters = new ArrayList<>();
+	private AuthoritiesGranter authoritiesGranter = new AlwaysAuthoritiesGranter(defaultAuthority());
 
 	private Integer factorOrder;
 
@@ -201,10 +199,11 @@ public final class X509Configurer<H extends HttpSecurityBuilder<H>> extends Abst
 		if (this.factorOrder == null) {
 			return;
 		}
+		grants(new PreAuthenticatedAuthoritiesGranter(getSecurityContextHolderStrategy()));
 		ExceptionHandlingConfigurer<H> exceptions = http.getConfigurer(ExceptionHandlingConfigurer.class);
 		if (exceptions != null) {
 			AuthorizationEntryPoint entry = new SimpleAuthorizationEntryPoint(new Http403ForbiddenEntryPoint(),
-					this.factorOrder, defaultAuthority());
+					this.factorOrder, this.authoritiesGranter);
 			exceptions.authorizationEntryPoint((entries) -> entries.add(entry));
 			exceptions.defaultAuthenticationEntryPointFor(new Http403ForbiddenEntryPoint(), AnyRequestMatcher.INSTANCE);
 		}
@@ -221,16 +220,11 @@ public final class X509Configurer<H extends HttpSecurityBuilder<H>> extends Abst
 	}
 
 	private AuthenticationManager getAuthenticationManager(H http) {
-		AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
 		if (this.factorOrder == null) {
-			return authenticationManager;
+			return http.getSharedObject(AuthenticationManager.class);
 		}
-		this.authoritiesGranters.add(0, new AlwaysAuthoritiesGranter(defaultAuthority()));
-		AuthoritiesGranter authoritiesGranter = new CompositeAuthoritiesGranter(this.authoritiesGranters);
-		AuthoritiesGranterAuthenticationManager manager = new AuthoritiesGranterAuthenticationManager(
-				authenticationManager, authoritiesGranter);
-		manager.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
-		return manager;
+		return new AuthoritiesGranterAuthenticationManager(http.getSharedObject(AuthenticationManager.class),
+				this.authoritiesGranter);
 	}
 
 	private X509AuthenticationFilter getFilter(AuthenticationManager authenticationManager, H http) {
@@ -273,7 +267,7 @@ public final class X509Configurer<H extends HttpSecurityBuilder<H>> extends Abst
 
 	@Override
 	public X509Configurer<H> grants(AuthoritiesGranter granter) {
-		this.authoritiesGranters.add(granter);
+		this.authoritiesGranter = new CompositeAuthoritiesGranter(this.authoritiesGranter, granter);
 		return this;
 	}
 

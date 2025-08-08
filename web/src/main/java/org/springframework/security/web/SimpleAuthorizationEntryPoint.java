@@ -18,42 +18,36 @@ package org.springframework.security.web;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.List;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.springframework.security.authorization.AuthoritiesGranter;
 import org.springframework.security.authorization.AuthorizationRequest;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.util.Assert;
 
 public final class SimpleAuthorizationEntryPoint implements AuthorizationEntryPoint {
 
-	private final Collection<String> authorities;
+	private final AuthoritiesGranter authoritiesGranter;
 
 	private final AuthenticationEntryPoint authenticationEntryPoint;
 
 	private final int order;
 
 	public SimpleAuthorizationEntryPoint(AuthenticationEntryPoint authenticationEntryPoint, int order,
-			Collection<String> authorities) {
-		Assert.notEmpty(authorities, "authorities cannot be empty");
-		this.authorities = authorities;
+			AuthoritiesGranter authoritiesGranter) {
+		this.authoritiesGranter = authoritiesGranter;
 		this.authenticationEntryPoint = authenticationEntryPoint;
 		this.order = order;
 	}
 
-	public SimpleAuthorizationEntryPoint(AuthenticationEntryPoint authenticationEntryPoint, int order,
-			String... authorities) {
-		this(authenticationEntryPoint, order, List.of(authorities));
-	}
-
 	@Override
 	public boolean authorizes(AuthorizationRequest request) {
+		Collection<String> grantable = this.authoritiesGranter.grantableAuthorities();
 		for (GrantedAuthority needed : request.getAuthorities()) {
-			if (this.authorities.contains(needed.getAuthority())) {
+			if (grantable.contains(needed.getAuthority())) {
 				return true;
 			}
 		}

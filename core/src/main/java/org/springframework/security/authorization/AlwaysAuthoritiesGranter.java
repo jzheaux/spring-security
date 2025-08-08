@@ -51,6 +51,11 @@ public final class AlwaysAuthoritiesGranter implements AuthoritiesGranter {
 	}
 
 	@Override
+	public Collection<String> grantableAuthorities() {
+		return this.authorities;
+	}
+
+	@Override
 	public Authentication grantAuthorities(Authentication authentication) {
 		Collection<GrantedAuthority> toGrant = new HashSet<>();
 		for (String authority : this.authorities) {
@@ -63,8 +68,8 @@ public final class AlwaysAuthoritiesGranter implements AuthoritiesGranter {
 			}
 		}
 		Collection<GrantedAuthority> current = new HashSet<>(authentication.getGrantedAuthorities());
-		current.addAll(toGrant);
-		return authentication.withGrantedAuthorities(current);
+		toGrant.addAll(current);
+		return authentication.withGrantedAuthorities(toGrant);
 	}
 
 	public void setClock(Clock clock) {

@@ -16,6 +16,9 @@
 
 package org.springframework.security.authorization;
 
+import java.util.Collection;
+import java.util.List;
+
 import org.springframework.security.core.Authentication;
 
 public interface AuthoritiesGranter {
@@ -23,5 +26,9 @@ public interface AuthoritiesGranter {
 	AuthoritiesGranter NOOP = (a) -> a;
 
 	Authentication grantAuthorities(Authentication authentication);
+
+	default Collection<String> grantableAuthorities() {
+		return List.of();
+	}
 
 }

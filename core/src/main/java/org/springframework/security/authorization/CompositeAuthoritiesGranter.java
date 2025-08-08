@@ -35,6 +35,15 @@ public final class CompositeAuthoritiesGranter implements AuthoritiesGranter {
 	}
 
 	@Override
+	public Collection<String> grantableAuthorities() {
+		Collection<String> grantable = new ArrayList<>();
+		for (AuthoritiesGranter granter : this.authoritiesGranters) {
+			grantable.addAll(granter.grantableAuthorities());
+		}
+		return grantable;
+	}
+
+	@Override
 	public Authentication grantAuthorities(Authentication authentication) {
 		Authentication granted = authentication;
 		for (AuthoritiesGranter granter : this.authoritiesGranters) {

@@ -16,11 +16,9 @@
 
 package org.springframework.security.config.annotation.web.configurers;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.List;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -98,7 +96,7 @@ public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>>
 
 	private static final String DEFAULT_REALM = "Realm";
 
-	private final List<AuthoritiesGranter> authoritiesGranters = new ArrayList<>();
+	private AuthoritiesGranter authoritiesGranters = new AlwaysAuthoritiesGranter(defaultAuthority());
 
 	private Integer factorOrder;
 
@@ -182,7 +180,7 @@ public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>>
 
 	@Override
 	public HttpBasicConfigurer<B> grants(AuthoritiesGranter granter) {
-		this.authoritiesGranters.add(granter);
+		this.authoritiesGranters = new CompositeAuthoritiesGranter(this.authoritiesGranters, granter);
 		return this;
 	}
 
@@ -197,10 +195,10 @@ public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>>
 		if (this.factorOrder == null) {
 			return;
 		}
-		AuthorizationEntryPoint entryPoint = new SimpleAuthorizationEntryPoint(this.authenticationEntryPoint,
-				this.factorOrder, defaultAuthority());
 		ExceptionHandlingConfigurer<B> exceptions = http.getConfigurer(ExceptionHandlingConfigurer.class);
 		if (exceptions != null) {
+			AuthorizationEntryPoint entryPoint = new SimpleAuthorizationEntryPoint(this.authenticationEntryPoint,
+					this.factorOrder, this.authoritiesGranters);
 			exceptions.authorizationEntryPoint((e) -> e.add(entryPoint));
 		}
 		AuthorizeHttpRequestsConfigurer<B> authorize = http.getConfigurer(AuthorizeHttpRequestsConfigurer.class);
@@ -249,16 +247,11 @@ public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>>
 	}
 
 	private AuthenticationManager getAuthenticationManager(B http) {
-		AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
 		if (this.factorOrder == null) {
-			return authenticationManager;
+			return http.getSharedObject(AuthenticationManager.class);
 		}
-		this.authoritiesGranters.add(0, new AlwaysAuthoritiesGranter(defaultAuthority()));
-		AuthoritiesGranter authoritiesGranter = new CompositeAuthoritiesGranter(this.authoritiesGranters);
-		AuthoritiesGranterAuthenticationManager manager = new AuthoritiesGranterAuthenticationManager(
-				authenticationManager, authoritiesGranter);
-		manager.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
-		return manager;
+		return new AuthoritiesGranterAuthenticationManager(http.getSharedObject(AuthenticationManager.class),
+				this.authoritiesGranters);
 	}
 
 	@Override

@@ -16,11 +16,9 @@
 
 package org.springframework.security.config.annotation.web.configurers.oauth2.server.resource;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -37,6 +35,7 @@ import org.springframework.security.authorization.AlwaysAuthoritiesGranter;
 import org.springframework.security.authorization.AuthoritiesGranter;
 import org.springframework.security.authorization.AuthoritiesGranterAuthenticationManager;
 import org.springframework.security.authorization.CompositeAuthoritiesGranter;
+import org.springframework.security.authorization.PreAuthenticatedAuthoritiesGranter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -178,7 +177,7 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 
 	private Integer factorOrder;
 
-	private final List<AuthoritiesGranter> authoritiesGranter = new ArrayList<>();
+	private AuthoritiesGranter authoritiesGranter = new AlwaysAuthoritiesGranter(DEFAULT_AUTHORITY);
 
 	private AuthenticationManagerResolver<HttpServletRequest> authenticationManagerResolver;
 
@@ -268,7 +267,7 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 
 	@Override
 	public OAuth2ResourceServerConfigurer<H> grants(AuthoritiesGranter granter) {
-		this.authoritiesGranter.add(granter);
+		this.authoritiesGranter = new CompositeAuthoritiesGranter(this.authoritiesGranter, granter);
 		return this;
 	}
 
@@ -291,10 +290,11 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 		if (this.factorOrder == null) {
 			return;
 		}
+		grants(new PreAuthenticatedAuthoritiesGranter(getSecurityContextHolderStrategy()));
 		ExceptionHandlingConfigurer<H> exceptions = http.getConfigurer(ExceptionHandlingConfigurer.class);
 		if (exceptions != null) {
 			AuthorizationEntryPoint entry = new SimpleAuthorizationEntryPoint(this.authenticationEntryPoint,
-					this.factorOrder, DEFAULT_AUTHORITY);
+					this.factorOrder, this.authoritiesGranter);
 			exceptions.authorizationEntryPoint((entries) -> entries.add(entry));
 		}
 		AuthorizeHttpRequestsConfigurer<H> authorize = http.getConfigurer(AuthorizeHttpRequestsConfigurer.class);
@@ -308,7 +308,7 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 		AuthenticationManagerResolver resolver = this.authenticationManagerResolver;
 		if (resolver == null) {
 			AuthenticationManager authenticationManager = getAuthenticationManager(http);
-			resolver = (request) -> authenticationManager;
+			resolver = (request) -> wrapAuthenticationManager(authenticationManager);
 		}
 
 		AuthenticationConverter converter = getAuthenticationConverter();
@@ -391,24 +391,19 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 
 	AuthenticationManager getAuthenticationManager(H http) {
 		if (this.jwtConfigurer != null) {
-			return wrapAuthenticationManager(this.jwtConfigurer.getAuthenticationManager(http));
+			return this.jwtConfigurer.getAuthenticationManager(http);
 		}
 		if (this.opaqueTokenConfigurer != null) {
-			return wrapAuthenticationManager(this.opaqueTokenConfigurer.getAuthenticationManager(http));
+			return this.opaqueTokenConfigurer.getAuthenticationManager(http);
 		}
-		return wrapAuthenticationManager(http.getSharedObject(AuthenticationManager.class));
+		return http.getSharedObject(AuthenticationManager.class);
 	}
 
 	AuthenticationManager wrapAuthenticationManager(AuthenticationManager authenticationManager) {
 		if (this.factorOrder == null) {
 			return authenticationManager;
 		}
-		this.authoritiesGranter.add(0, new AlwaysAuthoritiesGranter(DEFAULT_AUTHORITY));
-		AuthoritiesGranter authoritiesGranter = new CompositeAuthoritiesGranter(this.authoritiesGranter);
-		AuthoritiesGranterAuthenticationManager granting = new AuthoritiesGranterAuthenticationManager(
-				authenticationManager, authoritiesGranter);
-		granting.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
-		return granting;
+		return new AuthoritiesGranterAuthenticationManager(authenticationManager, this.authoritiesGranter);
 	}
 
 	AuthenticationManagerResolver<HttpServletRequest> getAuthenticationManagerResolver() {

@@ -16,9 +16,7 @@
 
 package org.springframework.security.config.annotation.web.configurers;
 
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -32,6 +30,7 @@ import org.springframework.security.authorization.AlwaysAuthoritiesGranter;
 import org.springframework.security.authorization.AuthoritiesGranter;
 import org.springframework.security.authorization.AuthoritiesGranterAuthenticationManager;
 import org.springframework.security.authorization.CompositeAuthoritiesGranter;
+import org.springframework.security.authorization.PreAuthenticatedAuthoritiesGranter;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.AuthorizationEntryPoint;
@@ -83,7 +82,7 @@ public class WebAuthnConfigurer<H extends HttpSecurityBuilder<H>>
 
 	private Integer factorOrder;
 
-	private final List<AuthoritiesGranter> authoritiesGranters = new ArrayList<>();
+	private AuthoritiesGranter authoritiesGranters = new AlwaysAuthoritiesGranter(defaultAuthority());
 
 	/**
 	 * The Relying Party id.
@@ -167,7 +166,7 @@ public class WebAuthnConfigurer<H extends HttpSecurityBuilder<H>>
 
 	@Override
 	public WebAuthnConfigurer<H> grants(AuthoritiesGranter granter) {
-		this.authoritiesGranters.add(granter);
+		this.authoritiesGranters = new CompositeAuthoritiesGranter(this.authoritiesGranters, granter);
 		return this;
 	}
 
@@ -187,12 +186,7 @@ public class WebAuthnConfigurer<H extends HttpSecurityBuilder<H>>
 		if (this.factorOrder == null) {
 			return authenticationManager;
 		}
-		this.authoritiesGranters.add(0, new AlwaysAuthoritiesGranter(defaultAuthority()));
-		AuthoritiesGranter authoritiesGranter = new CompositeAuthoritiesGranter(this.authoritiesGranters);
-		AuthoritiesGranterAuthenticationManager manager = new AuthoritiesGranterAuthenticationManager(
-				authenticationManager, authoritiesGranter);
-		manager.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
-		return manager;
+		return new AuthoritiesGranterAuthenticationManager(authenticationManager, this.authoritiesGranters);
 	}
 
 	@Override
@@ -200,10 +194,11 @@ public class WebAuthnConfigurer<H extends HttpSecurityBuilder<H>>
 		if (this.factorOrder == null) {
 			return;
 		}
-		AuthorizationEntryPoint entryPoint = new SimpleAuthorizationEntryPoint(
-				new LoginUrlAuthenticationEntryPoint("/login"), this.factorOrder, defaultAuthority());
+		grants(new PreAuthenticatedAuthoritiesGranter(getSecurityContextHolderStrategy()));
 		ExceptionHandlingConfigurer<H> exceptions = http.getConfigurer(ExceptionHandlingConfigurer.class);
 		if (exceptions != null) {
+			AuthorizationEntryPoint entryPoint = new SimpleAuthorizationEntryPoint(
+					new LoginUrlAuthenticationEntryPoint("/login"), this.factorOrder, this.authoritiesGranters);
 			exceptions.authorizationEntryPoint((e) -> e.add(entryPoint));
 		}
 		AuthorizeHttpRequestsConfigurer<H> authorize = http.getConfigurer(AuthorizeHttpRequestsConfigurer.class);
