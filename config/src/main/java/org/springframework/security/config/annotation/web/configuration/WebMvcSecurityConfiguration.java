@@ -40,12 +40,14 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.debug.DebugFilter;
 import org.springframework.security.web.firewall.HttpFirewall;
 import org.springframework.security.web.firewall.RequestRejectedHandler;
+import org.springframework.security.web.method.annotation.AuthenticationHandlerMethodReturnValueHandler;
 import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.security.web.method.annotation.CsrfTokenArgumentResolver;
 import org.springframework.security.web.method.annotation.CurrentSecurityContextArgumentResolver;
 import org.springframework.security.web.servlet.support.csrf.CsrfRequestDataValueProcessor;
 import org.springframework.web.filter.CompositeFilter;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
+import org.springframework.web.method.support.HandlerMethodReturnValueHandler;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.support.RequestDataValueProcessor;
@@ -88,6 +90,13 @@ class WebMvcSecurityConfiguration implements WebMvcConfigurer, ApplicationContex
 		currentSecurityContextArgumentResolver.setTemplateDefaults(this.templateDefaults);
 		argumentResolvers.add(currentSecurityContextArgumentResolver);
 		argumentResolvers.add(new CsrfTokenArgumentResolver());
+	}
+
+	@Override
+	public void addReturnValueHandlers(List<HandlerMethodReturnValueHandler> handlers) {
+		AuthenticationHandlerMethodReturnValueHandler handler = new AuthenticationHandlerMethodReturnValueHandler();
+		handler.setSecurityContextHolderStrategy(this.securityContextHolderStrategy);
+		handlers.add(handler);
 	}
 
 	@Bean

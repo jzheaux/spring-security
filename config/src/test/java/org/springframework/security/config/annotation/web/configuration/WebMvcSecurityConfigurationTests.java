@@ -20,7 +20,13 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Objects;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,15 +35,25 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.mock.web.MockHttpSession;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.annotation.AnnotationTemplateExpressionDefaults;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.annotation.CurrentSecurityContext;
 import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.context.SecurityContextHolderStrategy;
+import org.springframework.security.test.context.TestSecurityContextHolderStrategyAdapter;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.csrf.DefaultCsrfToken;
+import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
+import org.springframework.security.web.savedrequest.RequestCache;
 import org.springframework.stereotype.Controller;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
@@ -46,16 +62,24 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultMatcher;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.authenticated;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 /**
@@ -84,6 +108,22 @@ public class WebMvcSecurityConfigurationTests {
 	@AfterEach
 	public void cleanup() {
 		SecurityContextHolder.clearContext();
+	}
+
+	@Test
+	void returnedAuthenticationStoredInRepository() throws Exception {
+		MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(this.context).apply(springSecurity()).build();
+		HttpSession session = mockMvc.perform(get("/profile"))
+			.andExpect(status().is3xxRedirection())
+			.andExpect(redirectedUrl("/authenticate"))
+			.andReturn()
+			.getRequest()
+			.getSession();
+		mockMvc.perform(post("/grant").with(csrf()).session((MockHttpSession) session))
+			.andExpect(status().is3xxRedirection())
+			.andExpect(redirectedUrl("http://localhost/profile?continue"))
+			.andExpect(
+					authenticated().withAuthorities(AuthorityUtils.createAuthorityList("ROLE_USER", "profile:read")));
 	}
 
 	@Test
@@ -189,6 +229,7 @@ public class WebMvcSecurityConfigurationTests {
 	@Configuration
 	@EnableWebMvc
 	@EnableWebSecurity
+	@EnableMethodSecurity
 	static class Config {
 
 		@Bean
@@ -197,8 +238,46 @@ public class WebMvcSecurityConfigurationTests {
 		}
 
 		@Bean
+		ProfileConroller profileController() {
+			return new ProfileConroller();
+		}
+
+		@Bean
 		AnnotationTemplateExpressionDefaults templateExpressionDefaults() {
 			return new AnnotationTemplateExpressionDefaults();
+		}
+
+		@Bean
+		SecurityContextHolderStrategy securityContextHolderStrategy() {
+			return new TestSecurityContextHolderStrategyAdapter();
+		}
+
+	}
+
+	@Controller
+	static class ProfileConroller {
+
+		RequestCache requestCache = new HttpSessionRequestCache();
+
+		@GetMapping("/profile")
+		@PreAuthorize("hasAuthority('profile:read')")
+		String profile() {
+			return "profile";
+		}
+
+		@PostMapping("/grant")
+		Authentication grantProfile(Authentication authentication) {
+			Collection<GrantedAuthority> authorities = new HashSet<>();
+			authorities.add(new SimpleGrantedAuthority("profile:read"));
+			authorities.addAll(authentication.getAuthorities());
+			return new TestingAuthenticationToken(Objects.requireNonNull(authentication.getPrincipal()),
+					Objects.requireNonNull(authentication.getCredentials()), authorities);
+		}
+
+		@ExceptionHandler(AccessDeniedException.class)
+		String missingAuthority(HttpServletRequest request, HttpServletResponse response) {
+			this.requestCache.saveRequest(request, response);
+			return "redirect:/authenticate";
 		}
 
 	}
