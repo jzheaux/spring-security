@@ -31,11 +31,9 @@ import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationManagerResolver;
 import org.springframework.security.authentication.AuthenticationProvider;
-import org.springframework.security.authorization.AuthoritiesGranter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.annotation.web.configurers.AuthorizableConfigurer;
 import org.springframework.security.config.annotation.web.configurers.CsrfConfigurer;
 import org.springframework.security.config.annotation.web.configurers.ExceptionHandlingConfigurer;
 import org.springframework.security.config.annotation.web.configurers.MfaConfigurer;
@@ -151,8 +149,7 @@ import org.springframework.web.accept.HeaderContentNegotiationStrategy;
  * @see AbstractHttpConfigurer
  */
 public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<H>>
-		extends AbstractHttpConfigurer<OAuth2ResourceServerConfigurer<H>, H>
-		implements AuthorizableConfigurer<OAuth2ResourceServerConfigurer<H>> {
+		extends AbstractHttpConfigurer<OAuth2ResourceServerConfigurer<H>, H> {
 
 	private static final boolean dPoPAuthenticationAvailable;
 
@@ -165,7 +162,7 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 	private static final RequestHeaderRequestMatcher X_REQUESTED_WITH = new RequestHeaderRequestMatcher(
 			"X-Requested-With", "XMLHttpRequest");
 
-	private final MfaConfigurer<H, OAuth2ResourceServerConfigurer<H>> mfa = new MfaConfigurer<>("AUTHN_BEARER");
+	private MfaConfigurer<H> mfa;
 
 	private final ApplicationContext context;
 
@@ -188,7 +185,6 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 	public OAuth2ResourceServerConfigurer(ApplicationContext context) {
 		Assert.notNull(context, "context cannot be null");
 		this.context = context;
-		this.mfa.authenticationEntryPoint(this.authenticationEntryPoint);
 	}
 
 	public OAuth2ResourceServerConfigurer<H> accessDeniedHandler(AccessDeniedHandler accessDeniedHandler) {
@@ -200,7 +196,6 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 	public OAuth2ResourceServerConfigurer<H> authenticationEntryPoint(AuthenticationEntryPoint entryPoint) {
 		Assert.notNull(entryPoint, "entryPoint cannot be null");
 		this.authenticationEntryPoint = entryPoint;
-		this.mfa.authenticationEntryPoint(this.authenticationEntryPoint);
 		return this;
 	}
 
@@ -257,15 +252,12 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 		return this;
 	}
 
-	@Override
-	public OAuth2ResourceServerConfigurer<H> grants(AuthoritiesGranter granter) {
-		this.mfa.grants(granter);
-		return this;
-	}
-
-	@Override
-	public OAuth2ResourceServerConfigurer<H> factor(Integer order) {
-		this.mfa.factor(order);
+	public OAuth2ResourceServerConfigurer<H> factor(Customizer<MfaConfigurer<H>> customizer) {
+		if (this.mfa == null) {
+			this.mfa = new MfaConfigurer<>("AUTHN_BEARER", this);
+			this.mfa.authenticationEntryPoint(this.authenticationEntryPoint);
+		}
+		customizer.customize(this.mfa);
 		return this;
 	}
 
@@ -279,15 +271,17 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 		if (authenticationProvider != null) {
 			http.authenticationProvider(authenticationProvider);
 		}
-		this.mfa.init(http);
+		if (this.mfa != null) {
+			this.mfa.init(http);
+		}
 	}
 
 	@Override
 	public void configure(H http) {
 		AuthenticationManagerResolver resolver = this.authenticationManagerResolver;
 		if (resolver == null) {
-			AuthenticationManager authenticationManager = getAuthenticationManager(http);
-			resolver = (request) -> this.mfa.postProcess(authenticationManager);
+			AuthenticationManager authenticationManager = postProcess(getAuthenticationManager(http));
+			resolver = (request) -> authenticationManager;
 		}
 
 		AuthenticationConverter converter = getAuthenticationConverter();

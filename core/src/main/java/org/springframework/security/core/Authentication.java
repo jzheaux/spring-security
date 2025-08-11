@@ -22,6 +22,7 @@ import java.security.Principal;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Consumer;
 
 import org.jspecify.annotations.Nullable;
 
@@ -150,6 +151,12 @@ public interface Authentication extends Principal, Serializable {
 			}
 		}
 		return granted;
+	}
+
+	default Authentication withGrantedAuthorities(Consumer<Collection<GrantedAuthority>> consumer) {
+		Collection<GrantedAuthority> existing = new HashSet<>(getGrantedAuthorities());
+		consumer.accept(existing);
+		return withGrantedAuthorities(existing);
 	}
 
 	default Authentication withGrantedAuthorities(Collection<GrantedAuthority> authorities) {

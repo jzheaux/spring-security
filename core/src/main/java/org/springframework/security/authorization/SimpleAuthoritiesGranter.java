@@ -31,7 +31,7 @@ import org.springframework.security.core.authority.ExpirableGrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.util.Assert;
 
-public final class AlwaysAuthoritiesGranter implements AuthoritiesGranter {
+public final class SimpleAuthoritiesGranter implements AuthoritiesGranter {
 
 	private final @Nullable Duration grantingTime;
 
@@ -39,12 +39,12 @@ public final class AlwaysAuthoritiesGranter implements AuthoritiesGranter {
 
 	private Clock clock = Clock.systemUTC();
 
-	public AlwaysAuthoritiesGranter(String... authorities) {
+	public SimpleAuthoritiesGranter(String... authorities) {
 		this.grantingTime = null;
 		this.authorities = List.of(authorities);
 	}
 
-	public AlwaysAuthoritiesGranter(Duration grantingTime, String... authorities) {
+	public SimpleAuthoritiesGranter(Duration grantingTime, String... authorities) {
 		Assert.notEmpty(authorities, "authorities cannot be empty");
 		this.grantingTime = grantingTime;
 		this.authorities = List.of(authorities);

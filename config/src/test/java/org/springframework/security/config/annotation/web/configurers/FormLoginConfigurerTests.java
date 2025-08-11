@@ -25,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.SecurityContextChangedListenerConfig;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -818,15 +819,14 @@ public class FormLoginConfigurerTests {
 	@EnableWebSecurity
 	static class MfaDslConfig {
 
+		private static final Duration FIVE_MINUTES = Duration.ofMinutes(5);
+
 		@Bean
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.formLogin((form) -> form
-					.factor(1)
-					.grants(Duration.ofSeconds(300), "profile:read")
-				)
-				.oneTimeTokenLogin((ott) -> ott.factor(2))
+				.formLogin((form) -> form.factor((f) -> f.grants(FIVE_MINUTES, "profile:read")))
+				.oneTimeTokenLogin((ott) -> ott.factor(Customizer.withDefaults()))
 				.authorizeHttpRequests((authorize) -> authorize
 					.requestMatchers("/profile").hasAuthority("profile:read")
 					.anyRequest().authenticated()
@@ -860,8 +860,8 @@ public class FormLoginConfigurerTests {
 		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
-				.x509((x509) -> x509.factor(1))
-				.formLogin((form) -> form.factor(2))
+				.formLogin((form) -> form.factor(Customizer.withDefaults()))
+				.x509((x509) -> x509.factor(Customizer.withDefaults()))
 				.authorizeHttpRequests((authorize) -> authorize.anyRequest().authenticated());
 			return http.build();
 			// @formatter:on

@@ -35,7 +35,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractAuthenticationFilterConfigurer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.annotation.web.configurers.AuthorizableConfigurer;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -103,8 +102,7 @@ import org.springframework.util.StringUtils;
  * @see AbstractAuthenticationFilterConfigurer
  */
 public final class OneTimeTokenLoginConfigurer<H extends HttpSecurityBuilder<H>> extends
-		AbstractAuthenticationFilterConfigurer<H, OneTimeTokenLoginConfigurer<H>, OneTimeTokenAuthenticationFilter>
-		implements AuthorizableConfigurer<OneTimeTokenLoginConfigurer<H>> {
+		AbstractAuthenticationFilterConfigurer<H, OneTimeTokenLoginConfigurer<H>, OneTimeTokenAuthenticationFilter> {
 
 	private final ApplicationContext context;
 

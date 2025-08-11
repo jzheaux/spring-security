@@ -25,7 +25,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authorization.AuthoritiesGranter;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -62,9 +62,9 @@ import org.springframework.web.accept.HeaderContentNegotiationStrategy;
  * @see FormLoginConfigurer
  */
 public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecurityBuilder<B>, T extends AbstractAuthenticationFilterConfigurer<B, T, F>, F extends AbstractAuthenticationProcessingFilter>
-		extends AbstractHttpConfigurer<T, B> implements DefaultAuthorityAuthorizableConfigurer<T> {
+		extends AbstractHttpConfigurer<T, B> {
 
-	private final MfaConfigurer<B, T> mfa = new MfaConfigurer<>(defaultAuthority());
+	private MfaConfigurer<B> mfa;
 
 	private F authFilter;
 
@@ -110,16 +110,17 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		}
 	}
 
-	@Override
-	public T grants(AuthoritiesGranter granter) {
-		this.mfa.grants(granter);
+	public T factor(Customizer<MfaConfigurer<B>> customizer) {
+		if (this.mfa == null) {
+			this.mfa = new MfaConfigurer<>(defaultAuthority(), this);
+			this.mfa.authenticationEntryPoint(getPostAuthenticationEntryPoint());
+		}
+		customizer.customize(this.mfa);
 		return getSelf();
 	}
 
-	@Override
-	public T factor(Integer order) {
-		this.mfa.factor(order);
-		return getSelf();
+	protected String defaultAuthority() {
+		return "AUTHN_AUTHENTICATION";
 	}
 
 	/**
@@ -252,8 +253,9 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		updateAuthenticationDefaults();
 		updateAccessDefaults(http);
 		registerDefaultAuthenticationEntryPoint(http);
-		this.mfa.authenticationEntryPoint(getPostAuthenticationEntryPoint());
-		this.mfa.init(http);
+		if (this.mfa != null) {
+			this.mfa.init(http);
+		}
 	}
 
 	protected AuthenticationEntryPoint getPostAuthenticationEntryPoint() {
@@ -331,8 +333,7 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 	}
 
 	private AuthenticationManager getAuthenticationManager(B http) {
-		AuthenticationManager manager = http.getSharedObject(AuthenticationManager.class);
-		return this.mfa.postProcess(manager);
+		return postProcess(http.getSharedObject(AuthenticationManager.class));
 	}
 
 	/**

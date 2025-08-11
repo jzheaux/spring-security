@@ -16,75 +16,80 @@
 
 package org.springframework.security.config.annotation.web.configurers;
 
-import java.util.function.Function;
+import java.time.Duration;
 
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authorization.AlwaysAuthoritiesGranter;
 import org.springframework.security.authorization.AuthoritiesGranter;
 import org.springframework.security.authorization.AuthoritiesGranterAuthenticationManager;
 import org.springframework.security.authorization.CompositeAuthoritiesGranter;
 import org.springframework.security.authorization.PreAuthenticatedAuthoritiesGranter;
+import org.springframework.security.authorization.SimpleAuthoritiesGranter;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.ObjectPostProcessor;
+import org.springframework.security.config.annotation.SecurityConfigurer;
+import org.springframework.security.config.annotation.SecurityConfigurerAdapter;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.DefaultSecurityFilterChain;
 import org.springframework.security.web.SimpleAuthorizationEntryPoint;
 import org.springframework.security.web.authentication.Http403ForbiddenEntryPoint;
 
-public final class MfaConfigurer<B extends HttpSecurityBuilder<B>, C> extends
-		AbstractHttpConfigurer<HttpBasicConfigurer<B>, B> implements AuthorizableConfigurer<MfaConfigurer<B, C>> {
+public final class MfaConfigurer<B extends HttpSecurityBuilder<B>>
+		implements SecurityConfigurer<DefaultSecurityFilterChain, B> {
 
-	private final String authority;
+	private final Customizer<AuthorizeHttpRequestsConfigurer<B>> authorize;
 
-	private Customizer<AuthorizeHttpRequestsConfigurer<B>> authorize = Customizer.withDefaults();
-
-	private Customizer<ExceptionHandlingConfigurer<B>> exceptions = Customizer.withDefaults();
-
-	private Function<AuthenticationManager, AuthenticationManager> managerPostProcessor = Function.identity();
+	private final Customizer<ExceptionHandlingConfigurer<B>> exceptions;
 
 	private AuthenticationEntryPoint entryPoint = new Http403ForbiddenEntryPoint();
 
 	private AuthoritiesGranter authoritiesGranter;
 
-	public MfaConfigurer(String authority) {
-		this.authority = authority;
-		this.authoritiesGranter = new AlwaysAuthoritiesGranter(authority);
+	public MfaConfigurer(String authority, SecurityConfigurerAdapter<?, B> configurer) {
+		this.authoritiesGranter = new SimpleAuthoritiesGranter(authority);
+		this.authorize = (a) -> a.getRegistry().withDefaultAuthority(authority);
+		this.exceptions = (e) -> e.authorizationEntryPoint(
+				(p) -> p.add(new SimpleAuthorizationEntryPoint(this.entryPoint, this.authoritiesGranter)));
+		configurer.addObjectPostProcessor(new ObjectPostProcessor<AuthenticationManager>() {
+			@Override
+			public AuthenticationManager postProcess(AuthenticationManager object) {
+				return new AuthoritiesGranterAuthenticationManager(object, MfaConfigurer.this.authoritiesGranter);
+			}
+		});
 	}
 
-	@Override
-	public void init(B http) {
-		setBuilder(http);
-		grants(new PreAuthenticatedAuthoritiesGranter(getSecurityContextHolderStrategy()));
-		this.authorize.customize(http.getConfigurer(AuthorizeHttpRequestsConfigurer.class));
-		this.exceptions.customize(http.getConfigurer(ExceptionHandlingConfigurer.class));
-	}
-
-	public AuthenticationManager postProcess(AuthenticationManager manager) {
-		return this.managerPostProcessor.apply(manager);
-	}
-
-	public MfaConfigurer<B, C> authenticationEntryPoint(AuthenticationEntryPoint entryPoint) {
+	public MfaConfigurer<B> authenticationEntryPoint(AuthenticationEntryPoint entryPoint) {
 		this.entryPoint = entryPoint;
 		return this;
 	}
 
-	@Override
-	public MfaConfigurer<B, C> grants(AuthoritiesGranter granter) {
+	public MfaConfigurer<B> grants(AuthoritiesGranter granter) {
 		this.authoritiesGranter = new CompositeAuthoritiesGranter(this.authoritiesGranter, granter);
 		return this;
 	}
 
+	public MfaConfigurer<B> grants(String... authority) {
+		return grants(new SimpleAuthoritiesGranter(authority));
+	}
+
+	public MfaConfigurer<B> grants(Duration duration, String... authority) {
+		return grants(new SimpleAuthoritiesGranter(duration, authority));
+	}
+
 	@Override
-	public MfaConfigurer<B, C> factor(Integer order) {
-		this.exceptions = (e) -> e.authorizationEntryPoint(
-				(p) -> p.add(new SimpleAuthorizationEntryPoint(this.entryPoint, order, this.authoritiesGranter)));
-		this.authorize = (a) -> a.getRegistry().withDefaultAuthority(this.authority);
-		this.managerPostProcessor = (m) -> {
-			SecurityContextHolderStrategy strategy = getSecurityContextHolderStrategy();
-			grants(new PreAuthenticatedAuthoritiesGranter(strategy));
-			return new AuthoritiesGranterAuthenticationManager(m, this.authoritiesGranter);
-		};
-		return this;
+	public void init(B http) {
+		SecurityContextHolderStrategy strategy = http.getSharedObjectProvider(SecurityContextHolderStrategy.class)
+			.getIfUnique(SecurityContextHolder::getContextHolderStrategy);
+		grants(new PreAuthenticatedAuthoritiesGranter(strategy));
+		this.authorize.customize(http.getConfigurer(AuthorizeHttpRequestsConfigurer.class));
+		this.exceptions.customize(http.getConfigurer(ExceptionHandlingConfigurer.class));
+	}
+
+	@Override
+	public void configure(B builder) throws Exception {
+
 	}
 
 }

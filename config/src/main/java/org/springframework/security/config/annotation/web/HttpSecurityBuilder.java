@@ -16,10 +16,10 @@
 
 package org.springframework.security.config.annotation.web;
 
-import java.util.function.Supplier;
-
 import jakarta.servlet.Filter;
 
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.SecurityBuilder;
 import org.springframework.security.config.annotation.SecurityConfigurer;
@@ -90,13 +90,16 @@ public interface HttpSecurityBuilder<H extends HttpSecurityBuilder<H>>
 	 */
 	<C> C getSharedObject(Class<C> sharedType);
 
-	default <C> C getSharedObject(Class<C> sharedType, Supplier<C> supplier) {
+	default <C> ObjectProvider<C> getSharedObjectProvider(Class<C> sharedType) {
 		C c = getSharedObject(sharedType);
-		if (c == null) {
-			setSharedObject(sharedType, supplier.get());
-			c = getSharedObject(sharedType);
+		if (c != null) {
+			return new InstanceProvider<>(c);
 		}
-		return c;
+		ApplicationContext context = getSharedObject(ApplicationContext.class);
+		if (context != null) {
+			return context.getBeanProvider(sharedType);
+		}
+		return new InstanceProvider<>(null);
 	}
 
 	/**

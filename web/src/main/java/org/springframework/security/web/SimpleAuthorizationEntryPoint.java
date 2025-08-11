@@ -34,13 +34,10 @@ public final class SimpleAuthorizationEntryPoint implements AuthorizationEntryPo
 
 	private final AuthenticationEntryPoint authenticationEntryPoint;
 
-	private final int order;
-
-	public SimpleAuthorizationEntryPoint(AuthenticationEntryPoint authenticationEntryPoint, int order,
+	public SimpleAuthorizationEntryPoint(AuthenticationEntryPoint authenticationEntryPoint,
 			AuthoritiesGranter authoritiesGranter) {
 		this.authoritiesGranter = authoritiesGranter;
 		this.authenticationEntryPoint = authenticationEntryPoint;
-		this.order = order;
 	}
 
 	@Override
@@ -58,11 +55,6 @@ public final class SimpleAuthorizationEntryPoint implements AuthorizationEntryPo
 	public void commence(HttpServletRequest request, HttpServletResponse response,
 			AuthenticationException authException) throws IOException, ServletException {
 		this.authenticationEntryPoint.commence(request, response, authException);
-	}
-
-	@Override
-	public int getOrder() {
-		return this.order;
 	}
 
 }

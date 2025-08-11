@@ -26,7 +26,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authorization.AuthoritiesGranter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -82,15 +81,15 @@ import org.springframework.web.accept.HeaderContentNegotiationStrategy;
  * @author Evgeniy Cheban
  * @since 3.2
  */
-public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>> extends
-		AbstractHttpConfigurer<HttpBasicConfigurer<B>, B> implements AuthorizableConfigurer<HttpBasicConfigurer<B>> {
+public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>>
+		extends AbstractHttpConfigurer<HttpBasicConfigurer<B>, B> {
 
 	private static final RequestHeaderRequestMatcher X_REQUESTED_WITH = new RequestHeaderRequestMatcher(
 			"X-Requested-With", "XMLHttpRequest");
 
 	private static final String DEFAULT_REALM = "Realm";
 
-	private final MfaConfigurer<B, HttpBasicConfigurer<B>> mfa = new MfaConfigurer<>("AUTHN_BASIC");
+	private MfaConfigurer<B> mfa;
 
 	private AuthenticationEntryPoint authenticationEntryPoint;
 
@@ -111,7 +110,6 @@ public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>> extends
 		DelegatingAuthenticationEntryPoint defaultEntryPoint = new DelegatingAuthenticationEntryPoint(entryPoints);
 		defaultEntryPoint.setDefaultEntryPoint(this.basicAuthEntryPoint);
 		this.authenticationEntryPoint = defaultEntryPoint;
-		this.mfa.authenticationEntryPoint(this.authenticationEntryPoint);
 	}
 
 	/**
@@ -136,7 +134,6 @@ public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>> extends
 	 */
 	public HttpBasicConfigurer<B> authenticationEntryPoint(AuthenticationEntryPoint authenticationEntryPoint) {
 		this.authenticationEntryPoint = authenticationEntryPoint;
-		this.mfa.authenticationEntryPoint(this.authenticationEntryPoint);
 		return this;
 	}
 
@@ -166,22 +163,21 @@ public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>> extends
 		return this;
 	}
 
-	@Override
-	public HttpBasicConfigurer<B> factor(Integer order) {
-		this.mfa.factor(order);
-		return this;
-	}
-
-	@Override
-	public HttpBasicConfigurer<B> grants(AuthoritiesGranter granter) {
-		this.mfa.grants(granter);
+	public HttpBasicConfigurer<B> factor(Customizer<MfaConfigurer<B>> customizer) {
+		if (this.mfa == null) {
+			this.mfa = new MfaConfigurer<>("AUTHN_BASIC", this);
+			this.mfa.authenticationEntryPoint(this.authenticationEntryPoint);
+		}
+		customizer.customize(this.mfa);
 		return this;
 	}
 
 	@Override
 	public void init(B http) {
 		registerDefaults(http);
-		this.mfa.init(http);
+		if (this.mfa != null) {
+			this.mfa.init(http);
+		}
 	}
 
 	private void registerDefaults(B http) {
@@ -225,8 +221,7 @@ public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>> extends
 
 	@Override
 	public void configure(B http) {
-		AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
-		authenticationManager = this.mfa.postProcess(authenticationManager);
+		AuthenticationManager authenticationManager = postProcess(http.getSharedObject(AuthenticationManager.class));
 		BasicAuthenticationFilter basicAuthenticationFilter = new BasicAuthenticationFilter(authenticationManager,
 				this.authenticationEntryPoint);
 		if (this.authenticationDetailsSource != null) {

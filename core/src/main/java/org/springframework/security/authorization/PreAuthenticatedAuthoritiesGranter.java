@@ -16,11 +16,7 @@
 
 package org.springframework.security.authorization;
 
-import java.util.Collection;
-import java.util.HashSet;
-
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
 
 public final class PreAuthenticatedAuthoritiesGranter implements AuthoritiesGranter {
@@ -37,9 +33,7 @@ public final class PreAuthenticatedAuthoritiesGranter implements AuthoritiesGran
 		if (current == null || !current.isAuthenticated()) {
 			return authentication;
 		}
-		Collection<GrantedAuthority> authorities = new HashSet<>(authentication.getGrantedAuthorities());
-		authorities.addAll(current.getGrantedAuthorities());
-		return authentication.withGrantedAuthorities(authorities);
+		return authentication.withGrantedAuthorities((a) -> a.addAll(current.getGrantedAuthorities()));
 	}
 
 }

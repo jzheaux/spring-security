@@ -26,7 +26,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
-import org.springframework.security.authorization.AuthoritiesGranter;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
@@ -58,10 +58,10 @@ import org.springframework.util.Assert;
  * @author Rob Winch
  * @since 6.4
  */
-public class WebAuthnConfigurer<H extends HttpSecurityBuilder<H>> extends
-		AbstractHttpConfigurer<WebAuthnConfigurer<H>, H> implements AuthorizableConfigurer<WebAuthnConfigurer<H>> {
+public class WebAuthnConfigurer<H extends HttpSecurityBuilder<H>>
+		extends AbstractHttpConfigurer<WebAuthnConfigurer<H>, H> {
 
-	private final MfaConfigurer<H, WebAuthnConfigurer<H>> mfa = new MfaConfigurer<>("AUTHN_WEBAUTHN");
+	private MfaConfigurer<H> mfa;
 
 	private String rpId;
 
@@ -155,27 +155,24 @@ public class WebAuthnConfigurer<H extends HttpSecurityBuilder<H>> extends
 		return this;
 	}
 
-	@Override
-	public WebAuthnConfigurer<H> grants(AuthoritiesGranter granter) {
-		this.mfa.grants(granter);
-		return this;
-	}
-
-	@Override
-	public WebAuthnConfigurer<H> factor(Integer order) {
-		this.mfa.factor(order);
+	public WebAuthnConfigurer<H> factor(Customizer<MfaConfigurer<H>> customizer) {
+		if (this.mfa == null) {
+			this.mfa = new MfaConfigurer<>("AUTHN_WEBAUTHN", this);
+			this.mfa.authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login"));
+		}
+		customizer.customize(this.mfa);
 		return this;
 	}
 
 	private AuthenticationManager getAuthenticationManager(WebAuthnAuthenticationProvider authenticationProvider) {
-		AuthenticationManager authenticationManager = new ProviderManager(authenticationProvider);
-		return this.mfa.postProcess(authenticationManager);
+		return postProcess(new ProviderManager(authenticationProvider));
 	}
 
 	@Override
 	public void init(H http) throws Exception {
-		this.mfa.authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login"));
-		this.mfa.init(http);
+		if (this.mfa != null) {
+			this.mfa.init(http);
+		}
 	}
 
 	@Override

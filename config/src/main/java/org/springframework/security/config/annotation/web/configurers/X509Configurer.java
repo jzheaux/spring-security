@@ -21,7 +21,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authorization.AuthoritiesGranter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -79,10 +78,10 @@ import org.springframework.security.web.util.matcher.AnyRequestMatcher;
  * @author Ngoc Nhan
  * @since 3.2
  */
-public final class X509Configurer<H extends HttpSecurityBuilder<H>> extends AbstractHttpConfigurer<X509Configurer<H>, H>
-		implements AuthorizableConfigurer<X509Configurer<H>> {
+public final class X509Configurer<H extends HttpSecurityBuilder<H>>
+		extends AbstractHttpConfigurer<X509Configurer<H>, H> {
 
-	private final MfaConfigurer<H, X509Configurer<H>> mfa = new MfaConfigurer<>("AUTHN_X509");
+	private MfaConfigurer<H> mfa;
 
 	private X509AuthenticationFilter x509AuthenticationFilter;
 
@@ -177,14 +176,11 @@ public final class X509Configurer<H extends HttpSecurityBuilder<H>> extends Abst
 		return this;
 	}
 
-	@Override
-	public X509Configurer<H> grants(AuthoritiesGranter granter) {
-		this.mfa.grants(granter);
-		return this;
-	}
-
-	public X509Configurer<H> factor(Integer order) {
-		this.mfa.factor(order);
+	public X509Configurer<H> factor(Customizer<MfaConfigurer<H>> customizer) {
+		if (this.mfa == null) {
+			this.mfa = new MfaConfigurer<>("AUTHN_X509", this);
+		}
+		customizer.customize(this.mfa);
 		return this;
 	}
 
@@ -198,7 +194,9 @@ public final class X509Configurer<H extends HttpSecurityBuilder<H>> extends Abst
 		if (exceptions != null) {
 			exceptions.defaultAuthenticationEntryPointFor(new Http403ForbiddenEntryPoint(), AnyRequestMatcher.INSTANCE);
 		}
-		this.mfa.init(http);
+		if (this.mfa != null) {
+			this.mfa.init(http);
+		}
 	}
 
 	@Override
@@ -208,8 +206,7 @@ public final class X509Configurer<H extends HttpSecurityBuilder<H>> extends Abst
 	}
 
 	private AuthenticationManager getAuthenticationManager(H http) {
-		AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
-		return this.mfa.postProcess(authenticationManager);
+		return postProcess(http.getSharedObject(AuthenticationManager.class));
 	}
 
 	private X509AuthenticationFilter getFilter(AuthenticationManager authenticationManager, H http) {

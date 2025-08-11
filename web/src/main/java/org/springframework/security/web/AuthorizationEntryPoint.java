@@ -16,10 +16,9 @@
 
 package org.springframework.security.web;
 
-import org.springframework.core.Ordered;
 import org.springframework.security.authorization.AuthorizationRequest;
 
-public interface AuthorizationEntryPoint extends AuthenticationEntryPoint, Ordered {
+public interface AuthorizationEntryPoint extends AuthenticationEntryPoint {
 
 	boolean authorizes(AuthorizationRequest authorizationRequest);
 

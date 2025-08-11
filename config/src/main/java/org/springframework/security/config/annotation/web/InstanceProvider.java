@@ -14,10 +14,27 @@
  * limitations under the License.
  */
 
-package org.springframework.security.config.annotation.web.configurers;
+package org.springframework.security.config.annotation.web;
 
-interface DefaultAuthorityAuthorizableConfigurer<C> extends AuthorizableConfigurer<C> {
+import java.util.stream.Stream;
 
-	String defaultAuthority();
+import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.Nullable;
+
+import org.springframework.beans.factory.ObjectProvider;
+
+final class InstanceProvider<C> implements ObjectProvider<C> {
+
+	private final C c;
+
+	InstanceProvider(@Nullable C c) {
+		this.c = c;
+	}
+
+	@NotNull
+	@Override
+	public Stream<C> stream() {
+		return Stream.ofNullable(this.c);
+	}
 
 }

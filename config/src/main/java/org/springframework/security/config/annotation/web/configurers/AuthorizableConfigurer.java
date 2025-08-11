@@ -18,19 +18,19 @@ package org.springframework.security.config.annotation.web.configurers;
 
 import java.time.Duration;
 
-import org.springframework.security.authorization.AlwaysAuthoritiesGranter;
 import org.springframework.security.authorization.AuthoritiesGranter;
+import org.springframework.security.authorization.SimpleAuthoritiesGranter;
 
 public interface AuthorizableConfigurer<C> {
 
 	C grants(AuthoritiesGranter granter);
 
 	default C grants(String... authority) {
-		return grants(new AlwaysAuthoritiesGranter(authority));
+		return grants(new SimpleAuthoritiesGranter(authority));
 	}
 
 	default C grants(Duration duration, String... authority) {
-		return grants(new AlwaysAuthoritiesGranter(duration, authority));
+		return grants(new SimpleAuthoritiesGranter(duration, authority));
 	}
 
 	C factor(Integer order);

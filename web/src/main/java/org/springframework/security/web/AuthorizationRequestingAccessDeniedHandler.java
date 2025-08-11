@@ -24,7 +24,6 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import org.springframework.core.annotation.AnnotationAwareOrderComparator;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.security.authorization.AuthorityAuthorizationDecision;
@@ -42,7 +41,6 @@ public final class AuthorizationRequestingAccessDeniedHandler implements AccessD
 
 	public AuthorizationRequestingAccessDeniedHandler(List<AuthorizationEntryPoint> entries) {
 		this.entries = new ArrayList<>(entries);
-		AnnotationAwareOrderComparator.sort(this.entries);
 	}
 
 	@Override
