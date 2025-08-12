@@ -16,25 +16,39 @@
 
 package org.springframework.security.config.annotation.web.configurers;
 
+import java.io.IOException;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authorization.AuthoritiesGranter;
-import org.springframework.security.authorization.AuthoritiesGranterAuthenticationManager;
-import org.springframework.security.authorization.CompositeAuthoritiesGranter;
-import org.springframework.security.authorization.PreAuthenticatedAuthoritiesGranter;
-import org.springframework.security.authorization.SimpleAuthoritiesGranter;
+import org.springframework.security.authorization.AuthorizationRequest;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.SecurityConfigurer;
 import org.springframework.security.config.annotation.SecurityConfigurerAdapter;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.ExpirableGrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.AuthorizationEntryPoint;
 import org.springframework.security.web.DefaultSecurityFilterChain;
-import org.springframework.security.web.SimpleAuthorizationEntryPoint;
 import org.springframework.security.web.authentication.Http403ForbiddenEntryPoint;
+import org.springframework.util.Assert;
 
 public final class MfaConfigurer<B extends HttpSecurityBuilder<B>>
 		implements SecurityConfigurer<DefaultSecurityFilterChain, B> {
@@ -65,7 +79,7 @@ public final class MfaConfigurer<B extends HttpSecurityBuilder<B>>
 		return this;
 	}
 
-	public MfaConfigurer<B> grants(AuthoritiesGranter granter) {
+	private MfaConfigurer<B> grants(AuthoritiesGranter granter) {
 		this.authoritiesGranter = new CompositeAuthoritiesGranter(this.authoritiesGranter, granter);
 		return this;
 	}
@@ -89,6 +103,164 @@ public final class MfaConfigurer<B extends HttpSecurityBuilder<B>>
 
 	@Override
 	public void configure(B builder) throws Exception {
+
+	}
+
+	interface AuthoritiesGranter {
+
+		Authentication grantAuthorities(Authentication authentication);
+
+		default Collection<String> grantableAuthorities() {
+			return List.of();
+		}
+
+	}
+
+	static final class PreAuthenticatedAuthoritiesGranter implements AuthoritiesGranter {
+
+		private final SecurityContextHolderStrategy strategy;
+
+		PreAuthenticatedAuthoritiesGranter(SecurityContextHolderStrategy strategy) {
+			this.strategy = strategy;
+		}
+
+		@Override
+		public Authentication grantAuthorities(Authentication authentication) {
+			Authentication current = this.strategy.getContext().getAuthentication();
+			if (current == null || !current.isAuthenticated()) {
+				return authentication;
+			}
+			return authentication.withGrantedAuthorities((a) -> a.addAll(current.getGrantedAuthorities()));
+		}
+
+	}
+
+	static final class CompositeAuthoritiesGranter implements AuthoritiesGranter {
+
+		private final Collection<AuthoritiesGranter> authoritiesGranters;
+
+		CompositeAuthoritiesGranter(AuthoritiesGranter... authorities) {
+			this.authoritiesGranters = List.of(authorities);
+		}
+
+		CompositeAuthoritiesGranter(Collection<AuthoritiesGranter> authorities) {
+			this.authoritiesGranters = new ArrayList<>(authorities);
+		}
+
+		@Override
+		public Collection<String> grantableAuthorities() {
+			Collection<String> grantable = new ArrayList<>();
+			for (AuthoritiesGranter granter : this.authoritiesGranters) {
+				grantable.addAll(granter.grantableAuthorities());
+			}
+			return grantable;
+		}
+
+		@Override
+		public Authentication grantAuthorities(Authentication authentication) {
+			Authentication granted = authentication;
+			for (AuthoritiesGranter granter : this.authoritiesGranters) {
+				granted = granter.grantAuthorities(granted);
+			}
+			return granted;
+		}
+
+	}
+
+	static final class SimpleAuthoritiesGranter implements AuthoritiesGranter {
+
+		private final @Nullable Duration grantingTime;
+
+		private final Collection<String> authorities;
+
+		private Clock clock = Clock.systemUTC();
+
+		SimpleAuthoritiesGranter(String... authorities) {
+			this.grantingTime = null;
+			this.authorities = List.of(authorities);
+		}
+
+		SimpleAuthoritiesGranter(Duration grantingTime, String... authorities) {
+			Assert.notEmpty(authorities, "authorities cannot be empty");
+			this.grantingTime = grantingTime;
+			this.authorities = List.of(authorities);
+		}
+
+		@Override
+		public Collection<String> grantableAuthorities() {
+			return this.authorities;
+		}
+
+		@Override
+		public Authentication grantAuthorities(Authentication authentication) {
+			Collection<GrantedAuthority> toGrant = new HashSet<>();
+			for (String authority : this.authorities) {
+				if (this.grantingTime == null) {
+					toGrant.add(new SimpleGrantedAuthority(authority));
+				}
+				else {
+					Instant expiresAt = this.clock.instant().plus(this.grantingTime);
+					toGrant.add(new ExpirableGrantedAuthority(authority, expiresAt));
+				}
+			}
+			Collection<GrantedAuthority> current = new HashSet<>(authentication.getGrantedAuthorities());
+			toGrant.addAll(current);
+			return authentication.withGrantedAuthorities(toGrant);
+		}
+
+		void setClock(Clock clock) {
+			this.clock = clock;
+		}
+
+	}
+
+	static final class AuthoritiesGranterAuthenticationManager implements AuthenticationManager {
+
+		private final AuthenticationManager authenticationManager;
+
+		private final AuthoritiesGranter authoritiesGranter;
+
+		AuthoritiesGranterAuthenticationManager(AuthenticationManager manager, AuthoritiesGranter granter) {
+			this.authenticationManager = manager;
+			this.authoritiesGranter = granter;
+		}
+
+		@Override
+		public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+			Authentication result = this.authenticationManager.authenticate(authentication);
+			return this.authoritiesGranter.grantAuthorities(result);
+		}
+
+	}
+
+	static final class SimpleAuthorizationEntryPoint implements AuthorizationEntryPoint {
+
+		private final AuthoritiesGranter authoritiesGranter;
+
+		private final AuthenticationEntryPoint authenticationEntryPoint;
+
+		SimpleAuthorizationEntryPoint(AuthenticationEntryPoint authenticationEntryPoint,
+				AuthoritiesGranter authoritiesGranter) {
+			this.authoritiesGranter = authoritiesGranter;
+			this.authenticationEntryPoint = authenticationEntryPoint;
+		}
+
+		@Override
+		public boolean authorizes(AuthorizationRequest request) {
+			Collection<String> grantable = this.authoritiesGranter.grantableAuthorities();
+			for (GrantedAuthority needed : request.getAuthorities()) {
+				if (grantable.contains(needed.getAuthority())) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		@Override
+		public void commence(HttpServletRequest request, HttpServletResponse response,
+				AuthenticationException authException) throws IOException, ServletException {
+			this.authenticationEntryPoint.commence(request, response, authException);
+		}
 
 	}
 

@@ -157,8 +157,8 @@ public class WebAuthnConfigurer<H extends HttpSecurityBuilder<H>>
 
 	public WebAuthnConfigurer<H> factor(Customizer<MfaConfigurer<H>> customizer) {
 		if (this.mfa == null) {
-			this.mfa = new MfaConfigurer<>("AUTHN_WEBAUTHN", this);
-			this.mfa.authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login"));
+			this.mfa = new MfaConfigurer<>("AUTHN_WEBAUTHN", this)
+				.authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login"));
 		}
 		customizer.customize(this.mfa);
 		return this;

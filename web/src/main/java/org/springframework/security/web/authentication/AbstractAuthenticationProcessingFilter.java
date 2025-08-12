@@ -36,7 +36,6 @@ import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.InternalAuthenticationServiceException;
 import org.springframework.security.authentication.event.InteractiveAuthenticationSuccessEvent;
-import org.springframework.security.authorization.AuthoritiesGranter;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.SpringSecurityMessageSource;
@@ -120,8 +119,6 @@ public abstract class AbstractAuthenticationProcessingFilter extends GenericFilt
 
 	private SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder
 		.getContextHolderStrategy();
-
-	private AuthoritiesGranter authoritiesGranter = AuthoritiesGranter.NOOP;
 
 	protected ApplicationEventPublisher eventPublisher;
 
@@ -241,7 +238,6 @@ public abstract class AbstractAuthenticationProcessingFilter extends GenericFilt
 		}
 		try {
 			Authentication authenticationResult = attemptAuthentication(request, response);
-			authenticationResult = this.authoritiesGranter.grantAuthorities(authenticationResult);
 			if (authenticationResult == null) {
 				if (this.continueChainWhenNoAuthenticationResult) {
 					chain.doFilter(request, response);
