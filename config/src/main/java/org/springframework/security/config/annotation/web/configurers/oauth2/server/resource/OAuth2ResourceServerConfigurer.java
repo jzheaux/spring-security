@@ -255,7 +255,7 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 	public OAuth2ResourceServerConfigurer<H> factor(Customizer<MfaConfigurer<H>> customizer) {
 		if (this.mfa == null) {
 			this.mfa = new MfaConfigurer<>("AUTHN_BEARER", this);
-			this.mfa.authenticationEntryPoint(this.authenticationEntryPoint);
+			this.mfa.authenticationEntryPoint(() -> this.authenticationEntryPoint);
 		}
 		customizer.customize(this.mfa);
 		return this;
@@ -263,6 +263,9 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 
 	@Override
 	public void init(H http) {
+		if (this.mfa != null) {
+			this.mfa.init(http);
+		}
 		validateConfiguration();
 		registerDefaultAccessDeniedHandler(http);
 		registerDefaultEntryPoint(http);
@@ -270,9 +273,6 @@ public final class OAuth2ResourceServerConfigurer<H extends HttpSecurityBuilder<
 		AuthenticationProvider authenticationProvider = getAuthenticationProvider();
 		if (authenticationProvider != null) {
 			http.authenticationProvider(authenticationProvider);
-		}
-		if (this.mfa != null) {
-			this.mfa.init(http);
 		}
 	}
 

@@ -19,6 +19,7 @@ package org.springframework.security.core.authority;
 import java.io.Serial;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Objects;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.util.Assert;
@@ -56,4 +57,16 @@ public final class ExpirableGrantedAuthority implements GrantedAuthority {
 		this.clock = clock;
 	}
 
+	@Override
+	public boolean equals(Object o) {
+		if (!(o instanceof GrantedAuthority that)) {
+			return false;
+		}
+		return Objects.equals(this.authority, that.getAuthority());
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hashCode(this.authority);
+	}
 }

@@ -232,7 +232,7 @@ public final class ExceptionHandlingConfigurer<H extends HttpSecurityBuilder<H>>
 	AuthenticationEntryPoint getAuthenticationEntryPoint(H http) {
 		AuthenticationEntryPoint entryPoint = this.authenticationEntryPoint;
 		if (entryPoint == null) {
-			entryPoint = createAuthenticationEntryPoint(http);
+			entryPoint = createDefaultEntryPoint(http);
 		}
 		return entryPoint;
 	}
@@ -259,7 +259,7 @@ public final class ExceptionHandlingConfigurer<H extends HttpSecurityBuilder<H>>
 		return this.defaultDeniedHandlerMappings.values().iterator().next();
 	}
 
-	private AuthenticationEntryPoint createAuthenticationEntryPoint(H http) {
+	private AuthenticationEntryPoint createDefaultEntryPoint(H http) {
 		if (this.defaultEntryPointMappings.isEmpty()) {
 			return new Http403ForbiddenEntryPoint();
 		}

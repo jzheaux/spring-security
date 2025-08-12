@@ -26,7 +26,6 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.InsufficientAuthenticationException;
-import org.springframework.security.authorization.AuthorityAuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.security.authorization.AuthorizationRequest;
 import org.springframework.security.core.AuthenticationException;
@@ -46,15 +45,11 @@ public final class AuthorizationRequestingAccessDeniedHandler implements AccessD
 	@Override
 	public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException access)
 			throws IOException, ServletException {
-		if (!(access instanceof AuthorizationDeniedException denied)) {
+		AuthorizationRequest authorizationRequest = authorizationRequest(access);
+		if (authorizationRequest == null) {
 			this.delegate.handle(request, response, access);
 			return;
 		}
-		if (!(denied.getAuthorizationResult() instanceof AuthorityAuthorizationDecision decision)) {
-			this.delegate.handle(request, response, access);
-			return;
-		}
-		AuthorizationRequest authorizationRequest = decision::getAuthorities;
 		for (AuthorizationEntryPoint entry : this.entries) {
 			if (entry.authorizes(authorizationRequest)) {
 				AuthenticationException iae = new InsufficientAuthenticationException("access denied", access);
@@ -63,6 +58,19 @@ public final class AuthorizationRequestingAccessDeniedHandler implements AccessD
 			}
 		}
 		this.delegate.handle(request, response, access);
+	}
+
+	private AuthorizationRequest authorizationRequest(AccessDeniedException access) {
+		if (access instanceof AuthorizationRequest request) {
+			return request;
+		}
+		if (!(access instanceof AuthorizationDeniedException denied)) {
+			return null;
+		}
+		if (!(denied.getAuthorizationResult() instanceof AuthorizationRequest request)) {
+			return null;
+		}
+		return request;
 	}
 
 }

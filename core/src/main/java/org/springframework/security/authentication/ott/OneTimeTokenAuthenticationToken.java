@@ -19,6 +19,7 @@ package org.springframework.security.authentication.ott;
 import java.io.Serial;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Objects;
 
 import org.jspecify.annotations.Nullable;
 
@@ -61,8 +62,8 @@ public class OneTimeTokenAuthenticationToken extends AbstractAuthenticationToken
 	@Override
 	public OneTimeTokenAuthenticationToken withGrantedAuthorities(Collection<GrantedAuthority> authorities) {
 		Assert.isTrue(isAuthenticated(), "cannot grant authorities to unauthenticated tokens");
-		Assert.notNull(this.principal, "principal cannot be null when authenticated");
-		return OneTimeTokenAuthenticationToken.authenticated(this.principal, authorities);
+		Object principal = Objects.requireNonNull(this.principal);
+		return OneTimeTokenAuthenticationToken.authenticated(principal, authorities);
 	}
 
 	/**

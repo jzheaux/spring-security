@@ -166,7 +166,7 @@ public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>>
 	public HttpBasicConfigurer<B> factor(Customizer<MfaConfigurer<B>> customizer) {
 		if (this.mfa == null) {
 			this.mfa = new MfaConfigurer<>("AUTHN_BASIC", this);
-			this.mfa.authenticationEntryPoint(this.authenticationEntryPoint);
+			this.mfa.authenticationEntryPoint(() -> this.authenticationEntryPoint);
 		}
 		customizer.customize(this.mfa);
 		return this;
@@ -174,10 +174,10 @@ public final class HttpBasicConfigurer<B extends HttpSecurityBuilder<B>>
 
 	@Override
 	public void init(B http) {
-		registerDefaults(http);
 		if (this.mfa != null) {
 			this.mfa.init(http);
 		}
+		registerDefaults(http);
 	}
 
 	private void registerDefaults(B http) {

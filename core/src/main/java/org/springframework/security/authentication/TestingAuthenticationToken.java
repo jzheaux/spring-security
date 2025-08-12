@@ -22,6 +22,7 @@ import java.util.List;
 import org.springframework.security.core.AuthenticationResult;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.util.Assert;
 
 /**
  * An {@link org.springframework.security.core.Authentication} implementation that is
@@ -64,6 +65,7 @@ public class TestingAuthenticationToken extends AbstractAuthenticationToken impl
 
 	@Override
 	public TestingAuthenticationToken withGrantedAuthorities(Collection<GrantedAuthority> authorities) {
+		Assert.isTrue(isAuthenticated(), "cannot grant authorities to unauthenticated tokens");
 		return new TestingAuthenticationToken(getPrincipal(), this.credentials, authorities);
 	}
 

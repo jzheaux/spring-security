@@ -258,9 +258,9 @@ public final class MfaConfigurer<B extends HttpSecurityBuilder<B>>
 		}
 
 		@Override
-		public boolean authorizes(AuthorizationRequest request) {
+		public boolean authorizes(AuthorizationRequest authorizationRequest) {
 			Collection<String> grantable = this.authoritiesGranter.grantableAuthorities();
-			for (GrantedAuthority needed : request.getAuthorities()) {
+			for (GrantedAuthority needed : authorizationRequest.getAuthorities()) {
 				if (grantable.contains(needed.getAuthority())) {
 					return true;
 				}
