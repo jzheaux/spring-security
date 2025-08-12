@@ -21,6 +21,9 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.function.Consumer;
 
+import org.jspecify.annotations.NullMarked;
+
+@NullMarked
 public interface AuthenticationResult extends Authentication {
 
 	@Serial
