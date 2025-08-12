@@ -18,7 +18,9 @@ package org.springframework.security.config.annotation.web.configurers;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -30,6 +32,7 @@ import org.springframework.core.ResolvableType;
 import org.springframework.security.access.hierarchicalroles.NullRoleHierarchy;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authorization.AuthenticatedAuthorizationManager;
+import org.springframework.security.authorization.AuthorityAuthorizationDecision;
 import org.springframework.security.authorization.AuthorityAuthorizationManager;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationEventPublisher;
@@ -43,6 +46,7 @@ import org.springframework.security.config.annotation.web.AbstractRequestMatcher
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.core.GrantedAuthorityDefaults;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.access.intercept.RequestMatcherDelegatingAuthorizationManager;
@@ -139,9 +143,10 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 	public final class AuthorizationManagerRequestMatcherRegistry
 			extends AbstractRequestMatcherRegistry<AuthorizedUrl> {
 
-		private final List<RequestMatcherEntry<AuthorizationManager<RequestAuthorizationContext>>> entries = new ArrayList<>();
+		private final RequestMatcherDelegatingAuthorizationManager.Builder builder = RequestMatcherDelegatingAuthorizationManager
+			.builder();
 
-		private final List<String> authorities = new ArrayList<>();
+		private final HasAllAuthoritiesAuthorizationManager<RequestAuthorizationContext> hasAuthority = new HasAllAuthoritiesAuthorizationManager<>();
 
 		private List<RequestMatcher> unmappedMatchers;
 
@@ -153,13 +158,13 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 
 		private void addMapping(RequestMatcher matcher, AuthorizationManager<RequestAuthorizationContext> manager) {
 			this.unmappedMatchers = null;
-			this.entries.add(new RequestMatcherEntry<>(matcher, manager));
+			this.builder.add(matcher, manager);
 			this.mappingCount++;
 		}
 
 		private void addFirst(RequestMatcher matcher, AuthorizationManager<RequestAuthorizationContext> manager) {
 			this.unmappedMatchers = null;
-			this.entries.add(0, new RequestMatcherEntry<>(matcher, manager));
+			this.builder.mappings((mappings) -> mappings.add(0, new RequestMatcherEntry<>(matcher, manager)));
 			this.mappingCount++;
 		}
 
@@ -169,28 +174,14 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 							+ ". Try completing it with something like requestUrls().<something>.hasRole('USER')");
 			Assert.state(this.mappingCount > 0,
 					"At least one mapping is required (for example, authorizeHttpRequests().anyRequest().authenticated())");
-			RequestMatcherDelegatingAuthorizationManager.Builder builder = RequestMatcherDelegatingAuthorizationManager
-				.builder();
-			AuthorizationManager<RequestAuthorizationContext> authenticatedAuthorizationManager = AuthorizationManagers
-				.allOf(this.authorities.stream()
-					.map(AuthorityAuthorizationManager::hasAuthority)
-					.toArray(AuthorizationManager[]::new));
-			for (RequestMatcherEntry<AuthorizationManager<RequestAuthorizationContext>> entry : this.entries) {
-				RequestMatcher requestMatcher = entry.getRequestMatcher();
-				AuthorizationManager<RequestAuthorizationContext> authorizationManager = entry.getEntry();
-				if (authorizationManager instanceof WithAuthenticationAuthorizationManager m) {
-					m.setAuthenticated(authenticatedAuthorizationManager);
-				}
-				builder.add(requestMatcher, authorizationManager);
-			}
-			AuthorizationManager<HttpServletRequest> manager = postProcess(builder.build());
+			AuthorizationManager<HttpServletRequest> manager = postProcess(this.builder.build());
 			return AuthorizeHttpRequestsConfigurer.this.postProcessor.postProcess(manager);
 		}
 
 		@Override
 		protected AuthorizedUrl chainRequestMatchers(List<RequestMatcher> requestMatchers) {
 			this.unmappedMatchers = requestMatchers;
-			return new AuthorizedUrl(requestMatchers);
+			return new AuthorizedUrl(this, requestMatchers);
 		}
 
 		/**
@@ -205,14 +196,8 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 			return this;
 		}
 
-		public AuthorizationManagerRequestMatcherRegistry withDefaultAuthority(String authority) {
-			this.authorities.add(authority);
-			return this;
-		}
-
-		public AuthorizationManagerRequestMatcherRegistry withDefaultAuthority(Collection<String> authority) {
-			this.authorities.addAll(authority);
-			return this;
+		void hasAuthority(String authority) {
+			this.hasAuthority.add(authority);
 		}
 
 	}
@@ -226,6 +211,8 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 	 */
 	public class AuthorizedUrl {
 
+		private final AuthorizationManagerRequestMatcherRegistry registry;
+
 		private final List<? extends RequestMatcher> matchers;
 
 		private boolean not;
@@ -234,7 +221,8 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 		 * Creates an instance.
 		 * @param matchers the {@link RequestMatcher} instances to map
 		 */
-		AuthorizedUrl(List<? extends RequestMatcher> matchers) {
+		AuthorizedUrl(AuthorizationManagerRequestMatcherRegistry registry, List<? extends RequestMatcher> matchers) {
+			this.registry = registry;
 			this.matchers = matchers;
 		}
 
@@ -322,11 +310,6 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 			return withAuthentication(manager);
 		}
 
-		private AuthorizationManager<RequestAuthorizationContext> withAuthentication(
-				AuthorizationManager<RequestAuthorizationContext> manager) {
-			return new WithAuthenticationAuthorizationManager<>(manager);
-		}
-
 		/**
 		 * Specify that URLs are allowed by any authenticated user.
 		 * @return the {@link AuthorizationManagerRequestMatcherRegistry} for further
@@ -366,7 +349,7 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 		 * @since 5.8
 		 */
 		public AuthorizationManagerRequestMatcherRegistry anonymous() {
-			return access(withAuthentication(AuthenticatedAuthorizationManager.anonymous()));
+			return access(AuthenticatedAuthorizationManager.anonymous());
 		}
 
 		/**
@@ -396,6 +379,11 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 			return (this.not)
 					? AuthorizeHttpRequestsConfigurer.this.addMapping(this.matchers, AuthorizationManagers.not(manager))
 					: AuthorizeHttpRequestsConfigurer.this.addMapping(this.matchers, manager);
+		}
+
+		private AuthorizationManager<RequestAuthorizationContext> withAuthentication(
+				AuthorizationManager<RequestAuthorizationContext> manager) {
+			return AuthorizationManagers.allOf(this.registry.hasAuthority, manager);
 		}
 
 		/**
@@ -435,21 +423,24 @@ public final class AuthorizeHttpRequestsConfigurer<H extends HttpSecurityBuilder
 
 	}
 
-	static final class WithAuthenticationAuthorizationManager<T> implements AuthorizationManager<T> {
+	private static final class HasAllAuthoritiesAuthorizationManager<T> implements AuthorizationManager<T> {
 
-		private AuthorizationManager<T> delegate;
-
-		private WithAuthenticationAuthorizationManager(AuthorizationManager<T> delegate) {
-			this.delegate = delegate;
-		}
+		private final Collection<String> authorities = new ArrayList<>();
 
 		@Override
 		public AuthorizationResult authorize(Supplier<Authentication> authentication, T object) {
-			return this.delegate.authorize(authentication, object);
+			if (this.authorities.isEmpty()) {
+				return new AuthorityAuthorizationDecision(true, new ArrayList<>());
+			}
+			Authentication auth = authentication.get();
+			Set<String> authorities = AuthorityUtils.authorityListToSet(auth.getGrantedAuthorities());
+			Collection<String> needed = new HashSet<>(this.authorities);
+			needed.removeAll(authorities);
+			return new AuthorityAuthorizationDecision(needed.isEmpty(), AuthorityUtils.createAuthorityList(needed));
 		}
 
-		void setAuthenticated(AuthorizationManager<T> authenticated) {
-			this.delegate = AuthorizationManagers.allOf(authenticated, this.delegate);
+		private void add(String authority) {
+			this.authorities.add(authority);
 		}
 
 	}

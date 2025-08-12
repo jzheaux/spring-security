@@ -64,7 +64,7 @@ public final class MfaConfigurer<B extends HttpSecurityBuilder<B>>
 
 	public MfaConfigurer(String authority, SecurityConfigurerAdapter<?, B> configurer) {
 		this.authoritiesGranter = new SimpleAuthoritiesGranter(authority);
-		this.authorize = (a) -> a.getRegistry().withDefaultAuthority(authority);
+		this.authorize = (a) -> a.getRegistry().hasAuthority(authority);
 		this.exceptions = (e) -> e.authorizationEntryPoint(
 				(p) -> p.add(new SimpleAuthorizationEntryPoint(this.entryPoint, this.authoritiesGranter)));
 		configurer.addObjectPostProcessor(new ObjectPostProcessor<AuthenticationManager>() {
