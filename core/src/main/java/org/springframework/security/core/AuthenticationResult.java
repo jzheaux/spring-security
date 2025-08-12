@@ -40,4 +40,5 @@ public interface AuthenticationResult extends Authentication {
 	default boolean isAuthenticated() {
 		return true;
 	}
+
 }

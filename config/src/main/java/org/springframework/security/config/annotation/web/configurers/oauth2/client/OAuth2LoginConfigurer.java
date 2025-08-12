@@ -41,6 +41,7 @@ import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractAuthenticationFilterConfigurer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.MfaConfigurer;
 import org.springframework.security.config.annotation.web.configurers.SessionManagementConfigurer;
 import org.springframework.security.context.DelegatingApplicationListener;
 import org.springframework.security.core.Authentication;
@@ -171,6 +172,8 @@ public final class OAuth2LoginConfigurer<B extends HttpSecurityBuilder<B>>
 	private final RedirectionEndpointConfig redirectionEndpointConfig = new RedirectionEndpointConfig();
 
 	private final UserInfoEndpointConfig userInfoEndpointConfig = new UserInfoEndpointConfig();
+
+	private MfaConfigurer<B> mfa;
 
 	private String loginPage;
 
@@ -305,8 +308,20 @@ public final class OAuth2LoginConfigurer<B extends HttpSecurityBuilder<B>>
 		return this;
 	}
 
+	public OAuth2LoginConfigurer<B> factor(Customizer<MfaConfigurer<B>> customizer) {
+		if (this.mfa == null) {
+			this.mfa = new MfaConfigurer<>("AUTHN_OAUTH2", this);
+			this.mfa.authenticationEntryPoint(this::getAuthenticationEntryPoint);
+		}
+		customizer.customize(this.mfa);
+		return this;
+	}
+
 	@Override
 	public void init(B http) throws Exception {
+		if (this.mfa != null) {
+			this.mfa.init(http);
+		}
 		OAuth2LoginAuthenticationFilter authenticationFilter = new OAuth2LoginAuthenticationFilter(
 				this.getClientRegistrationRepository(), this.getAuthorizedClientRepository(), this.loginProcessingUrl);
 		RequestMatcher processUri = getRequestMatcherBuilder().matcher(this.loginProcessingUrl);
@@ -409,11 +424,6 @@ public final class OAuth2LoginConfigurer<B extends HttpSecurityBuilder<B>>
 	@Override
 	protected RequestMatcher createLoginProcessingUrlMatcher(String loginProcessingUrl) {
 		return getRequestMatcherBuilder().matcher(loginProcessingUrl);
-	}
-
-	@Override
-	public String defaultAuthority() {
-		return "AUTHN_OAUTH2";
 	}
 
 	private OAuth2AuthorizationRequestResolver getAuthorizationRequestResolver() {

@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.function.Supplier;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -60,7 +61,7 @@ public final class MfaConfigurer<B extends HttpSecurityBuilder<B>>
 
 	private final Customizer<ExceptionHandlingConfigurer<B>> exceptions;
 
-	private AuthenticationEntryPoint entryPoint = new Http403ForbiddenEntryPoint();
+	private Supplier<AuthenticationEntryPoint> entryPoint = Http403ForbiddenEntryPoint::new;
 
 	private AuthoritiesGranter authoritiesGranter;
 
@@ -68,7 +69,7 @@ public final class MfaConfigurer<B extends HttpSecurityBuilder<B>>
 		this.authoritiesGranter = new SimpleAuthoritiesGranter(authority);
 		this.authorize = (a) -> a.getRegistry().hasAuthority(authority);
 		this.exceptions = (e) -> e.authorizationEntryPoint(
-				(p) -> p.add(new SimpleAuthorizationEntryPoint(this.entryPoint, this.authoritiesGranter)));
+				(p) -> p.add(new SimpleAuthorizationEntryPoint(this.entryPoint.get(), this.authoritiesGranter)));
 		configurer.addObjectPostProcessor(new ObjectPostProcessor<AuthenticationManager>() {
 			@Override
 			public AuthenticationManager postProcess(AuthenticationManager object) {
@@ -77,8 +78,13 @@ public final class MfaConfigurer<B extends HttpSecurityBuilder<B>>
 		});
 	}
 
-	public MfaConfigurer<B> authenticationEntryPoint(AuthenticationEntryPoint entryPoint) {
+	public MfaConfigurer<B> authenticationEntryPoint(Supplier<AuthenticationEntryPoint> entryPoint) {
 		this.entryPoint = entryPoint;
+		return this;
+	}
+
+	public MfaConfigurer<B> authenticationEntryPoint(AuthenticationEntryPoint entryPoint) {
+		this.entryPoint = () -> entryPoint;
 		return this;
 	}
 

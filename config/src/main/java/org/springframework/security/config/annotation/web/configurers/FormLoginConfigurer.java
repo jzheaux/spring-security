@@ -72,6 +72,8 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 public final class FormLoginConfigurer<H extends HttpSecurityBuilder<H>> extends
 		AbstractAuthenticationFilterConfigurer<H, FormLoginConfigurer<H>, UsernamePasswordAuthenticationFilter> {
 
+	private MfaConfigurer<H> mfa;
+
 	/**
 	 * Creates a new instance
 	 * @see HttpSecurity#formLogin(Customizer)
@@ -227,8 +229,20 @@ public final class FormLoginConfigurer<H extends HttpSecurityBuilder<H>> extends
 		return this;
 	}
 
+	public FormLoginConfigurer<H> factor(Customizer<MfaConfigurer<H>> customizer) {
+		if (this.mfa == null) {
+			this.mfa = new MfaConfigurer<>("AUTHN_FORM", this);
+			this.mfa.authenticationEntryPoint(this::getAuthenticationEntryPoint);
+		}
+		customizer.customize(this.mfa);
+		return this;
+	}
+
 	@Override
 	public void init(H http) throws Exception {
+		if (this.mfa != null) {
+			this.mfa.init(http);
+		}
 		super.init(http);
 		initDefaultLoginFilter(http);
 	}
@@ -236,11 +250,6 @@ public final class FormLoginConfigurer<H extends HttpSecurityBuilder<H>> extends
 	@Override
 	protected RequestMatcher createLoginProcessingUrlMatcher(String loginProcessingUrl) {
 		return getRequestMatcherBuilder().matcher(HttpMethod.POST, loginProcessingUrl);
-	}
-
-	@Override
-	public String defaultAuthority() {
-		return "AUTHN_FORM";
 	}
 
 	/**

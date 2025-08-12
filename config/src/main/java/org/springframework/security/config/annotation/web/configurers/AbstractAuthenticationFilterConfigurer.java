@@ -25,7 +25,6 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -63,8 +62,6 @@ import org.springframework.web.accept.HeaderContentNegotiationStrategy;
  */
 public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecurityBuilder<B>, T extends AbstractAuthenticationFilterConfigurer<B, T, F>, F extends AbstractAuthenticationProcessingFilter>
 		extends AbstractHttpConfigurer<T, B> {
-
-	private MfaConfigurer<B> mfa;
 
 	private F authFilter;
 
@@ -108,19 +105,6 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		if (defaultLoginProcessingUrl != null) {
 			loginProcessingUrl(defaultLoginProcessingUrl);
 		}
-	}
-
-	public T factor(Customizer<MfaConfigurer<B>> customizer) {
-		if (this.mfa == null) {
-			this.mfa = new MfaConfigurer<>(defaultAuthority(), this);
-			this.mfa.authenticationEntryPoint(getPostAuthenticationEntryPoint());
-		}
-		customizer.customize(this.mfa);
-		return getSelf();
-	}
-
-	protected String defaultAuthority() {
-		return "AUTHN_AUTHENTICATION";
 	}
 
 	/**
@@ -253,13 +237,6 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 		updateAuthenticationDefaults();
 		updateAccessDefaults(http);
 		registerDefaultAuthenticationEntryPoint(http);
-		if (this.mfa != null) {
-			this.mfa.init(http);
-		}
-	}
-
-	protected AuthenticationEntryPoint getPostAuthenticationEntryPoint() {
-		return this.authenticationEntryPoint;
 	}
 
 	@SuppressWarnings("unchecked")
