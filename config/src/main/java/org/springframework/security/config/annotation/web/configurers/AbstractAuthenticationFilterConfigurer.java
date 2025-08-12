@@ -391,7 +391,7 @@ public abstract class AbstractAuthenticationFilterConfigurer<B extends HttpSecur
 	 * Gets the Authentication Entry Point
 	 * @return the Authentication Entry Point
 	 */
-	protected AuthenticationEntryPoint getAuthenticationEntryPoint() {
+	protected final AuthenticationEntryPoint getAuthenticationEntryPoint() {
 		return this.authenticationEntryPoint;
 	}
 

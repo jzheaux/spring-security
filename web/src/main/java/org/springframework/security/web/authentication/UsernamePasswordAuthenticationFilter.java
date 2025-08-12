@@ -26,8 +26,6 @@ import org.springframework.security.authentication.AuthenticationServiceExceptio
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
@@ -63,9 +61,6 @@ public class UsernamePasswordAuthenticationFilter extends AbstractAuthentication
 	private String passwordParameter = SPRING_SECURITY_FORM_PASSWORD_KEY;
 
 	private boolean postOnly = true;
-
-	private final SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder
-		.getContextHolderStrategy();
 
 	public UsernamePasswordAuthenticationFilter() {
 		super(DEFAULT_ANT_PATH_REQUEST_MATCHER);

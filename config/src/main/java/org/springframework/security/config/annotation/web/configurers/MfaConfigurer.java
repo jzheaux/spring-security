@@ -30,6 +30,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.jspecify.annotations.Nullable;
 
+import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authorization.AuthorizationRequest;
 import org.springframework.security.config.Customizer;
@@ -94,7 +95,8 @@ public final class MfaConfigurer<B extends HttpSecurityBuilder<B>>
 
 	@Override
 	public void init(B http) {
-		SecurityContextHolderStrategy strategy = http.getSharedObjectProvider(SecurityContextHolderStrategy.class)
+		ApplicationContext context = http.getSharedObject(ApplicationContext.class);
+		SecurityContextHolderStrategy strategy = context.getBeanProvider(SecurityContextHolderStrategy.class)
 			.getIfUnique(SecurityContextHolder::getContextHolderStrategy);
 		grants(new PreAuthenticatedAuthoritiesGranter(strategy));
 		this.authorize.customize(http.getConfigurer(AuthorizeHttpRequestsConfigurer.class));

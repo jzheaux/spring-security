@@ -18,8 +18,6 @@ package org.springframework.security.config.annotation.web;
 
 import jakarta.servlet.Filter;
 
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.SecurityBuilder;
 import org.springframework.security.config.annotation.SecurityConfigurer;
@@ -89,18 +87,6 @@ public interface HttpSecurityBuilder<H extends HttpSecurityBuilder<H>>
 	 * @return the shared Object or null if it is not found
 	 */
 	<C> C getSharedObject(Class<C> sharedType);
-
-	default <C> ObjectProvider<C> getSharedObjectProvider(Class<C> sharedType) {
-		C c = getSharedObject(sharedType);
-		if (c != null) {
-			return new InstanceProvider<>(c);
-		}
-		ApplicationContext context = getSharedObject(ApplicationContext.class);
-		if (context != null) {
-			return context.getBeanProvider(sharedType);
-		}
-		return new InstanceProvider<>(null);
-	}
 
 	/**
 	 * Allows adding an additional {@link AuthenticationProvider} to be used

@@ -116,8 +116,6 @@ public final class OneTimeTokenLoginConfigurer<H extends HttpSecurityBuilder<H>>
 
 	private String tokenGeneratingUrl = GenerateOneTimeTokenFilter.DEFAULT_GENERATE_URL;
 
-	private boolean customTokenGeneratingUrl;
-
 	private OneTimeTokenGenerationSuccessHandler oneTimeTokenGenerationSuccessHandler;
 
 	private AuthenticationProvider authenticationProvider;
@@ -244,7 +242,6 @@ public final class OneTimeTokenLoginConfigurer<H extends HttpSecurityBuilder<H>>
 	public OneTimeTokenLoginConfigurer<H> tokenGeneratingUrl(String tokenGeneratingUrl) {
 		Assert.hasText(tokenGeneratingUrl, "tokenGeneratingUrl cannot be null or empty");
 		this.tokenGeneratingUrl = tokenGeneratingUrl;
-		this.customTokenGeneratingUrl = true;
 		return this;
 	}
 

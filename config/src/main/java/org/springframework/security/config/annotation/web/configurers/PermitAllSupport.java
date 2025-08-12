@@ -18,10 +18,8 @@ package org.springframework.security.config.annotation.web.configurers;
 
 import jakarta.servlet.http.HttpServletRequest;
 
-import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.authorization.SingleResultAuthorizationManager;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
-import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
 
@@ -39,7 +37,7 @@ final class PermitAllSupport {
 	static void permitAll(HttpSecurityBuilder<? extends HttpSecurityBuilder<?>> http, String... urls) {
 		for (String url : urls) {
 			if (url != null) {
-				needs(http, SingleResultAuthorizationManager.permitAll(), new ExactUrlRequestMatcher(url));
+				permitAll(http, new ExactUrlRequestMatcher(url));
 			}
 		}
 	}
@@ -47,20 +45,6 @@ final class PermitAllSupport {
 	@SuppressWarnings("unchecked")
 	static void permitAll(HttpSecurityBuilder<? extends HttpSecurityBuilder<?>> http,
 			RequestMatcher... requestMatchers) {
-		needs(http, SingleResultAuthorizationManager.permitAll(), requestMatchers);
-	}
-
-	static void needs(HttpSecurityBuilder<? extends HttpSecurityBuilder<?>> http,
-			AuthorizationManager<RequestAuthorizationContext> access, String... urls) {
-		for (String url : urls) {
-			if (url != null) {
-				needs(http, access, new ExactUrlRequestMatcher(url));
-			}
-		}
-	}
-
-	static void needs(HttpSecurityBuilder<? extends HttpSecurityBuilder<?>> http,
-			AuthorizationManager<RequestAuthorizationContext> access, RequestMatcher... requestMatchers) {
 		AuthorizeHttpRequestsConfigurer<?> httpConfigurer = http.getConfigurer(AuthorizeHttpRequestsConfigurer.class);
 
 		Assert.state(httpConfigurer != null,
@@ -68,12 +52,12 @@ final class PermitAllSupport {
 
 		for (RequestMatcher matcher : requestMatchers) {
 			if (matcher != null) {
-				httpConfigurer.addFirst(matcher, access);
+				httpConfigurer.addFirst(matcher, SingleResultAuthorizationManager.permitAll());
 			}
 		}
 	}
 
-	static final class ExactUrlRequestMatcher implements RequestMatcher {
+	private static final class ExactUrlRequestMatcher implements RequestMatcher {
 
 		private String processUrl;
 
