@@ -19,10 +19,10 @@ package org.springframework.security.oauth2.server.resource.authentication;
 import java.util.Collection;
 import java.util.Map;
 
+import org.springframework.security.core.AuthenticationResult;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.Transient;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.util.Assert;
 
 /**
  * An implementation of an {@link AbstractOAuth2TokenAuthenticationToken} representing a
@@ -34,7 +34,8 @@ import org.springframework.util.Assert;
  * @see Jwt
  */
 @Transient
-public class JwtAuthenticationToken extends AbstractOAuth2TokenAuthenticationToken<Jwt> {
+public class JwtAuthenticationToken extends AbstractOAuth2TokenAuthenticationToken<Jwt>
+		implements AuthenticationResult {
 
 	private static final long serialVersionUID = 620L;
 
@@ -74,7 +75,6 @@ public class JwtAuthenticationToken extends AbstractOAuth2TokenAuthenticationTok
 
 	@Override
 	public JwtAuthenticationToken withGrantedAuthorities(Collection<GrantedAuthority> authorities) {
-		Assert.isTrue(isAuthenticated(), "cannot grant authorities to unauthenticated tokens");
 		return new JwtAuthenticationToken(getToken(), authorities, this.name);
 	}
 

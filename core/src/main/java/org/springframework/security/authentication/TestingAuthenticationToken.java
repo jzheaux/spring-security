@@ -19,6 +19,7 @@ package org.springframework.security.authentication;
 import java.util.Collection;
 import java.util.List;
 
+import org.springframework.security.core.AuthenticationResult;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthorityUtils;
 
@@ -30,7 +31,7 @@ import org.springframework.security.core.authority.AuthorityUtils;
  *
  * @author Ben Alex
  */
-public class TestingAuthenticationToken extends AbstractAuthenticationToken {
+public class TestingAuthenticationToken extends AbstractAuthenticationToken implements AuthenticationResult {
 
 	private static final long serialVersionUID = 1L;
 

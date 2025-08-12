@@ -28,6 +28,7 @@ import java.util.List;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.context.ApplicationContext;
@@ -40,6 +41,7 @@ import org.springframework.security.config.annotation.SecurityConfigurerAdapter;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.AuthenticationResult;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.ExpirableGrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -110,7 +112,7 @@ public final class MfaConfigurer<B extends HttpSecurityBuilder<B>>
 
 	interface AuthoritiesGranter {
 
-		Authentication grantAuthorities(Authentication authentication);
+		AuthenticationResult grantAuthorities(AuthenticationResult authentication);
 
 		default Collection<String> grantableAuthorities() {
 			return List.of();
@@ -127,12 +129,12 @@ public final class MfaConfigurer<B extends HttpSecurityBuilder<B>>
 		}
 
 		@Override
-		public Authentication grantAuthorities(Authentication authentication) {
+		public AuthenticationResult grantAuthorities(AuthenticationResult authentication) {
 			Authentication current = this.strategy.getContext().getAuthentication();
 			if (current == null || !current.isAuthenticated()) {
 				return authentication;
 			}
-			return authentication.withGrantedAuthorities((a) -> a.addAll(current.getGrantedAuthorities()));
+			return authentication.withGrantedAuthorities((a) -> a.addAll(current.getAuthorities()));
 		}
 
 	}
@@ -159,8 +161,8 @@ public final class MfaConfigurer<B extends HttpSecurityBuilder<B>>
 		}
 
 		@Override
-		public Authentication grantAuthorities(Authentication authentication) {
-			Authentication granted = authentication;
+		public AuthenticationResult grantAuthorities(AuthenticationResult authentication) {
+			AuthenticationResult granted = authentication;
 			for (AuthoritiesGranter granter : this.authoritiesGranters) {
 				granted = granter.grantAuthorities(granted);
 			}
@@ -194,7 +196,7 @@ public final class MfaConfigurer<B extends HttpSecurityBuilder<B>>
 		}
 
 		@Override
-		public Authentication grantAuthorities(Authentication authentication) {
+		public AuthenticationResult grantAuthorities(AuthenticationResult authentication) {
 			Collection<GrantedAuthority> toGrant = new HashSet<>();
 			for (String authority : this.authorities) {
 				if (this.grantingTime == null) {
@@ -205,7 +207,7 @@ public final class MfaConfigurer<B extends HttpSecurityBuilder<B>>
 					toGrant.add(new ExpirableGrantedAuthority(authority, expiresAt));
 				}
 			}
-			Collection<GrantedAuthority> current = new HashSet<>(authentication.getGrantedAuthorities());
+			Collection<GrantedAuthority> current = new HashSet<>(authentication.getAuthorities());
 			toGrant.addAll(current);
 			return authentication.withGrantedAuthorities(toGrant);
 		}
@@ -216,6 +218,7 @@ public final class MfaConfigurer<B extends HttpSecurityBuilder<B>>
 
 	}
 
+	@NullMarked
 	static final class AuthoritiesGranterAuthenticationManager implements AuthenticationManager {
 
 		private final AuthenticationManager authenticationManager;
@@ -230,7 +233,8 @@ public final class MfaConfigurer<B extends HttpSecurityBuilder<B>>
 		@Override
 		public Authentication authenticate(Authentication authentication) throws AuthenticationException {
 			Authentication result = this.authenticationManager.authenticate(authentication);
-			return this.authoritiesGranter.grantAuthorities(result);
+			Assert.isInstanceOf(AuthenticationResult.class, result, "must be of type AuthenticationResult");
+			return this.authoritiesGranter.grantAuthorities((AuthenticationResult) result);
 		}
 
 	}

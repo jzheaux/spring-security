@@ -23,6 +23,7 @@ import java.util.Collections;
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.core.AuthenticationResult;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.util.Assert;
 
@@ -32,7 +33,7 @@ import org.springframework.util.Assert;
  * @author Marcus da Coregio
  * @since 6.4
  */
-public class OneTimeTokenAuthenticationToken extends AbstractAuthenticationToken {
+public class OneTimeTokenAuthenticationToken extends AbstractAuthenticationToken implements AuthenticationResult {
 
 	@Serial
 	private static final long serialVersionUID = -8691636031126328365L;

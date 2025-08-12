@@ -18,7 +18,7 @@ package org.springframework.security.authentication;
 
 import java.util.Collection;
 
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationResult;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.util.Assert;
 
@@ -31,7 +31,7 @@ import org.springframework.util.Assert;
  * @author Ben Alex
  * @author Luke Taylor
  */
-public class RememberMeAuthenticationToken extends AbstractAuthenticationToken {
+public class RememberMeAuthenticationToken extends AbstractAuthenticationToken implements AuthenticationResult {
 
 	private static final long serialVersionUID = 620L;
 
@@ -73,7 +73,7 @@ public class RememberMeAuthenticationToken extends AbstractAuthenticationToken {
 	}
 
 	@Override
-	public Authentication withGrantedAuthorities(Collection<GrantedAuthority> authorities) {
+	public RememberMeAuthenticationToken withGrantedAuthorities(Collection<GrantedAuthority> authorities) {
 		Assert.isTrue(isAuthenticated(), "cannot grant authorities to unauthenticated tokens");
 		return new RememberMeAuthenticationToken(this.keyHash, getPrincipal(), authorities);
 	}

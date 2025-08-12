@@ -16,13 +16,9 @@
 
 package org.springframework.security.core;
 
-import java.io.Serial;
 import java.io.Serializable;
 import java.security.Principal;
 import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.function.Consumer;
 
 import org.jspecify.annotations.Nullable;
 
@@ -57,9 +53,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
  * @author Ben Alex
  */
 public interface Authentication extends Principal, Serializable {
-
-	@Serial
-	long serialVersionUID = -3884394378624019849L;
 
 	/**
 	 * Set by an <code>AuthenticationManager</code> to indicate the authorities that the
@@ -142,25 +135,5 @@ public interface Authentication extends Principal, Serializable {
 	 * {@link #isAuthenticated()}
 	 */
 	void setAuthenticated(boolean isAuthenticated) throws IllegalArgumentException;
-
-	default Collection<GrantedAuthority> getGrantedAuthorities() {
-		Set<GrantedAuthority> granted = new HashSet<>();
-		for (GrantedAuthority authority : getAuthorities()) {
-			if (authority.isGranted()) {
-				granted.add(authority);
-			}
-		}
-		return granted;
-	}
-
-	default Authentication withGrantedAuthorities(Consumer<Collection<GrantedAuthority>> consumer) {
-		Collection<GrantedAuthority> existing = new HashSet<>(getGrantedAuthorities());
-		consumer.accept(existing);
-		return withGrantedAuthorities(existing);
-	}
-
-	default Authentication withGrantedAuthorities(Collection<GrantedAuthority> authorities) {
-		throw new UnsupportedOperationException("cannot grant authorities to this token");
-	}
 
 }

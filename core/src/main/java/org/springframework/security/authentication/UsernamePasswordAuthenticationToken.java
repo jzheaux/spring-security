@@ -20,6 +20,7 @@ import java.util.Collection;
 
 import org.jspecify.annotations.Nullable;
 
+import org.springframework.security.core.AuthenticationResult;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.util.Assert;
 
@@ -35,7 +36,7 @@ import org.springframework.util.Assert;
  * @author Ben Alex
  * @author Norbert Nowak
  */
-public class UsernamePasswordAuthenticationToken extends AbstractAuthenticationToken {
+public class UsernamePasswordAuthenticationToken extends AbstractAuthenticationToken implements AuthenticationResult {
 
 	private static final long serialVersionUID = 620L;
 
