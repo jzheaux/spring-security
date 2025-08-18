@@ -397,6 +397,22 @@ public class AuthorizeHttpRequestsConfigurerTests {
 	}
 
 	@Test
+	public void getWhenMultiplPathPatternParserBuilderBeansThenUsesDefaults() throws Exception {
+		this.spring.register(MultiplePathPatternRequestMatcherBuilderBeansConfig.class, BasicController.class)
+			.autowire();
+		// @formatter:off
+		this.mvc.perform(get("/one/").servletPath("/one")
+				.with(user("user").roles("ADMIN")))
+				.andExpect(status().isForbidden());
+		this.mvc.perform(get("/two/").servletPath("/two")
+						.with(user("user").roles("ADMIN")))
+				.andExpect(status().isForbidden());
+		this.mvc.perform(get("/").with(user("user").roles("ADMIN")))
+				.andExpect(status().isOk());
+		// @formatter:on
+	}
+
+	@Test
 	public void getWhenServletPathRoleAdminConfiguredAndRoleIsUserAndWithoutServletPathThenRespondsWithForbidden()
 			throws Exception {
 		this.spring.register(ServletPathConfig.class, BasicController.class).autowire();
@@ -1065,6 +1081,34 @@ public class AuthorizeHttpRequestsConfigurerTests {
 			return http
 					.authorizeHttpRequests((authorize) -> authorize
 						.requestMatchers(builder.matcher("/")).hasRole("ADMIN")
+					)
+					.build();
+			// @formatter:on
+		}
+
+	}
+
+	@Configuration
+	@EnableWebMvc
+	@EnableWebSecurity
+	static class MultiplePathPatternRequestMatcherBuilderBeansConfig {
+
+		@Bean
+		PathPatternRequestMatcher.Builder requesMatcherBuilderOne() {
+			return PathPatternRequestMatcher.withDefaults().basePath("/one");
+		}
+
+		@Bean
+		PathPatternRequestMatcher.Builder requesMatcherBuilderTwo() {
+			return PathPatternRequestMatcher.withDefaults().basePath("/two");
+		}
+
+		@Bean
+		SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+			// @formatter:off
+			return http
+					.authorizeHttpRequests((authorize) -> authorize
+						.requestMatchers("/").hasRole("ADMIN")
 					)
 					.build();
 			// @formatter:on
