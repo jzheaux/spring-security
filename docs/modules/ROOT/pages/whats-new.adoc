@@ -12,6 +12,7 @@ Each section that follows will indicate the more notable removals as well as the
 == Core
 
 * Removed `AuthorizationManager#check` in favor of `AuthorizationManager#authorize`
+* Moved Access API (`AccessDecisionManager`, `AccessDecisionVoter`, etc.) to a new module, `spring-security-access`
 
 == Config
 
