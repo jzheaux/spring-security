@@ -23,6 +23,8 @@ import java.util.List;
 
 import javax.naming.Name;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.ldap.core.DirContextOperations;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthorityUtils;
@@ -52,7 +54,7 @@ public class LdapUserDetailsImpl implements LdapUserDetails, PasswordPolicyData 
 
 	private String dn;
 
-	private String password;
+	private @Nullable String password;
 
 	private String username;
 
@@ -85,7 +87,7 @@ public class LdapUserDetailsImpl implements LdapUserDetails, PasswordPolicyData 
 	}
 
 	@Override
-	public String getPassword() {
+	public @Nullable String getPassword() {
 		return this.password;
 	}
 
@@ -251,7 +253,7 @@ public class LdapUserDetailsImpl implements LdapUserDetails, PasswordPolicyData 
 			this.instance.enabled = enabled;
 		}
 
-		public void setPassword(String password) {
+		public void setPassword(@Nullable String password) {
 			this.instance.password = password;
 		}
 

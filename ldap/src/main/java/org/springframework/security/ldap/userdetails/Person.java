@@ -19,6 +19,9 @@ package org.springframework.security.ldap.userdetails;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.ldap.core.DirContextAdapter;
 import org.springframework.ldap.core.DirContextOperations;
@@ -36,24 +39,24 @@ public class Person extends LdapUserDetailsImpl {
 
 	private static final long serialVersionUID = 620L;
 
-	private String givenName;
+	private @Nullable String givenName;
 
-	private String sn;
+	private @Nullable String sn;
 
-	private String description;
+	private @Nullable String description;
 
-	private String telephoneNumber;
+	private @Nullable String telephoneNumber;
 
 	private List<String> cn = new ArrayList<>();
 
 	protected Person() {
 	}
 
-	public String getGivenName() {
+	public @Nullable String getGivenName() {
 		return this.givenName;
 	}
 
-	public String getSn() {
+	public @Nullable String getSn() {
 		return this.sn;
 	}
 
@@ -61,11 +64,11 @@ public class Person extends LdapUserDetailsImpl {
 		return this.cn.toArray(new String[0]);
 	}
 
-	public String getDescription() {
+	public @Nullable String getDescription() {
 		return this.description;
 	}
 
-	public String getTelephoneNumber() {
+	public @Nullable String getTelephoneNumber() {
 		return this.telephoneNumber;
 	}
 
@@ -88,7 +91,7 @@ public class Person extends LdapUserDetailsImpl {
 
 		public Essence(DirContextOperations ctx) {
 			super(ctx);
-			setCn(ctx.getStringAttributes("cn"));
+			setCn(Objects.requireNonNull(ctx.getStringAttributes("cn")));
 			setGivenName(ctx.getStringAttribute("givenName"));
 			setSn(ctx.getStringAttribute("sn"));
 			setDescription(ctx.getStringAttribute("description"));
@@ -113,11 +116,11 @@ public class Person extends LdapUserDetailsImpl {
 			return new Person();
 		}
 
-		public void setGivenName(String givenName) {
+		public void setGivenName(@Nullable String givenName) {
 			((Person) this.instance).givenName = givenName;
 		}
 
-		public void setSn(String sn) {
+		public void setSn(@Nullable String sn) {
 			((Person) this.instance).sn = sn;
 		}
 
@@ -129,11 +132,11 @@ public class Person extends LdapUserDetailsImpl {
 			((Person) this.instance).cn.add(value);
 		}
 
-		public void setTelephoneNumber(String tel) {
+		public void setTelephoneNumber(@Nullable String tel) {
 			((Person) this.instance).telephoneNumber = tel;
 		}
 
-		public void setDescription(String desc) {
+		public void setDescription(@Nullable String desc) {
 			((Person) this.instance).description = desc;
 		}
 

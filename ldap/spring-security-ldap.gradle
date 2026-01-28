@@ -1,6 +1,12 @@
 apply plugin: 'io.spring.convention.spring-module'
 apply plugin: 'javadoc-warnings-error'
 apply plugin: 'compile-warnings-error'
+apply plugin: 'security-nullability'
+
+repositories {
+	mavenCentral()
+	maven { url = 'https://repo.spring.io/snapshot' }
+}
 
 dependencies {
 	management platform(project(":spring-security-dependencies"))

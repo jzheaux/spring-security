@@ -16,6 +16,10 @@
 
 package org.springframework.security.ldap.userdetails;
 
+import java.util.Objects;
+
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.ldap.core.DirContextAdapter;
 import org.springframework.ldap.core.DirContextOperations;
 
@@ -32,115 +36,115 @@ public class InetOrgPerson extends Person {
 
 	private static final long serialVersionUID = 620L;
 
-	private String carLicense;
+	private @Nullable String carLicense;
 
 	// Person.cn
-	private String destinationIndicator;
+	private @Nullable String destinationIndicator;
 
-	private String departmentNumber;
+	private @Nullable String departmentNumber;
 
 	// Person.description
-	private String displayName;
+	private @Nullable String displayName;
 
-	private String employeeNumber;
+	private @Nullable String employeeNumber;
 
-	private String homePhone;
+	private @Nullable String homePhone;
 
-	private String homePostalAddress;
+	private @Nullable String homePostalAddress;
 
-	private String initials;
+	private @Nullable String initials;
 
-	private String mail;
+	private @Nullable String mail;
 
-	private String mobile;
+	private @Nullable String mobile;
 
-	private String o;
+	private @Nullable String o;
 
-	private String ou;
+	private @Nullable String ou;
 
-	private String postalAddress;
+	private @Nullable String postalAddress;
 
-	private String postalCode;
+	private @Nullable String postalCode;
 
-	private String roomNumber;
+	private @Nullable String roomNumber;
 
-	private String street;
+	private @Nullable String street;
 
 	// Person.sn
 	// Person.telephoneNumber
-	private String title;
+	private @Nullable String title;
 
-	private String uid;
+	private @Nullable String uid;
 
 	public String getUid() {
-		return this.uid;
+		return Objects.requireNonNull(this.uid);
 	}
 
-	public String getMail() {
+	public @Nullable String getMail() {
 		return this.mail;
 	}
 
-	public String getEmployeeNumber() {
+	public @Nullable String getEmployeeNumber() {
 		return this.employeeNumber;
 	}
 
-	public String getInitials() {
+	public @Nullable String getInitials() {
 		return this.initials;
 	}
 
-	public String getDestinationIndicator() {
+	public @Nullable String getDestinationIndicator() {
 		return this.destinationIndicator;
 	}
 
-	public String getO() {
+	public @Nullable String getO() {
 		return this.o;
 	}
 
-	public String getOu() {
+	public @Nullable String getOu() {
 		return this.ou;
 	}
 
-	public String getTitle() {
+	public @Nullable String getTitle() {
 		return this.title;
 	}
 
-	public String getCarLicense() {
+	public @Nullable String getCarLicense() {
 		return this.carLicense;
 	}
 
-	public String getDepartmentNumber() {
+	public @Nullable String getDepartmentNumber() {
 		return this.departmentNumber;
 	}
 
-	public String getDisplayName() {
+	public @Nullable String getDisplayName() {
 		return this.displayName;
 	}
 
-	public String getHomePhone() {
+	public @Nullable String getHomePhone() {
 		return this.homePhone;
 	}
 
-	public String getRoomNumber() {
+	public @Nullable String getRoomNumber() {
 		return this.roomNumber;
 	}
 
-	public String getHomePostalAddress() {
+	public @Nullable String getHomePostalAddress() {
 		return this.homePostalAddress;
 	}
 
-	public String getMobile() {
+	public @Nullable String getMobile() {
 		return this.mobile;
 	}
 
-	public String getPostalAddress() {
+	public @Nullable String getPostalAddress() {
 		return this.postalAddress;
 	}
 
-	public String getPostalCode() {
+	public @Nullable String getPostalCode() {
 		return this.postalCode;
 	}
 
-	public String getStreet() {
+	public @Nullable String getStreet() {
 		return this.street;
 	}
 
@@ -214,7 +218,7 @@ public class InetOrgPerson extends Person {
 			setRoomNumber(ctx.getStringAttribute("roomNumber"));
 			setStreet(ctx.getStringAttribute("street"));
 			setTitle(ctx.getStringAttribute("title"));
-			setUid(ctx.getStringAttribute("uid"));
+			setUid(Objects.requireNonNull(ctx.getStringAttribute("uid")));
 		}
 
 		@Override
@@ -222,7 +226,7 @@ public class InetOrgPerson extends Person {
 			return new InetOrgPerson();
 		}
 
-		public void setMail(String email) {
+		public void setMail(@Nullable String email) {
 			((InetOrgPerson) this.instance).mail = email;
 		}
 
@@ -234,67 +238,67 @@ public class InetOrgPerson extends Person {
 			}
 		}
 
-		public void setInitials(String initials) {
+		public void setInitials(@Nullable String initials) {
 			((InetOrgPerson) this.instance).initials = initials;
 		}
 
-		public void setO(String organization) {
+		public void setO(@Nullable String organization) {
 			((InetOrgPerson) this.instance).o = organization;
 		}
 
-		public void setOu(String ou) {
+		public void setOu(@Nullable String ou) {
 			((InetOrgPerson) this.instance).ou = ou;
 		}
 
-		public void setRoomNumber(String no) {
+		public void setRoomNumber(@Nullable String no) {
 			((InetOrgPerson) this.instance).roomNumber = no;
 		}
 
-		public void setTitle(String title) {
+		public void setTitle(@Nullable String title) {
 			((InetOrgPerson) this.instance).title = title;
 		}
 
-		public void setCarLicense(String carLicense) {
+		public void setCarLicense(@Nullable String carLicense) {
 			((InetOrgPerson) this.instance).carLicense = carLicense;
 		}
 
-		public void setDepartmentNumber(String departmentNumber) {
+		public void setDepartmentNumber(@Nullable String departmentNumber) {
 			((InetOrgPerson) this.instance).departmentNumber = departmentNumber;
 		}
 
-		public void setDisplayName(String displayName) {
+		public void setDisplayName(@Nullable String displayName) {
 			((InetOrgPerson) this.instance).displayName = displayName;
 		}
 
-		public void setEmployeeNumber(String no) {
+		public void setEmployeeNumber(@Nullable String no) {
 			((InetOrgPerson) this.instance).employeeNumber = no;
 		}
 
-		public void setDestinationIndicator(String destination) {
+		public void setDestinationIndicator(@Nullable String destination) {
 			((InetOrgPerson) this.instance).destinationIndicator = destination;
 		}
 
-		public void setHomePhone(String homePhone) {
+		public void setHomePhone(@Nullable String homePhone) {
 			((InetOrgPerson) this.instance).homePhone = homePhone;
 		}
 
-		public void setStreet(String street) {
+		public void setStreet(@Nullable String street) {
 			((InetOrgPerson) this.instance).street = street;
 		}
 
-		public void setPostalCode(String postalCode) {
+		public void setPostalCode(@Nullable String postalCode) {
 			((InetOrgPerson) this.instance).postalCode = postalCode;
 		}
 
-		public void setPostalAddress(String postalAddress) {
+		public void setPostalAddress(@Nullable String postalAddress) {
 			((InetOrgPerson) this.instance).postalAddress = postalAddress;
 		}
 
-		public void setMobile(String mobile) {
+		public void setMobile(@Nullable String mobile) {
 			((InetOrgPerson) this.instance).mobile = mobile;
 		}
 
-		public void setHomePostalAddress(String homePostalAddress) {
+		public void setHomePostalAddress(@Nullable String homePostalAddress) {
 			((InetOrgPerson) this.instance).homePostalAddress = homePostalAddress;
 		}
 
