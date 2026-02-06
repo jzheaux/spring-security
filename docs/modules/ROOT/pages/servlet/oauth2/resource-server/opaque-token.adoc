@@ -638,6 +638,55 @@ fun getMessages(): List<Message?> {}
 ----
 ======
 
+[[oauth2resourceserver-opaque-authorization-manager-factory]]
+=== Using an `OAuth2AuthorizationManagerFactory`
+
+Because method security expressions can evaluation `AuthorizationManager` instances, you can also use the `hasScope` API by publishing a `DefaultOAuth2AuthorizationManagerFactory` `@Bean`:
+
+[tabs]
+======
+Java::
++
+[source,java,role="primary"]
+----
+@Bean
+OAuth2AuthorizationManagerFactory oauth2() {
+	return new DefaultOAuth2AuthorizationManagerFactory();
+}
+----
+
+Kotlin::
++
+[source,kotlin,role="secondary"]
+----
+@Bean
+fun oauth2(): OAuth2AuthorizationManagerFactory {
+	return DefaultOAuth2AuthorizationManagerFactory()
+}
+----
+======
+
+and then doing:
+
+[tabs]
+======
+Java::
++
+[source,java,role="primary"]
+----
+@PreAuthorize("@oauth2.hasScope('messages')")
+public List<Message> getMessages(...) {}
+----
+
+Kotlin::
++
+[source,kotlin,role="secondary"]
+----
+@PreAuthorize("@oauth2.hasScope('messages')")
+fun getMessages(): List<Message> { }
+----
+======
+
 [[oauth2resourceserver-opaque-authorization-extraction]]
 === Extracting Authorities Manually
 
