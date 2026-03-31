@@ -16,6 +16,8 @@
 
 package org.springframework.security.oauth2.server.authorization.authentication;
 
+import java.io.Serial;
+
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.security.core.Authentication;
@@ -33,6 +35,9 @@ import org.springframework.security.oauth2.core.OAuth2Error;
  * @see OAuth2AuthorizationCodeRequestAuthenticationProvider
  */
 public class OAuth2AuthorizationCodeRequestAuthenticationException extends OAuth2AuthenticationException {
+
+	@Serial
+	private static final long serialVersionUID = -3791188557904282453L;
 
 	private final @Nullable OAuth2AuthorizationCodeRequestAuthenticationToken authorizationCodeRequestAuthentication;
 
